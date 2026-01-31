@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle DNCP - SIGECOP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+        
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .summary-card {
+            background: #f9fbfc;
+            border: 1px solid #ecf0f1;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        
+        .summary-label {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+        
+        .section {
+            margin-top: 20px;
+        }
+        
+        .section-title {
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .lot-card {
+            border: 1px solid #ecf0f1;
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 12px;
+            background: #fff;
+        }
+        
+        .lot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .lot-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .lot-value {
+            font-size: 0.9em;
+            color: #34495e;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+        
+        th {
+            background: #ecf0f1;
+            padding: 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #bdc3c7;
+            font-size: 0.9em;
+        }
+        
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .empty {
+            padding: 14px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            background: #f9fbfc;
+            border: 1px dashed #ecf0f1;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📌 Detalle de Licitación (DNCP)</h1>
+        <p class="subtitle">Vista previa antes de importar</p>
+
+        <div class="summary">
+            <div class="summary-card">
+                <div class="summary-label">Título</div>
+                <div>{{ tender.title }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">OCID</div>
+                <div>{{ tender.ocid }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Entidad</div>
+                <div>{{ tender.procuringEntity }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Estado</div>
+                <div>{{ tender.status }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Valor</div>
+                <div>{{ tender.value }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Inicio / Fin</div>
+                <div>{{ tender.start_date }} - {{ tender.end_date }}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Lotes</div>
+            {% for lote in tender.lotes %}
+                <div class="lot-card">
+                    <div class="lot-header">
+                        <div class="lot-title">{{ lote.description1 }}</div>
+                        <div class="lot-value">{{ lote.value }}</div>
+                    </div>
+                    {% if lote.items %}
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Descripción</th>
+                                    <th>Cantidad</th>
+                                    <th>Unidad</th>
+                                    <th>Valor Unitario</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in lote.items %}
+                                    <tr>
+                                        <td>{{ item.description }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>{{ item.unit }}</td>
+                                        <td>{{ item.value }}</td>
+                                        <td>{{ item.total_value }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="empty">No hay items para este lote.</div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <div class="empty">No hay lotes disponibles.</div>
+            {% endfor %}
+        </div>
+
+        <div class="section">
+            <div class="section-title">Adjudicaciones</div>
+            {% if awards %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Proveedor</th>
+                            <th>Valor</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for award in awards %}
+                            <tr>
+                                <td>{{ award.title }}</td>
+                                <td>{{ award.supplier }}</td>
+                                <td>{{ award.value }}</td>
+                                <td>{{ award.date }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty">No hay adjudicaciones disponibles.</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

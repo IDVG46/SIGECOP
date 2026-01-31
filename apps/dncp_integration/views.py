@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 import requests
@@ -75,3 +75,47 @@ def procesos_licitacion(request):
         context = {"licitaciones": [], "error": str(e)}
     
     return render(request, "dncp_integration/dncp_list.html", context)
+
+@require_http_methods(["GET"])
+def dncp_detail(request, ocid):
+    """
+    Muestra detalles de un proceso de licitación desde DNCP.
+    """
+    try:
+        # Inicializar cliente API
+        client = DNCPApiClient()
+        
+        # Obtener datos del proceso
+        data = client.get_record(ocid)
+        records = data.get("records", [])
+        
+        if not records:
+            messages.error(request, "No se encontraron datos para el OCID proporcionado")
+            return redirect("dncp_integration:dncp_list")
+        
+        record = records[0]
+        compiled_release = record.get("compiledRelease", {})
+        tender = compiled_release.get("tender", {})
+        awards = compiled_release.get("awards", [])
+        
+        # Procesar tender
+        tender_data, awards_list = DNCPDataProcessor.process_record_detail(record)
+        
+        # Procesar lotes e items
+        lotes = DNCPDataProcessor.process_tender_lots_and_items(tender)
+        tender_data["lotes"] = lotes
+        
+        context = {
+            "tender": tender_data,
+            "awards": awards_list,
+            "ocid": ocid,
+        }
+        
+    except requests.exceptions.RequestException as e:
+        messages.error(request, f"Error de conexión con API DNCP: {str(e)}")
+        return redirect("dncp_integration:dncp_list")
+    except Exception as e:
+        messages.error(request, f"Error procesando datos: {str(e)}")
+        return redirect("dncp_integration:dncp_list")
+    
+    return render(request, "dncp_integration/dncp_detail.html", context)

@@ -180,7 +180,9 @@
                         {% for licitacion in licitaciones %}
                             <tr>
                                 <td>
-                                    <span class="ocid">{{ licitacion.id }}</span>
+                                    <a href="{% url 'dncp_integration:dncp_detail' licitacion.ocid %}">
+                                        <span class="ocid">{{ licitacion.id }}</span>
+                                    </a>
                                 </td>
                                 <td>{{ licitacion.title }}</td>
                                 <td>{{ licitacion.procuringEntity }}</td>

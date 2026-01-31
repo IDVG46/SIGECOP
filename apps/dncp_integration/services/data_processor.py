@@ -58,6 +58,82 @@ class DNCPDataProcessor:
         return licitaciones, ocid_list
     
     @classmethod
+    def process_tender_lots_and_items(cls, tender):
+        """Procesa lotes e items del tender con su estructura completa."""
+        tender_items = tender.get("items", [])
+        tender_lotes = tender.get("lots", [])
+        award_criteria = tender.get("awardCriteriaDetails")
+        
+        if award_criteria in ["Por Lote", "Por Total"]:
+            # Agrupar por lotes
+            lotes = []
+            for lote in tender_lotes:
+                lote_data = {
+                    "description": lote.get("title"),
+                    "id": lote.get("id"),
+                    "description1": lote.get("title", "").split("-")[-1].strip(),
+                    "value": cls.format_currency(lote.get("value", {}).get("amount")),
+                    "min_value": cls.format_currency(lote.get("minValue", {}).get("amount")),
+                    "openContractType": lote.get("openContractType") if lote.get("openContractType") is not None else "No",
+                    "orden": next((attr.get("id") for attr in lote.get("attributes", []) if attr.get("name") == "Orden"), None),
+                    "items": []
+                }
+                
+                # Items del lote
+                for item in tender_items:
+                    if item.get("relatedLot") == lote.get("id"):
+                        item_data = {
+                            "description": item.get("description"),
+                            "relatedLot": item.get("relatedLot"),
+                            "idcatalogo": item.get("classification", {}).get("id"),
+                            "quantity": item.get("quantity") if item.get("quantity") is not None else lote.get("openContractType"),
+                            "unit": item.get("unit", {}).get("name"),
+                            "value": f"{item.get('unit', {}).get('value', {}).get('amount', 0):,.0f}".replace(",", "."),
+                            "total_value": f"{item.get('unit', {}).get('value', {}).get('amount', 0) * (item.get('quantity') or 1):,.0f}".replace(",", "."),
+                            "orden": next((attr.get("value") for attr in item.get("attributes", []) if attr.get("name") == "Orden"), None),
+                        }
+                        lote_data["items"].append(item_data)
+                
+                # Ordenar items por orden
+                lote_data["items"] = sorted(
+                    lote_data["items"],
+                    key=lambda x: float(x["orden"]) if x["orden"] and str(x["orden"]).replace('.', '', 1).isdigit() else float('inf')
+                )
+                lotes.append(lote_data)
+            
+            # Ordenar lotes por orden
+            lotes = sorted(
+                lotes,
+                key=lambda x: float(x["orden"]) if x["orden"] and str(x["orden"]).isdigit() else float('inf')
+            )
+        else:
+            # Lote único con todos los items
+            lotes = [{
+                "description": "",
+                "id": "unique",
+                "description1": "Todos los items",
+                "value": cls.format_currency(tender.get("value", {}).get("amount")),
+                "min_value": None,
+                "openContractType": "No",
+                "orden": "1",
+                "items": [
+                    {
+                        "description": item.get("description"),
+                        "relatedLot": item.get("relatedLot"),
+                        "idcatalogo": item.get("classification", {}).get("id"),
+                        "quantity": item.get("quantity"),
+                        "unit": item.get("unit", {}).get("name"),
+                        "value": f"{item.get('unit', {}).get('value', {}).get('amount', 0):,.0f}".replace(",", "."),
+                        "total_value": f"{item.get('unit', {}).get('value', {}).get('amount', 0) * item.get('quantity', 0):,.0f}".replace(",", "."),
+                        "orden": next((attr.get("value") for attr in item.get("attributes", []) if attr.get("name") == "Orden"), None),
+                    }
+                    for item in tender_items
+                ]
+            }]
+        
+        return lotes    
+    
+    @classmethod
     def process_record_detail(cls, record):
         """Procesa detalles de un proceso individual."""
         compiled_release = record.get("compiledRelease", {})
