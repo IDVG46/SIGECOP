@@ -20,6 +20,7 @@ def procesos_licitacion(request):
         params = {
             "items_per_page": 100,
             "parties.identifier.id": "1369",  # ID FPUNA
+            "tender.procuringEntity.name": "Facultad Politecnica / Universidad Nacional de Asunción", # Nombre Convocante
             "page": 1
         }
         
