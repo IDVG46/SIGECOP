@@ -8,7 +8,7 @@ from .services.data_processor import DNCPDataProcessor
 
 
 @require_http_methods(["GET"])
-def procesos_licitacion(request):
+def dncp_list(request):
     """
     Lista procesos de licitación de la FPUNA desde la API DNCP.
     """

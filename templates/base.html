@@ -1,0 +1,393 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="description" content="{% block meta_description %}SIGECOP - Sistema de Gestión de Contrataciones Públicas{% endblock %}"/>
+    <meta name="author" content="FPUNA"/>
+    <title>{% block title %}SIGECOP{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    
+    <!-- Font Awesome (iconos) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+    
+    <!-- DataTables CSS (para tablas) -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
+    
+    {% block extra_css %}{% endblock %}
+    
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      html, body {
+        height: 100%;
+      }
+      
+      body {
+        font-size: 0.875rem;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        color: #2c3e50;
+        background-color: #f8f9fa;
+      }
+      
+      .wrapper {
+        display: flex;
+        height: 100vh;
+      }
+      
+      /* Sidebar */
+      .sidebar {
+        width: 240px;
+        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        overflow-y: auto;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+      }
+      
+      .sidebar .logo {
+        padding: 1rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+      
+      .sidebar .logo a {
+        color: white;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      
+      .sidebar .menu {
+        list-style: none;
+        padding: 0.5rem 0;
+      }
+      
+      .sidebar .menu-item {
+        margin: 0;
+      }
+      
+      .sidebar .menu-item a {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.55rem 1rem;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: all 0.2s;
+      }
+      
+      .sidebar .menu-item a:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+      
+      .sidebar .menu-item a.active {
+        background-color: #3498db;
+        color: white;
+        border-left: 4px solid #2980b9;
+        padding-left: calc(1rem - 4px);
+      }
+      
+      .sidebar .menu-item i {
+        width: 20px;
+        text-align: center;
+      }
+      
+      /* Main content */
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      
+      /* Header */
+      .header {
+        background-color: white;
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.75rem 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      
+      .header .title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+      
+      .header .subtitle {
+        font-size: 0.8rem;
+        color: #7f8c8d;
+        margin: 0.15rem 0 0 0;
+      }
+      
+      /* Content area */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+      }
+      
+      /* Breadcrumb */
+      .breadcrumb {
+        background-color: transparent;
+        padding: 0 0 0.5rem 0;
+        margin-bottom: 0.5rem;
+      }
+      
+      .breadcrumb-item.active {
+        color: #7f8c8d;
+      }
+      
+      .breadcrumb-item a {
+        color: #3498db;
+        text-decoration: none;
+      }
+      
+      .breadcrumb-item a:hover {
+        text-decoration: underline;
+      }
+      
+      /* Cards */
+      .card {
+        border: 1px solid #e9ecef;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1rem;
+      }
+      
+      .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+      
+      .card-body {
+        padding: 1rem;
+      }
+      
+      /* Tables */
+      .table {
+        margin-bottom: 0;
+      }
+      
+      .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #e9ecef;
+        font-weight: 600;
+        color: #2c3e50;
+        padding: 0.5rem 0.75rem;
+      }
+      
+      .table tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+      }
+      
+      .table tbody tr:hover {
+        background-color: #f8f9fa;
+      }
+      
+      /* Badges */
+      .badge {
+        padding: 0.25em 0.5em;
+        font-weight: 500;
+        font-size: 0.8em;
+      }
+      
+      /* Buttons */
+      .btn {
+        padding: 0.4rem 0.85rem;
+        font-weight: 500;
+      }
+      
+      .btn-sm {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.82em;
+      }
+      
+      .btn-primary {
+        background-color: #3498db;
+        border-color: #3498db;
+      }
+      
+      .btn-primary:hover {
+        background-color: #2980b9;
+        border-color: #2980b9;
+      }
+      
+      /* Toggle sidebar button */
+      .toggle-sidebar {
+        display: none;
+        background: none;
+        border: none;
+        color: #2c3e50;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+      
+      /* Responsive */
+      @media (max-width: 768px) {
+        .wrapper {
+          flex-direction: column;
+        }
+        
+        .sidebar {
+          width: 100%;
+          height: auto;
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+        }
+        
+        .sidebar.show {
+          max-height: 500px;
+        }
+        
+        .toggle-sidebar {
+          display: block;
+        }
+        
+        .header {
+          padding: 0.75rem 1rem;
+        }
+        
+        .header .title {
+          font-size: 1.1rem;
+        }
+        
+        .content {
+          padding: 0.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="logo">
+          <a href="{% url 'dncp_integration:dncp_list' %}">
+            <i class="fas fa-briefcase"></i>
+            <span>SIGECOP</span>
+          </a>
+        </div>
+        <ul class="menu">
+          <li class="menu-item">
+            <a href="{% url 'dncp_integration:dncp_list' %}" {% if request.resolver_match.url_name == 'dncp_list' %}class="active"{% endif %}>
+              <i class="fas fa-file-contract"></i>
+              <span>Licitaciones DNCP</span>
+            </a>
+          </li>
+        </ul>
+      </aside>
+      
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- Header -->
+        <header class="header">
+          <div>
+            <button class="toggle-sidebar" id="toggleSidebar">
+              <i class="fas fa-bars"></i>
+            </button>
+            <div>
+              <h1 class="title">{% block page_title %}SIGECOP{% endblock %}</h1>
+              <p class="subtitle">{% block page_subtitle %}Sistema de Gestión de Contrataciones Públicas - FPUNA{% endblock %}</p>
+            </div>
+          </div>
+        </header>
+        
+        <!-- Content -->
+        <div class="content">
+          <!-- Breadcrumb -->
+          {% block breadcrumb %}{% endblock %}
+          
+          <!-- Main content block -->
+          {% block content %}{% endblock %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+      // Inicializar DataTables en tablas marcadas
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.jQuery && $.fn.DataTable) {
+          $('.datatable').each(function() {
+            if (!$.fn.DataTable.isDataTable(this)) {
+              $(this).DataTable({
+                language: {
+                  "sProcessing":     "Procesando...",
+                  "sLengthMenu":     "Mostrar _MENU_ registros",
+                  "sZeroRecords":    "No se encontraron resultados",
+                  "sEmptyTable":     "Ningún dato disponible en esta tabla",
+                  "sInfo":           "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+                  "sInfoEmpty":      "Mostrando registros del 0 al 0 de un total de 0 registros",
+                  "sInfoFiltered":   "(filtrado de un total de _MAX_ registros)",
+                  "sInfoPostFix":    "",
+                  "sSearch":         "Buscar:",
+                  "sUrl":            "",
+                  "sInfoThousands":  ",",
+                  "sLoadingRecords": "Cargando...",
+                  "oPaginate": {
+                    "sFirst":    "Primero",
+                    "sLast":     "Último",
+                    "sNext":     "Siguiente",
+                    "sPrevious": "Anterior"
+                  },
+                  "oAria": {
+                    "sSortAscending":  ": Activar para ordenar la columna de manera ascendente",
+                    "sSortDescending": ": Activar para ordenar la columna de manera descendente"
+                  }
+                },
+                pageLength: 25,
+                responsive: true
+              });
+            }
+          });
+        }
+      });
+
+      // Toggle sidebar en móvil
+      document.getElementById('toggleSidebar').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('show');
+      });
+      
+      // Cerrar sidebar al hacer click en un link
+      document.querySelectorAll('.sidebar .menu-item a').forEach(link => {
+        link.addEventListener('click', function() {
+          if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('show');
+          }
+        });
+      });
+    </script>
+      // Activar tooltips de Bootstrap
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        new bootstrap.Tooltip(el);
+      });
+
+    
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>
