@@ -8,6 +8,18 @@ from .services.data_processor import DNCPDataProcessor
 
 
 @require_http_methods(["GET"])
+def home(request):
+    """
+    Página de inicio de SIGECOP.
+    """
+    context = {
+        "app_name": "SIGECOP",
+        "app_description": "Sistema de Gestión de Contrataciones Públicas",
+    }
+    return render(request, "home.html", context)
+
+
+@require_http_methods(["GET"])
 def dncp_list(request):
     """
     Lista procesos de licitación de la FPUNA desde la API DNCP.

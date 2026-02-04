@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inicio - SIGECOP{% endblock %}
+{% block meta_description %}Bienvenido a SIGECOP - Sistema de Gestión de Contrataciones Públicas{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-md-12">
+            <div class="jumbotron bg-light p-5 rounded">
+                <h1 class="display-4 mb-4">
+                    <i class="fa fa-briefcase"></i> SIGECOP
+                </h1>
+                <p class="lead mb-4">Sistema de Gestión de Contrataciones Públicas</p>
+                <p class="lead mb-4">
+                    Bienvenido al Sistema de Información de Gestión de Contrataciones Públicas de la 
+                    <strong>Facultad Politécnica - Universidad Nacional de Asunción</strong>
+                </p>
+                <hr class="my-4">
+                <p>Acceda a la información de licitaciones, procesos de contratación y datos integrados con el DNCP.</p>
+                <a class="btn btn-primary btn-lg" href="{% url 'dncp_integration:dncp_list' %}" role="button">
+                    <i class="fa fa-list"></i> Ver Licitaciones
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fa fa-search text-primary"></i> Búsqueda de Licitaciones
+                    </h5>
+                    <p class="card-text">
+                        Acceda a un listado completo de procesos de licitación de la FPUNA integrados 
+                        con la base de datos del DNCP en tiempo real.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fa fa-info-circle text-info"></i> Detalles de Procesos
+                    </h5>
+                    <p class="card-text">
+                        Consulte información detallada de cada proceso de contratación, incluyendo 
+                        lotes, items, adjudicaciones y documentación relacionada.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fa fa-database text-success"></i> Integración DNCP
+                    </h5>
+                    <p class="card-text">
+                        Datos actualizados desde la plataforma de Compras Públicas del DNCP, 
+                        garantizando información precisa y oportuna.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="row mb-5">
+        <div class="col-md-12">
+            <h3 class="mb-4">Información General</h3>
+            <div class="alert alert-info" role="alert">
+                <h4 class="alert-heading">
+                    <i class="fa fa-building"></i> Facultad Politécnica - FPUNA
+                </h4>
+                <p>
+                    Esta plataforma integra y sistematiza la información de contrataciones públicas 
+                    de la Facultad Politécnica de la Universidad Nacional de Asunción, facilitando 
+                    el acceso a datos sobre procesos de licitación, adjudicaciones y ejecución de contratos.
+                </p>
+                <hr>
+                <p class="mb-0">
+                    <strong>ID en DNCP:</strong> 1369 | 
+                    <strong>Entidad:</strong> Facultad Politécnica / Universidad Nacional de Asunción
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links Section -->
+    <div class="row">
+        <div class="col-md-12">
+            <h3 class="mb-4">Enlaces Rápidos</h3>
+            <div class="list-group">
+                <a href="{% url 'dncp_integration:dncp_list' %}" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">
+                        <i class="fa fa-list"></i> Procesos de Licitación
+                    </h5>
+                    <p class="mb-1">Acceder al listado completo de licitaciones</p>
+                </a>
+                <a href="/admin/" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">
+                        <i class="fa fa-lock"></i> Panel de Administración
+                    </h5>
+                    <p class="mb-1">Acceso restringido para administradores</p>
+                </a>
+                <a href="https://www.dncp.gov.py/" target="_blank" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">
+                        <i class="fa fa-external-link"></i> Sitio Web DNCP
+                    </h5>
+                    <p class="mb-1">Portal oficial de Compras Públicas del Paraguay</p>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .jumbotron {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+    }
+
+    .jumbotron h1,
+    .jumbotron .lead {
+        color: white;
+    }
+
+    .jumbotron hr {
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .card {
+        border: none;
+        transition: transform 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    .card-title i {
+        margin-right: 8px;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
