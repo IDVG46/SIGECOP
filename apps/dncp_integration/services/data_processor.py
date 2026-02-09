@@ -60,14 +60,52 @@ class DNCPDataProcessor:
     @classmethod
     def process_tender_lots_and_items(cls, tender):
         """Procesa lotes e items del tender con su estructura completa."""
+        def extract_group_prefix(value):
+            if not value:
+                return None
+            text = str(value).strip()
+            if not text:
+                return None
+            prefix = text.split("-", 1)[0].strip()
+            return prefix or None
         tender_items = tender.get("items", [])
         tender_lotes = tender.get("lots", [])
         award_criteria = tender.get("awardCriteriaDetails")
+
+        def order_key(value):
+            if value is None:
+                return float("inf")
+            text = str(value).strip()
+            if not text:
+                return float("inf")
+            try:
+                return float(text)
+            except ValueError:
+                parts = [p for p in text.split(".") if p.isdigit()]
+                if parts:
+                    normalized = ".".join(parts)
+                    try:
+                        return float(normalized)
+                    except ValueError:
+                        return float("inf")
+            return float("inf")
         
         if award_criteria in ["Por Lote", "Por Total"]:
             # Agrupar por lotes
             lotes = []
             for lote in tender_lotes:
+                orden_attr = next(
+                    (attr for attr in lote.get("attributes", []) if attr.get("name") == "Orden"),
+                    None
+                )
+                orden_value = orden_attr.get("value") if orden_attr else None
+                orden_id = orden_attr.get("id") if orden_attr else None
+                orden = None
+                if orden_id and orden_value:
+                    orden = f"{orden_id}.{orden_value}"
+                else:
+                    orden = orden_value or orden_id
+
                 lote_data = {
                     "description": lote.get("title"),
                     "id": lote.get("id"),
@@ -75,13 +113,27 @@ class DNCPDataProcessor:
                     "value": cls.format_currency(lote.get("value", {}).get("amount")),
                     "min_value": cls.format_currency(lote.get("minValue", {}).get("amount")),
                     "openContractType": lote.get("openContractType") if lote.get("openContractType") is not None else "No",
-                    "orden": next((attr.get("id") for attr in lote.get("attributes", []) if attr.get("name") == "Orden"), None),
+                    "orden": orden,
                     "items": []
                 }
                 
                 # Items del lote
                 for item in tender_items:
                     if item.get("relatedLot") == lote.get("id"):
+                        subitems_data = []
+                        for subitem in item.get("subItems", []) or []:
+                            sub_amount = subitem.get("unit", {}).get("value", {}).get("amount", 0)
+                            sub_qty = subitem.get("quantity") or 1
+                            subitems_data.append({
+                                "description": subitem.get("description"),
+                                "group": subitem.get("group"),
+                                "order_no": extract_group_prefix(subitem.get("group")),
+                                "quantity": subitem.get("quantity"),
+                                "unit": subitem.get("unit", {}).get("name"),
+                                "value": f"{sub_amount:,.0f}".replace(",", "."),
+                                "total_value": f"{sub_amount * sub_qty:,.0f}".replace(",", "."),
+                            })
+
                         item_data = {
                             "description": item.get("description"),
                             "relatedLot": item.get("relatedLot"),
@@ -91,20 +143,21 @@ class DNCPDataProcessor:
                             "value": f"{item.get('unit', {}).get('value', {}).get('amount', 0):,.0f}".replace(",", "."),
                             "total_value": f"{item.get('unit', {}).get('value', {}).get('amount', 0) * (item.get('quantity') or 1):,.0f}".replace(",", "."),
                             "orden": next((attr.get("value") for attr in item.get("attributes", []) if attr.get("name") == "Orden"), None),
+                            "subitems": subitems_data,
                         }
                         lote_data["items"].append(item_data)
                 
                 # Ordenar items por orden
                 lote_data["items"] = sorted(
                     lote_data["items"],
-                    key=lambda x: float(x["orden"]) if x["orden"] and str(x["orden"]).replace('.', '', 1).isdigit() else float('inf')
+                    key=lambda x: order_key(x["orden"])
                 )
                 lotes.append(lote_data)
             
             # Ordenar lotes por orden
             lotes = sorted(
                 lotes,
-                key=lambda x: float(x["orden"]) if x["orden"] and str(x["orden"]).isdigit() else float('inf')
+                key=lambda x: order_key(x["orden"])
             )
         else:
             # Lote único con todos los items

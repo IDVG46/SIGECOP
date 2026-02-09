@@ -30,10 +30,55 @@
     font-weight: 600;
     color: #438EB9;
   }
+  .dncp-detail .general-info {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid #DCEBF7;
+    background-color: #F7FAFD;
+    border-radius: 4px;
+  }
+  .dncp-detail .general-info__item {
+    padding: 8px 10px;
+    background-color: #FFFFFF;
+    border: 1px solid #E3E7ED;
+    border-radius: 4px;
+  }
+  .dncp-detail .general-info__item--wide {
+    grid-column: span 2;
+  }
+  .dncp-detail .general-info__label {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  .dncp-detail .general-info__value {
+    font-size: 1em;
+    line-height: 1.2;
+    color: #222;
+  }
+  @media (max-width: 991px) {
+    .dncp-detail .general-info {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .dncp-detail .general-info__item--wide {
+      grid-column: span 2;
+    }
+  }
+  @media (max-width: 575px) {
+    .dncp-detail .general-info {
+      grid-template-columns: 1fr;
+    }
+    .dncp-detail .general-info__item--wide {
+      grid-column: span 1;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="dncp-detail">
 <div class="clearfix">
   <a href="{% url 'dncp_integration:dncp_list' %}" class="btn btn-sm btn-default">
     <i class="ace-icon fa fa-arrow-left"></i>
@@ -42,67 +87,6 @@
 </div>
 
 <div class="space-12"></div>
-
-<!-- Summary -->
-<div class="row">
-  <div class="col-xs-12 col-sm-6 col-md-3">
-    <div class="infobox infobox-blue">
-      <div class="infobox-icon">
-        <i class="ace-icon fa fa-barcode"></i>
-      </div>
-      <div class="infobox-data">
-        <span class="infobox-data-number text-mono">{{ ocid }}</span>
-        <div class="infobox-content">OCID</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xs-12 col-sm-6 col-md-3">
-    <div class="infobox infobox-grey">
-      <div class="infobox-icon">
-        <i class="ace-icon fa fa-building"></i>
-      </div>
-      <div class="infobox-data">
-        <span class="infobox-data-number">{{ tender.procuringEntity }}</span>
-        <div class="infobox-content">Entidad</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xs-12 col-sm-6 col-md-3">
-    <div class="infobox infobox-green">
-      <div class="infobox-icon">
-        <i class="ace-icon fa fa-info-circle"></i>
-      </div>
-      <div class="infobox-data">
-        <span class="infobox-data-number">
-          {% if tender.status == 'active' %}
-          <span class="label label-success arrowed-in">{{ tender.status }}</span>
-          {% elif tender.status == 'closed' %}
-          <span class="label label-danger arrowed">{{ tender.status }}</span>
-          {% else %}
-          <span class="label label-grey arrowed">{{ tender.status }}</span>
-          {% endif %}
-        </span>
-        <div class="infobox-content">Estado</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-xs-12 col-sm-6 col-md-3">
-    <div class="infobox infobox-orange">
-      <div class="infobox-icon">
-        <i class="ace-icon fa fa-money"></i>
-      </div>
-      <div class="infobox-data">
-        <span class="infobox-data-number">{{ tender.value }}</span>
-        <div class="infobox-content">Valor</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="space-20"></div>
 
 <!-- Tender Details -->
 <div class="widget-box">
@@ -114,18 +98,38 @@
   </div>
   <div class="widget-body">
     <div class="widget-main">
-      <div class="row">
-        <div class="col-sm-6">
-          <p>
-            <strong>Título:</strong><br />
-            {{ tender.title }}
-          </p>
+      <div class="general-info">
+        <div class="general-info__item">
+          <div class="general-info__label">OCID</div>
+          <div class="general-info__value text-mono">{{ ocid }}</div>
         </div>
-        <div class="col-sm-6">
-          <p>
-            <strong>Período:</strong><br />
-            {{ tender.start_date }} → {{ tender.end_date }}
-          </p>
+        <div class="general-info__item">
+          <div class="general-info__label">Entidad</div>
+          <div class="general-info__value">{{ tender.procuringEntity }}</div>
+        </div>
+        <div class="general-info__item">
+          <div class="general-info__label">Estado</div>
+          <div class="general-info__value">
+            {% if tender.status == 'active' %}
+            <span class="label label-success arrowed-in">{{ tender.status }}</span>
+            {% elif tender.status == 'closed' %}
+            <span class="label label-danger arrowed">{{ tender.status }}</span>
+            {% else %}
+            <span class="label label-grey arrowed">{{ tender.status }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="general-info__item">
+          <div class="general-info__label">Valor</div>
+          <div class="general-info__value">{{ tender.value }}</div>
+        </div>
+        <div class="general-info__item general-info__item--wide">
+          <div class="general-info__label">Título</div>
+          <div class="general-info__value">{{ tender.title }}</div>
+        </div>
+        <div class="general-info__item general-info__item--wide">
+          <div class="general-info__label">Período</div>
+          <div class="general-info__value">{{ tender.start_date }} → {{ tender.end_date }}</div>
         </div>
       </div>
     </div>
@@ -141,6 +145,15 @@
       <i class="ace-icon fa fa-tags"></i>
       Lotes
     </h4>
+    <div class="widget-toolbar">
+      <a href="#" id="expand-all-lotes" title="Expandir todos">
+        <i class="ace-icon fa fa-plus-square"></i>
+      </a>
+      <span class="divider">|</span>
+      <a href="#" id="collapse-all-lotes" title="Contraer todos">
+        <i class="ace-icon fa fa-minus-square"></i>
+      </a>
+    </div>
   </div>
   <div class="widget-body">
     <div class="widget-main">
@@ -150,18 +163,22 @@
             <div class="widget-header widget-header-blue widget-header-flat">
               <h5 class="widget-title smaller">
                 <i class="ace-icon fa fa-tag"></i>
-                {{ lote.description1 }}
+                {{ lote.orden|default:forloop.counter }} LOTE {{ lote.description1 }} - GRUPO {{ lote.description1 }}
               </h5>
               <div class="widget-toolbar">
                 <span class="lot-value">{{ lote.value }}</span>
+                <a href="#lote-{{ forloop.counter }}" data-toggle="collapse" aria-expanded="false" class="collapsed">
+                  <i class="ace-icon fa fa-chevron-down"></i>
+                </a>
               </div>
             </div>
-            <div class="widget-body">
+            <div id="lote-{{ forloop.counter }}" class="widget-body collapse lote-collapse">
               <div class="widget-main no-padding">
                 {% if lote.items %}
-                  <table class="table table-striped table-bordered table-hover datatable">
+                  <table class="table table-striped table-bordered table-hover datatable-items">
                     <thead>
                       <tr>
+                        <th class="center" style="width: 10%;">N° de Item</th>
                         <th style="width: 40%;">
                           <i class="ace-icon fa fa-file-text-o bigger-110 hidden-480"></i>
                           Descripción
@@ -187,11 +204,50 @@
                     <tbody>
                       {% for item in lote.items %}
                         <tr>
+                          <td class="center">
+                            <span>{{ item.orden|default:forloop.counter }}</span>
+                          </td>
                           <td>{{ item.description }}</td>
                           <td class="center">{{ item.quantity }}</td>
                           <td>{{ item.unit }}</td>
                           <td>{{ item.value }}</td>
-                          <td><strong>{{ item.total_value }}</strong></td>
+                          <td>
+                            <strong>{{ item.total_value }}</strong>
+                            {% if item.subitems %}
+                              <a href="#" class="open-subitems pull-right"
+                                 data-subitems-id="subitems-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                                 data-item-orden="{{ item.orden|default:forloop.counter }}"
+                                 data-item-desc="{{ item.description|default:''|escape }}">
+                                <i class="ace-icon fa fa-plus-square"></i>
+                              </a>
+                              <script type="text/template" id="subitems-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                                <table class="table table-condensed table-bordered datatable-subitems-modal">
+                                  <thead>
+                                    <tr>
+                                      <th class="center" style="width: 12%;">N° de Item</th>
+                                      <th style="width: 38%;">Subitem</th>
+                                      <th class="center" style="width: 12%;">Cantidad</th>
+                                      <th style="width: 16%;">Unidad</th>
+                                      <th style="width: 11%;">Valor Unit.</th>
+                                      <th style="width: 11%;">Total</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {% for subitem in item.subitems %}
+                                      <tr>
+                                        <td class="center">{{ subitem.order_no }}</td>
+                                        <td>{{ subitem.group|default:subitem.description }}</td>
+                                        <td class="center">{{ subitem.quantity }}</td>
+                                        <td>{{ subitem.unit }}</td>
+                                        <td>{{ subitem.value }}</td>
+                                        <td><strong>{{ subitem.total_value }}</strong></td>
+                                      </tr>
+                                    {% endfor %}
+                                  </tbody>
+                                </table>
+                              </script>
+                            {% endif %}
+                          </td>
                         </tr>
                       {% endfor %}
                     </tbody>
@@ -290,4 +346,110 @@
   </div>
 </div>
 
+</div>
+
+<div class="modal fade" id="subitemsModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <h4 class="modal-title">Subitems</h4>
+      </div>
+      <div class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  jQuery(function($) {
+    function initLocalDataTable(table) {
+      if (!table.length || $.fn.DataTable.isDataTable(table)) {
+        return;
+      }
+
+      table.DataTable({
+        language: {
+          "sProcessing":     "Procesando...",
+          "sLengthMenu":     "Mostrar _MENU_ registros",
+          "sZeroRecords":    "No se encontraron resultados",
+          "sEmptyTable":     "Ningún dato disponible en esta tabla",
+          "sInfo":           "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+          "sInfoEmpty":      "Mostrando registros del 0 al 0 de un total de 0 registros",
+          "sInfoFiltered":   "(filtrado de un total de _MAX_ registros)",
+          "sInfoPostFix":    "",
+          "sSearch":         "Buscar:",
+          "sUrl":            "",
+          "sInfoThousands":  ",",
+          "sLoadingRecords": "Cargando...",
+          "oPaginate": {
+            "sFirst":    "Primero",
+            "sLast":     "Último",
+            "sNext":     "Siguiente",
+            "sPrevious": "Anterior"
+          },
+          "oAria": {
+            "sSortAscending":  ": Activar para ordenar la columna de manera ascendente",
+            "sSortDescending": ": Activar para ordenar la columna de manera descendente"
+          }
+        },
+        pageLength: 10,
+        bAutoWidth: false,
+        buttons: [ 'copy', 'csv', 'excel', 'pdf', 'print' ]
+      });
+    }
+
+    $('#expand-all-lotes').on('click', function(e) {
+      e.preventDefault();
+      $('.lote-collapse').collapse('show');
+    });
+
+    $('#collapse-all-lotes').on('click', function(e) {
+      e.preventDefault();
+      $('.lote-collapse').collapse('hide');
+    });
+
+    $('.lote-collapse').on('shown.bs.collapse', function() {
+      initLocalDataTable($(this).find('table.datatable-items'));
+    });
+
+    $('.open-subitems').on('click', function(e) {
+      e.preventDefault();
+      var templateId = $(this).data('subitems-id');
+      var itemOrden = $(this).data('item-orden');
+      var itemDesc = $(this).data('item-desc');
+      var template = $('#' + templateId);
+      if (!template.length) {
+        return;
+      }
+
+      var modal = $('#subitemsModal');
+      modal.find('.modal-title').text('Subitems - Item ' + itemOrden);
+      modal.find('.modal-body').html(
+        '<div class="alert alert-info" style="margin-bottom: 10px;">' +
+          '<strong>Item:</strong> ' + itemOrden + '<br />' +
+          '<strong>Descripcion:</strong> ' + itemDesc +
+        '</div>' +
+        template.html()
+      );
+      modal.modal('show');
+
+      initLocalDataTable(modal.find('table.datatable-subitems-modal'));
+    });
+
+    $('#subitemsModal').on('hidden.bs.modal', function() {
+      var table = $(this).find('table.datatable-subitems-modal');
+      if (table.length && $.fn.DataTable.isDataTable(table)) {
+        table.DataTable().destroy();
+      }
+      $(this).find('.modal-body').empty();
+    });
+  });
+</script>
 {% endblock %}
