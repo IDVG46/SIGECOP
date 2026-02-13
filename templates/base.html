@@ -54,7 +54,7 @@
         </button>
 
         <div class="navbar-header pull-left">
-          <a href="{% url 'dncp_integration:dncp_list' %}" class="navbar-brand">
+          <a href="{% url 'home' %}" class="navbar-brand">
             <small>
               <i class="fa fa-briefcase"></i>
               SIGECOP
@@ -118,13 +118,31 @@
         <script type="text/javascript">
           try{ace.settings.loadState('sidebar')}catch(e){}
         </script>
-
+        
         <ul class="nav nav-list">
-          <li class="{% if request.resolver_match.url_name == 'dncp_list' %}active{% endif %}">
-            <a href="{% url 'dncp_integration:dncp_list' %}">
-              <i class="menu-icon fa fa-file-text"></i>
+          <li class="{% if request.resolver_match.namespace == 'dncp_api' %}active{% endif %}">
+            <a href="{% url 'dncp_api:dncp_list' %}">
+              <i class="menu-icon fa fa-cloud-download"></i>
               <span class="menu-text">
-                Licitaciones DNCP
+                Importar DNCP
+              </span>
+            </a>
+            <b class="arrow"></b>
+          </li>
+          <li class="{% if request.resolver_match.url_name == 'tender_list' %}active{% endif %}">
+            <a href="{% url 'dncp_integration:tender_list' %}">
+              <i class="menu-icon fa fa-database"></i>
+              <span class="menu-text">
+                Licitaciones
+              </span>
+            </a>
+            <b class="arrow"></b>
+          </li>
+          <li class="{% if request.resolver_match.url_name == 'contract_list' %}active{% endif %}">
+            <a href="{% url 'dncp_integration:contract_list' %}">
+              <i class="menu-icon fa fa-file-text-o"></i>
+              <span class="menu-text">
+                Contratos
               </span>
             </a>
             <b class="arrow"></b>
@@ -147,7 +165,7 @@
               {% block breadcrumb %}
               <li>
                 <i class="ace-icon fa fa-home home-icon"></i>
-                <a href="{% url 'dncp_integration:dncp_list' %}">Inicio</a>
+                <a href="{% url 'dncp_integration:tender_list' %}">Inicio</a>
               </li>
               {% endblock %}
             </ul><!-- /.breadcrumb -->
@@ -172,6 +190,21 @@
                 </small>
               </h1>
             </div><!-- /.page-header -->
+
+            {% if messages %}
+            <div class="row">
+              <div class="col-xs-12">
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %}">
+                  <button type="button" class="close" data-dismiss="alert">
+                    <i class="ace-icon fa fa-times"></i>
+                  </button>
+                  {{ message }}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
 
             <div class="row">
               <div class="col-xs-12">
@@ -264,8 +297,9 @@
                   "sSortDescending": ": Activar para ordenar la columna de manera descendente"
                 }
               },
-              pageLength: 25,
+              pageLength: 10,
               bAutoWidth: false,
+              order: [[0, 'desc']],
               buttons: [ 'copy', 'csv', 'excel', 'pdf', 'print' ]
             });
           }

@@ -20,7 +20,7 @@
                 </p>
                 <hr class="my-4">
                 <p>Acceda a la información de licitaciones, procesos de contratación y datos integrados con el DNCP.</p>
-                <a class="btn btn-primary btn-lg" href="{% url 'dncp_integration:dncp_list' %}" role="button">
+                <a class="btn btn-primary btn-lg" href="{% url 'dncp_integration:tender_list' %}" role="button">
                     <i class="fa fa-list"></i> Ver Licitaciones
                 </a>
             </div>
@@ -99,11 +99,17 @@
         <div class="col-md-12">
             <h3 class="mb-4">Enlaces Rápidos</h3>
             <div class="list-group">
-                <a href="{% url 'dncp_integration:dncp_list' %}" class="list-group-item list-group-item-action">
+                <a href="{% url 'dncp_integration:tender_list' %}" class="list-group-item list-group-item-action">
                     <h5 class="mb-1">
                         <i class="fa fa-list"></i> Procesos de Licitación
                     </h5>
                     <p class="mb-1">Acceder al listado completo de licitaciones</p>
+                </a>
+                <a href="{% url 'dncp_api:dncp_list' %}" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">
+                        <i class="fa fa-cloud-download"></i> DNCP (API)
+                    </h5>
+                    <p class="mb-1">Consultar procesos directamente desde la API</p>
                 </a>
                 <a href="/admin/" class="list-group-item list-group-item-action">
                     <h5 class="mb-1">
@@ -111,7 +117,7 @@
                     </h5>
                     <p class="mb-1">Acceso restringido para administradores</p>
                 </a>
-                <a href="https://www.dncp.gov.py/" target="_blank" class="list-group-item list-group-item-action">
+                <a href="https://www.contrataciones.gov.py/" target="_blank" class="list-group-item list-group-item-action">
                     <h5 class="mb-1">
                         <i class="fa fa-external-link"></i> Sitio Web DNCP
                     </h5>

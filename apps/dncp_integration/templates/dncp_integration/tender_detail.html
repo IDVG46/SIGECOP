@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Licitación - SIGECOP{% endblock %}
+
+{% block page_title %}Detalle de Licitación{% endblock %}
+{% block page_subtitle %}Información del proceso de licitación{% endblock %}
+
+{% block breadcrumb %}
+<ul class="breadcrumb">
+  <li>
+    <i class="ace-icon fa fa-home home-icon"></i>
+    <a href="{% url 'home' %}">Inicio</a>
+  </li>
+  <li>
+    <a href="{% url 'dncp_integration:tender_list' %}">Licitaciones</a>
+  </li>
+  <li class="active">Detalle</li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="dncp-detail">
+
+  <div class="widget-box">
+    <div class="widget-header widget-header-blue widget-header-flat">
+      <h4 class="widget-title lighter">
+        <i class="ace-icon fa fa-info-circle"></i>
+        Informacion General
+      </h4>
+    </div>
+    <div class="widget-body">
+      <div class="widget-main">
+        <div class="row">
+          <div class="col-sm-6">
+            <p><strong>ID Licitación:</strong> {{ tender.tenderID }}</p>
+            <p><strong>Titulo:</strong> {{ tender.title }}</p>
+            <p><strong>Entidad:</strong> {{ tender.procuring_entity.name }}</p>
+            <p><strong>Estado:</strong> {{ tender.status_details }}</p>
+          </div>
+          <div class="col-sm-6">
+            <p><strong>Tipo de adjudicacion:</strong> {{ formatted.award_criteria }}</p>
+            <p><strong>Monto:</strong> {{ formatted.tender_value }}</p>
+            <p><strong>Fecha publicacion:</strong> {{ formatted.date_published }}</p>
+            <p><strong>Fecha release:</strong> {{ formatted.release_date }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-12"></div>
+
+  <div class="widget-box">
+    <div class="widget-header widget-header-blue widget-header-flat">
+      <h4 class="widget-title lighter">
+        <i class="ace-icon fa fa-tags"></i>
+        Lotes / Grupos
+      </h4>
+      <div class="widget-toolbar">
+        <a href="#" id="expand-all-lotes" title="Expandir todos">
+          <i class="ace-icon fa fa-plus-square"></i>
+        </a>
+        <span class="divider">|</span>
+        <a href="#" id="collapse-all-lotes" title="Contraer todos">
+          <i class="ace-icon fa fa-minus-square"></i>
+        </a>
+      </div>
+    </div>
+    <div class="widget-body">
+      <div class="widget-main">
+        {% if lots %}
+          {% if is_contract_by_item %}
+            {% with lot=lots.0 %}
+              <div class="widget-box">
+                <div class="widget-header widget-header-blue widget-header-flat">
+                  <h5 class="widget-title smaller">
+                    <i class="ace-icon fa fa-list"></i>
+                    {{ lot.title|default:"Items" }}
+                  </h5>
+                  <div class="text-muted" style="padding: 6px 12px;">
+                    {% if lot.open_contract_type_display and lot.open_contract_type_display != "No" %}
+                      <span><strong>Contrato abierto:</strong> {{ lot.open_contract_type_display }}</span>
+                    {% endif %}
+                    {% if lot.min_value != "-" %}
+                      <span style="margin-left: 12px;"><strong>Min:</strong> {{ lot.min_value }}</span>
+                    {% endif %}
+                    {% if lot.value != "-" %}
+                      <span style="margin-left: 12px;"><strong>Max:</strong> {{ lot.value }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="widget-body">
+                  <div class="widget-main no-padding">
+                    {% if lot.items %}
+                      <table class="table table-striped table-bordered table-hover datatable-items">
+                        <thead>
+                          <tr>
+                            <th class="center" style="width: 8%">Nro Item</th>
+                            <th style="width: 36%">
+                              <i class="ace-icon fa fa-file-text-o bigger-110 hidden-480"></i>
+                              Descripcion
+                            </th>
+                            <th class="center" style="width: 10%">
+                              <i class="ace-icon fa fa-sort-numeric-asc bigger-110 hidden-480"></i>
+                              Cantidad
+                            </th>
+                            <th class="center" style="width: 12%">
+                              <i class="ace-icon fa fa-balance-scale bigger-110 hidden-480"></i>
+                              Unidad
+                            </th>
+                            <th class="text-right" style="width: 14%">
+                              <i class="ace-icon fa fa-money bigger-110 hidden-480"></i>
+                              Precio Unit.
+                            </th>
+                            <th class="text-right" style="width: 14%">
+                              <i class="ace-icon fa fa-calculator bigger-110 hidden-480"></i>
+                              Total
+                            </th>
+                            <th class="center" style="width: 6%">
+                              <i class="ace-icon fa fa-list bigger-110 hidden-480"></i>
+                              Detalle
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for item in lot.items %}
+                            <tr>
+                              <td class="center">{{ item.orden|default:forloop.counter }}</td>
+                              <td>{{ item.description }}</td>
+                              <td class="center">{{ item.quantity }}</td>
+                              <td class="center">{{ item.unit }}</td>
+                              <td class="text-right">{{ item.unit_price }}</td>
+                              <td class="text-right">
+                                <strong>{{ item.total }}</strong>
+                              </td>
+                              <td class="center">
+                                {% if item.subitems %}
+                                  <a href="#" class="open-subitems"
+                                     title="Ver subitems"
+                                     data-subitems-id="subitems-items-{{ forloop.counter }}"
+                                     data-item-orden="{{ item.orden|default:forloop.counter }}"
+                                     data-item-desc="{{ item.description|default:''|escape }}">
+                                    <i class="ace-icon fa fa-list"></i>
+                                  </a>
+                                  <script type="text/template" id="subitems-items-{{ forloop.counter }}">
+                                    <table class="table table-condensed table-bordered datatable-subitems-modal">
+                                      <thead>
+                                        <tr>
+                                          <th class="center" style="width: 10%">Nro Subitem</th>
+                                          <th style="width: 38%">Subitem</th>
+                                          <th class="center" style="width: 12%">Cantidad</th>
+                                          <th class="center" style="width: 16%">Unidad</th>
+                                          <th class="text-right" style="width: 12%">Precio Unit.</th>
+                                          <th class="text-right" style="width: 12%">Total</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {% for subitem in item.subitems %}
+                                          <tr>
+                                            <td class="center">{{ subitem.orden|default:forloop.counter }}</td>
+                                            <td>{{ subitem.description }}</td>
+                                            <td class="center">{{ subitem.quantity }}</td>
+                                            <td class="center">{{ subitem.unit }}</td>
+                                            <td class="text-right">{{ subitem.unit_price }}</td>
+                                            <td class="text-right"><strong>{{ subitem.total }}</strong></td>
+                                          </tr>
+                                        {% endfor %}
+                                      </tbody>
+                                    </table>
+                                  </script>
+                                {% else %}
+                                  <span class="text-muted">-</span>
+                                {% endif %}
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    {% else %}
+                      <div class="alert alert-warning">
+                        <strong>Atencion:</strong> Sin items registrados para este proceso
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endwith %}
+          {% else %}
+            {% for lot in lots %}
+              <div class="widget-box">
+                <div class="widget-header widget-header-blue widget-header-flat">
+                  <h5 class="widget-title smaller">
+                    <i class="ace-icon fa fa-tag"></i>
+                    {{ lot.title|default:"Lote" }}
+                  </h5>
+                  <div class="text-muted" style="padding: 6px 12px;">
+                    {% if lot.open_contract_type_display and lot.open_contract_type_display != "No" %}
+                      <span><strong>Contrato abierto:</strong> {{ lot.open_contract_type_display }}</span>
+                    {% endif %}
+                    {% if lot.min_value != "-" %}
+                      <span style="margin-left: 12px;"><strong>Min:</strong> {{ lot.min_value }}</span>
+                    {% endif %}
+                    {% if lot.value != "-" %}
+                      <span style="margin-left: 12px;"><strong>Max:</strong> {{ lot.value }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="widget-toolbar">
+                    <span class="lot-value"><strong>{{ lot.value }}</strong></span>
+                    <a href="#lote-{{ forloop.counter }}" data-toggle="collapse" aria-expanded="false" class="collapsed">
+                      <i class="ace-icon fa fa-chevron-down"></i>
+                    </a>
+                  </div>
+                </div>
+                <div id="lote-{{ forloop.counter }}" class="widget-body collapse lote-collapse">
+                  <div class="widget-main no-padding">
+                    {% if lot.items %}
+                      <table class="table table-striped table-bordered table-hover datatable-items">
+                        <thead>
+                          <tr>
+                            <th class="center" style="width: 8%">Nro Item</th>
+                            <th style="width: 36%">
+                              <i class="ace-icon fa fa-file-text-o bigger-110 hidden-480"></i>
+                              Descripcion
+                            </th>
+                            <th class="center" style="width: 10%">
+                              <i class="ace-icon fa fa-sort-numeric-asc bigger-110 hidden-480"></i>
+                              Cantidad
+                            </th>
+                            <th class="center" style="width: 12%">
+                              <i class="ace-icon fa fa-balance-scale bigger-110 hidden-480"></i>
+                              Unidad
+                            </th>
+                            <th class="text-right" style="width: 14%">
+                              <i class="ace-icon fa fa-money bigger-110 hidden-480"></i>
+                              Precio Unit.
+                            </th>
+                            <th class="text-right" style="width: 14%">
+                              <i class="ace-icon fa fa-calculator bigger-110 hidden-480"></i>
+                              Total
+                            </th>
+                            <th class="center" style="width: 6%">
+                              <i class="ace-icon fa fa-list bigger-110 hidden-480"></i>
+                              Detalle
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for item in lot.items %}
+                            <tr>
+                              <td class="center">{{ item.orden|default:forloop.counter }}</td>
+                              <td>{{ item.description }}</td>
+                              <td class="center">{{ item.quantity }}</td>
+                              <td class="center">{{ item.unit }}</td>
+                              <td class="text-right">{{ item.unit_price }}</td>
+                              <td class="text-right">
+                                <strong>{{ item.total }}</strong>
+                              </td>
+                              <td class="center">
+                                {% if item.subitems %}
+                                  <a href="#" class="open-subitems"
+                                     title="Ver subitems"
+                                     data-subitems-id="subitems-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                                     data-item-orden="{{ item.orden|default:forloop.counter }}"
+                                     data-item-desc="{{ item.description|default:''|escape }}">
+                                    <i class="ace-icon fa fa-list"></i>
+                                  </a>
+                                  <script type="text/template" id="subitems-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                                    <table class="table table-condensed table-bordered datatable-subitems-modal">
+                                      <thead>
+                                        <tr>
+                                          <th class="center" style="width: 10%">Nro Subitem</th>
+                                          <th style="width: 38%">Subitem</th>
+                                          <th class="center" style="width: 12%">Cantidad</th>
+                                          <th class="center" style="width: 16%">Unidad</th>
+                                          <th class="text-right" style="width: 12%">Precio Unit.</th>
+                                          <th class="text-right" style="width: 12%">Total</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {% for subitem in item.subitems %}
+                                          <tr>
+                                            <td class="center">{{ subitem.orden|default:forloop.counter }}</td>
+                                            <td>{{ subitem.description }}</td>
+                                            <td class="center">{{ subitem.quantity }}</td>
+                                            <td class="center">{{ subitem.unit }}</td>
+                                            <td class="text-right">{{ subitem.unit_price }}</td>
+                                            <td class="text-right"><strong>{{ subitem.total }}</strong></td>
+                                          </tr>
+                                        {% endfor %}
+                                      </tbody>
+                                    </table>
+                                  </script>
+                                {% else %}
+                                  <span class="text-muted">-</span>
+                                {% endif %}
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    {% else %}
+                      <div class="alert alert-warning">
+                        <strong>Atencion:</strong> Sin items registrados para este lote
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              <div class="space-12"></div>
+            {% endfor %}
+          {% endif %}
+        {% else %}
+          <div class="alert alert-info">
+            <strong>Info:</strong> No hay lotes disponibles para este proceso
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="space-12"></div>
+
+  <div class="widget-box">
+    <div class="widget-header widget-header-blue widget-header-flat">
+      <h4 class="widget-title lighter">
+        <i class="ace-icon fa fa-trophy"></i>
+        Adjudicaciones
+      </h4>
+    </div>
+    <div class="widget-body">
+      <div class="widget-main no-padding">
+        {% if awards %}
+          <table class="table table-striped table-bordered table-hover datatable">
+            <thead>
+              <tr>
+                <th style="width: 40%;">
+                  <i class="ace-icon fa fa-file-text-o bigger-110 hidden-480"></i>
+                  Estado
+                </th>
+                <th style="width: 30%;">
+                  <i class="ace-icon fa fa-building bigger-110 hidden-480"></i>
+                  Proveedores
+                </th>
+                <th class="text-right" style="width: 15%;">
+                  <i class="ace-icon fa fa-money bigger-110 hidden-480"></i>
+                  Monto
+                </th>
+                <th class="center" style="width: 15%;">
+                  <i class="ace-icon fa fa-calendar bigger-110 hidden-480"></i>
+                  Fecha
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for award in awards %}
+                <tr>
+                  <td>{{ award.status_details }}</td>
+                  <td>{{ award.suppliers }}</td>
+                  <td class="text-right">{{ award.value }}</td>
+                  <td>{{ award.date }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="alert alert-info">
+            <strong>Info:</strong> No hay adjudicaciones disponibles
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="subitemsModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <h4 class="modal-title">Subitems</h4>
+      </div>
+      <div class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  jQuery(function($) {
+    function initLocalDataTable(table) {
+      if (!table.length || $.fn.DataTable.isDataTable(table)) {
+        return;
+      }
+
+      table.DataTable({
+        language: {
+          "sProcessing":     "Procesando...",
+          "sLengthMenu":     "Mostrar _MENU_ registros",
+          "sZeroRecords":    "No se encontraron resultados",
+          "sEmptyTable":     "Ningun dato disponible en esta tabla",
+          "sInfo":           "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+          "sInfoEmpty":      "Mostrando registros del 0 al 0 de un total de 0 registros",
+          "sInfoFiltered":   "(filtrado de un total de _MAX_ registros)",
+          "sSearch":         "Buscar:",
+          "sLoadingRecords": "Cargando...",
+          "oPaginate": {
+            "sFirst":    "Primero",
+            "sLast":     "Ultimo",
+            "sNext":     "Siguiente",
+            "sPrevious": "Anterior"
+          },
+          "oAria": {
+            "sSortAscending":  ": Activar para ordenar la columna de manera ascendente",
+            "sSortDescending": ": Activar para ordenar la columna de manera descendente"
+          }
+        },
+        pageLength: 10,
+        bAutoWidth: false,
+      });
+    }
+
+    $(".datatable-items").each(function() {
+      initLocalDataTable($(this));
+    });
+
+    $("#expand-all-lotes").on("click", function(event) {
+      event.preventDefault();
+      $(".lote-collapse").collapse("show");
+    });
+
+    $("#collapse-all-lotes").on("click", function(event) {
+      event.preventDefault();
+      $(".lote-collapse").collapse("hide");
+    });
+
+    $(".open-subitems").on("click", function(event) {
+      event.preventDefault();
+      var templateId = $(this).data("subitems-id");
+      var itemOrden = $(this).data("item-orden");
+      var itemDesc = $(this).data("item-desc");
+      var template = $("#" + templateId);
+      if (!template.length) {
+        return;
+      }
+
+      var modal = $("#subitemsModal");
+      modal.find(".modal-title").text("Subitems - Item " + itemOrden);
+      modal.find(".modal-body").html(
+        '<div class="alert alert-info" style="margin-bottom: 10px;">' +
+          '<strong>Item:</strong> ' + itemOrden + '<br />' +
+          '<strong>Descripcion:</strong> ' + itemDesc +
+        '</div>' +
+        template.html()
+      );
+      modal.modal("show");
+
+      initLocalDataTable(modal.find("table.datatable-subitems-modal"));
+    });
+
+    $("#subitemsModal").on("hidden.bs.modal", function() {
+      var table = $(this).find("table.datatable-subitems-modal");
+      if (table.length && $.fn.DataTable.isDataTable(table)) {
+        table.DataTable().destroy();
+      }
+      $(this).find(".modal-body").empty();
+    });
+  });
+</script>
+{% endblock %}

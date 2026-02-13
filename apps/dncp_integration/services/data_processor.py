@@ -30,6 +30,22 @@ class DNCPDataProcessor:
         parts = ocid.split("-")
         return parts[2] if len(parts) > 2 else None
 
+    @staticmethod
+    def format_open_contract_type(value):
+        if not value:
+            return ""
+        text = str(value).strip()
+        if not text:
+            return ""
+        lowered = text.lower()
+        if lowered in ("no", "n/a", "none"):
+            return "No"
+        if lowered.startswith("por "):
+            return f"Por {text[4:].strip()}"
+        if lowered in ("monto", "cantidad", "total"):
+            return f"Por {lowered}"
+        return f"Por {text}"
+
     @classmethod
     def process_process_list(cls, records):
         """Procesa lista de procesos de licitación de la API."""
@@ -112,7 +128,9 @@ class DNCPDataProcessor:
                     "description1": lote.get("title", "").split("-")[-1].strip(),
                     "value": cls.format_currency(lote.get("value", {}).get("amount")),
                     "min_value": cls.format_currency(lote.get("minValue", {}).get("amount")),
-                    "openContractType": lote.get("openContractType") if lote.get("openContractType") is not None else "No",
+                    "openContractType": cls.format_open_contract_type(
+                        lote.get("openContractType") if lote.get("openContractType") is not None else "No"
+                    ),
                     "orden": orden,
                     "items": []
                 }
@@ -167,7 +185,7 @@ class DNCPDataProcessor:
                 "description1": "Todos los items",
                 "value": cls.format_currency(tender.get("value", {}).get("amount")),
                 "min_value": None,
-                "openContractType": "No",
+                "openContractType": cls.format_open_contract_type("No"),
                 "orden": "1",
                 "items": [
                     {

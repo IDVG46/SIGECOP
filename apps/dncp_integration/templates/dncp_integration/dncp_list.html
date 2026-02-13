@@ -9,26 +9,137 @@
 <ul class="breadcrumb">
   <li>
     <i class="ace-icon fa fa-home home-icon"></i>
-    <a href="{% url 'dncp_integration:dncp_list' %}">Inicio</a>
+    <a href="{% url 'home' %}">Inicio</a>
   </li>
   <li class="active">Licitaciones</li>
 </ul>
 {% endblock %}
 
 {% block content %}
-<!-- Error message -->
-{% if error %}
-<div class="alert alert-warning">
-  <button type="button" class="close" data-dismiss="alert">
-    <i class="ace-icon fa fa-times"></i>
-  </button>
-  <strong>
-    <i class="ace-icon fa fa-exclamation-triangle"></i>
-    Advertencia:
-  </strong>
-  {{ error }}
-  <br />
+<div class="widget-box">
+  <div class="widget-header widget-header-blue widget-header-flat">
+    <h4 class="widget-title lighter">
+      <i class="ace-icon fa fa-calendar"></i>
+      Importacion masiva por fecha o año
+    </h4>
+    <div class="widget-toolbar">
+      <a href="#" data-action="collapse">
+        <i class="ace-icon fa fa-chevron-up"></i>
+      </a>
+    </div>
+  </div>
+  <div class="widget-body">
+    <div class="widget-main">
+      <form method="post" action="{% url 'dncp_api:dncp_import_bulk' %}" class="form-horizontal" id="import-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="col-sm-2 control-label" for="start_date">Desde</label>
+          <div class="col-sm-3">
+            <input type="date" id="start_date" name="start_date" class="form-control" />
+          </div>
+          <label class="col-sm-2 control-label" for="end_date">Hasta</label>
+          <div class="col-sm-3">
+            <input type="date" id="end_date" name="end_date" class="form-control" />
+          </div>
+          <div class="col-sm-2">
+            <button type="submit" class="btn btn-sm btn-success">
+              <i class="ace-icon fa fa-download"></i>
+              Importar
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-sm-2 control-label" for="year">Año</label>
+          <div class="col-sm-3">
+            <input 
+              type="number" 
+              id="year" 
+              name="year" 
+              class="form-control" 
+              placeholder="Ingrese un año (Ej: 2025)" 
+              min="2000" 
+              max="2050"
+              step="1"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-2 col-sm-10">
+            <div class="alert alert-info" style="margin-bottom: 0;">
+              <i class="ace-icon fa fa-info-circle"></i>
+              <strong>Importante:</strong> Especifica un rango de fechas o un año completo. Se recomienda importar períodos de hasta 1 año para optimizar el rendimiento.
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+
+<div class="space-12"></div>
+
+{% if latest_import_run %}
+<div class="widget-box">
+  <div class="widget-header widget-header-green widget-header-flat">
+    <h4 class="widget-title lighter">
+      <i class="ace-icon fa fa-check-circle"></i>
+      Resultado de la ultima importacion
+    </h4>
+    <div class="widget-toolbar">
+      <a href="#" data-action="collapse">
+        <i class="ace-icon fa fa-chevron-up"></i>
+      </a>
+    </div>
+  </div>
+  <div class="widget-body">
+    <div class="widget-main">
+      <div class="row">
+        <div class="col-sm-3">
+          <strong>Estado:</strong>
+          {% if latest_import_run.status == 'success' %}
+          <span class="label label-success">{{ latest_import_run.get_status_display }}</span>
+          {% elif latest_import_run.status == 'partial' %}
+          <span class="label label-warning">{{ latest_import_run.get_status_display }}</span>
+          {% elif latest_import_run.status == 'failed' %}
+          <span class="label label-danger">{{ latest_import_run.get_status_display }}</span>
+          {% else %}
+          <span class="label label-info">{{ latest_import_run.get_status_display }}</span>
+          {% endif %}
+        </div>
+        <div class="col-sm-3">
+          <strong>Inicio:</strong> {{ latest_import_run.started_at|date:"d/m/Y H:i" }}
+        </div>
+        <div class="col-sm-3">
+          <strong>Fin:</strong> {{ latest_import_run.finished_at|date:"d/m/Y H:i"|default:"-" }}
+        </div>
+        <div class="col-sm-3">
+          <strong>Total:</strong> {{ latest_import_run.total_records }}
+        </div>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="col-sm-3">
+          <strong>Importados:</strong> {{ latest_import_run.imported_records }}
+        </div>
+        <div class="col-sm-3">
+          <strong>Omitidos:</strong> {{ latest_import_run.skipped_records }}
+        </div>
+        <div class="col-sm-3">
+          <strong>Fallidos:</strong> {{ latest_import_run.failed_records }}
+        </div>
+      </div>
+      {% if latest_import_run.last_error %}
+      <div class="space-6"></div>
+      <div class="alert alert-warning">
+        <i class="ace-icon fa fa-exclamation-triangle"></i>
+        {{ latest_import_run.last_error }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="space-12"></div>
 {% endif %}
 
 <!-- Widget Box -->
@@ -50,9 +161,9 @@
       <table class="table table-striped table-bordered table-hover datatable">
         <thead>
           <tr>
-            <th class="center" style="width: 16%;">
+            <th class="center" style="width: 10%;">
               <i class="ace-icon fa fa-barcode bigger-110 hidden-480"></i>
-              OCID
+              ID
             </th>
             <th style="width: 34%;">
               <i class="ace-icon fa fa-file-text-o bigger-110 hidden-480"></i>
@@ -70,7 +181,7 @@
               <i class="ace-icon fa fa-calendar bigger-110"></i>
               Fecha
             </th>
-            <th class="center" style="width: 8%;"></th>
+            <th class="center" style="width: 12%;"></th>
           </tr>
         </thead>
 
@@ -78,8 +189,8 @@
           {% for lic in licitaciones %}
           <tr>
             <td class="center">
-              <span style="font-family: monospace; font-size: 0.9em; color: #4D90FE;">
-                {{ lic.ocid }}
+              <span style="font-family: monospace; font-size: 1.1em; font-weight: 600; color: #4D90FE;">
+                {{ lic.id }}
               </span>
             </td>
             <td>
@@ -90,18 +201,23 @@
             <td class="hidden-480">{{ lic.procuringEntity }}</td>
             <td class="center">
               {% if lic.status == 'active' %}
-              <span class="label label-sm label-success arrowed-in arrowed-in-right">
-                <i class="ace-icon fa fa-check"></i>
-                {{ lic.status|default:"Pendiente" }}
+              <span class="label label-sm label-info arrowed-in arrowed-in-right">
+                <i class="ace-icon fa fa-circle-o"></i>
+                Activo
               </span>
               {% elif lic.status == 'closed' %}
-              <span class="label label-sm label-danger arrowed">
-                <i class="ace-icon fa fa-times"></i>
-                {{ lic.status|default:"Pendiente" }}
+              <span class="label label-sm label-warning arrowed">
+                <i class="ace-icon fa fa-check-circle"></i>
+                Cerrado
+              </span>
+              {% elif lic.status == 'complete' %}
+              <span class="label label-sm label-success arrowed">
+                <i class="ace-icon fa fa-check"></i>
+                Completo
               </span>
               {% else %}
-              <span class="label label-sm label-grey arrowed">
-                <i class="ace-icon fa fa-info"></i>
+              <span class="label label-sm label-default arrowed">
+                <i class="ace-icon fa fa-info-circle"></i>
                 {{ lic.status|default:"Pendiente" }}
               </span>
               {% endif %}
@@ -111,11 +227,18 @@
             </td>
             <td class="center">
               <div class="action-buttons">
-                <a href="{% url 'dncp_integration:dncp_detail' lic.ocid %}"
+                 <a href="{% url 'dncp_api:dncp_detail' lic.ocid %}"
                    class="blue"
                    title="Ver detalles">
                   <i class="ace-icon fa fa-search-plus bigger-130"></i>
                 </a>
+                <form method="post" action="{% url 'dncp_api:dncp_import' %}" style="display: inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="ocid" value="{{ lic.ocid }}" />
+                  <button type="submit" class="btn btn-xs btn-success" title="Importar">
+                    <i class="ace-icon fa fa-download"></i>
+                  </button>
+                </form>
               </div>
             </td>
           </tr>

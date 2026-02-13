@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Contratos - SIGECOP{% endblock %}
+
+{% block page_title %}Contratos{% endblock %}
+{% block page_subtitle %}Contratos adjudicados{% endblock %}
+
+{% block breadcrumb %}
+<ul class="breadcrumb">
+  <li>
+    <i class="ace-icon fa fa-home home-icon"></i>
+    <a href="{% url 'home' %}">Inicio</a>
+  </li>
+  <li class="active">Contratos</li>
+</ul>
+{% endblock %}
+
+{% block content %}
+<div class="widget-box">
+  <div class="widget-header widget-header-blue widget-header-flat">
+    <h4 class="widget-title lighter">
+      <i class="ace-icon fa fa-file-text-o"></i>
+      Listado de Contratos
+    </h4>
+  </div>
+
+  <div class="widget-body">
+    <div class="widget-main no-padding">
+      <table class="table table-striped table-bordered table-hover datatable">
+        <thead>
+          <tr>
+            <th class="center" style="width: 12%;">Contrato</th>
+            <th class="center" style="width: 10%;">Licitacion</th>
+            <th style="width: 30%;">Titulo</th>
+            <th class="center" style="width: 12%;">Estado</th>
+            <th class="center hidden-480" style="width: 20%;">Periodo</th>
+            <th class="text-right hidden-480" style="width: 12%;">Monto</th>
+            <th class="center" style="width: 4%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contract in contracts %}
+          <tr>
+            <td class="center">
+              <span style="font-family: monospace; font-weight: 600; color: #4D90FE;">
+                {{ contract.id|slice:":10" }}
+              </span>
+            </td>
+            <td class="center">{{ contract.tender_id }}</td>
+            <td>
+              <div class="text-overflow" title="{{ contract.title }}">
+                {{ contract.title }}
+              </div>
+            </td>
+            <td class="center">
+              <span class="label label-sm label-default arrowed">
+                {{ contract.status|default:"-" }}
+              </span>
+            </td>
+            <td class="center hidden-480">{{ contract.period }}</td>
+            <td class="text-right hidden-480"><strong>{{ contract.value }}</strong></td>
+            <td class="center">
+              <div class="action-buttons">
+                <a href="{% url 'dncp_integration:contract_detail' contract.id %}" class="blue" title="Ver detalles">
+                  <i class="ace-icon fa fa-search-plus bigger-130"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="center">
+              <div class="empty-state" style="padding: 40px 0;">
+                <i class="ace-icon fa fa-inbox fa-3x grey"></i>
+                <p class="grey" style="margin-top: 15px; font-size: 16px;">
+                  No se encontraron contratos
+                </p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .text-overflow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}{% endblock %}

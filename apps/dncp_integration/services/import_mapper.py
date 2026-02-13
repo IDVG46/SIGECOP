@@ -19,6 +19,8 @@ from apps.dncp_integration.services.import_helpers import (
     fallback_subitem_id,
     get_amount,
     get_attribute_value,
+    parse_order_decimal,
+    parse_order_int,
     parse_dt,
 )
 
@@ -68,7 +70,7 @@ class ImportMapper:
         lot_index = {}
         for lot in tender_data.get("lots", []) or []:
             lot_id = lot.get("id")
-            if not lot_id:
+            if not lot_id or not lot.get("title"):
                 continue
             lot_obj, _ = self._upsert(
                 Lot,
@@ -89,7 +91,7 @@ class ImportMapper:
         item_index = {}
         for item in tender_data.get("items", []) or []:
             item_id = item.get("id") or fallback_item_id(item, prefix=tender_id)
-            if not item_id:
+            if not item_id or not item.get("description"):
                 continue
             classification_obj = self._upsert_classification(item.get("classification", {}))
             related_lot_id = item.get("relatedLot")
@@ -115,13 +117,13 @@ class ImportMapper:
                     "min_quantity": item.get("minQuantity"),
                     "unit_price_amount": get_amount(item.get("unit", {}).get("value")),
                     "unit_price_currency": self._get_currency(item.get("unit", {}).get("value", {}).get("currency")),
-                    "orden": get_attribute_value(item.get("attributes"), "Orden"),
+                    "orden": parse_order_int(get_attribute_value(item.get("attributes"), "Orden")),
                 },
             )
 
             for subitem in item.get("subItems", []) or []:
                 subitem_id = subitem.get("id") or fallback_subitem_id(item_id, subitem)
-                if not subitem_id:
+                if not subitem_id or not subitem.get("description"):
                     continue
                 subitem_obj, _ = self._upsert(
                     SubItemDefinition,
@@ -144,7 +146,7 @@ class ImportMapper:
                         "unit_price_currency": self._get_currency(
                             subitem.get("unit", {}).get("value", {}).get("currency")
                         ),
-                        "orden": subitem.get("group"),
+                        "orden": parse_order_decimal(subitem.get("group")),
                     },
                 )
 
@@ -152,13 +154,19 @@ class ImportMapper:
             award_id = award.get("id")
             if not award_id:
                 continue
+            
+            # Skip incomplete awards (awards used only to add item attributes)
+            award_date = parse_dt(award.get("date"))
+            if not award_date:
+                continue
+            
             award_obj, _ = self._upsert(
                 Award,
                 lookup={"id": award_id},
                 defaults={
                     "tender": tender_obj,
                     "status_details": award.get("statusDetails") or "",
-                    "date": parse_dt(award.get("date")),
+                    "date": award_date,
                     "value_amount": get_amount(award.get("value")),
                     "value_currency": self._get_currency(award.get("value", {}).get("currency")),
                 },
@@ -182,7 +190,7 @@ class ImportMapper:
 
             for item in award.get("items", []) or []:
                 item_id = item.get("id") or fallback_item_id(item, prefix=award_id)
-                if not item_id:
+                if not item_id or not item.get("description"):
                     continue
                 item_obj = item_index.get(item_id)
                 if not item_obj:
@@ -197,42 +205,44 @@ class ImportMapper:
                         },
                     )
 
-                self._upsert(
-                    AwardItem,
-                    lookup={"award": award_obj, "item": item_obj},
-                    defaults={
-                        "quantity": item.get("quantity"),
-                        "unit_price_amount": get_amount(item.get("unit", {}).get("value")),
-                        "unit_price_currency": self._get_currency(item.get("unit", {}).get("value", {}).get("currency")),
-                    },
-                )
-
-                for subitem in item.get("subItems", []) or []:
-                    subitem_id = subitem.get("id") or fallback_subitem_id(item_id, subitem)
-                    if not subitem_id:
-                        continue
-                    subitem_obj, _ = self._upsert(
-                        SubItemDefinition,
-                        lookup={"id": subitem_id},
-                        defaults={
-                            "item": item_obj,
-                            "description": subitem.get("description") or "",
-                            "unit_name": subitem.get("unit", {}).get("name"),
-                            "attributes": subitem.get("attributes") or None,
-                        },
-                    )
-
+                if item_obj:
                     self._upsert(
-                        AwardSubItem,
-                        lookup={"award": award_obj, "subitem": subitem_obj},
+                        AwardItem,
+                        lookup={"award": award_obj, "item": item_obj},
                         defaults={
-                            "quantity": subitem.get("quantity"),
-                            "unit_price_amount": get_amount(subitem.get("unit", {}).get("value")),
-                            "unit_price_currency": self._get_currency(
-                                subitem.get("unit", {}).get("value", {}).get("currency")
-                            ),
+                            "quantity": item.get("quantity"),
+                            "unit_price_amount": get_amount(item.get("unit", {}).get("value")),
+                            "unit_price_currency": self._get_currency(item.get("unit", {}).get("value", {}).get("currency")),
                         },
                     )
+
+                    for subitem in item.get("subItems", []) or []:
+                        subitem_id = subitem.get("id") or fallback_subitem_id(item_id, subitem)
+                        if not subitem_id or not subitem.get("description"):
+                            continue
+                        subitem_obj, _ = self._upsert(
+                            SubItemDefinition,
+                            lookup={"id": subitem_id},
+                            defaults={
+                                "item": item_obj,
+                                "description": subitem.get("description") or "",
+                                "unit_name": subitem.get("unit", {}).get("name"),
+                                "attributes": subitem.get("attributes") or None,
+                            },
+                        )
+
+                        if subitem_obj:
+                            self._upsert(
+                                AwardSubItem,
+                                lookup={"award": award_obj, "subitem": subitem_obj},
+                                defaults={
+                                    "quantity": subitem.get("quantity"),
+                                    "unit_price_amount": get_amount(subitem.get("unit", {}).get("value")),
+                                    "unit_price_currency": self._get_currency(
+                                        subitem.get("unit", {}).get("value", {}).get("currency")
+                                    ),
+                                },
+                            )
 
         for contract in contracts_data:
             contract_id = contract.get("id")

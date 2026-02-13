@@ -1,4 +1,6 @@
 import hashlib
+import re
+from decimal import Decimal
 
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -26,8 +28,8 @@ def parse_dt(value):
     dt = parse_datetime(value)
     if not dt:
         return None
-    if timezone.is_naive(dt):
-        return timezone.make_aware(dt)
+    if timezone.is_aware(dt):
+        return timezone.make_naive(dt)
     return dt
 
 
@@ -43,6 +45,44 @@ def get_attribute_value(attributes, name):
     for attr in attributes or []:
         if attr.get("name") == name:
             return attr.get("value")
+    return None
+
+
+def parse_order_int(value):
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, Decimal):
+        return int(value)
+    if isinstance(value, str):
+        match = re.search(r"\d+", value)
+        if match:
+            return int(match.group(0))
+    return None
+
+
+def parse_order_decimal(value):
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, int):
+        return Decimal(value)
+    if isinstance(value, float):
+        return Decimal(str(value))
+    if isinstance(value, str):
+        matches = re.findall(r"\d+(?:\.\d+)?", value)
+        if not matches:
+            return None
+        first = matches[0]
+        if "." in first:
+            return Decimal(first)
+        if len(matches) >= 2:
+            return Decimal(f"{matches[0]}.{matches[1]}")
+        return Decimal(first)
     return None
 
 

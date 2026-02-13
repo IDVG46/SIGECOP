@@ -291,7 +291,7 @@ class TenderSubItem(AuditedModel):
 	min_quantity = models.IntegerField(null=True, blank=True)
 	unit_price_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
 	unit_price_currency = models.ForeignKey(Currency, on_delete=models.PROTECT, null=True, blank=True)
-	orden = models.IntegerField(null=True, blank=True)
+	orden = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
 
 	class Meta:
 		constraints = [

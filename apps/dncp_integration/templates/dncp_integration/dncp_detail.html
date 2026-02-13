@@ -9,10 +9,10 @@
 <ul class="breadcrumb">
   <li>
     <i class="ace-icon fa fa-home home-icon"></i>
-    <a href="{% url 'dncp_integration:dncp_list' %}">Inicio</a>
+    <a href="{% url 'home' %}">Inicio</a>
   </li>
   <li>
-    <a href="{% url 'dncp_integration:dncp_list' %}">Licitaciones</a>
+    <a href="{% url 'dncp_api:dncp_list' %}">Licitaciones</a>
   </li>
   <li class="active">Detalle</li>
 </ul>
@@ -79,14 +79,6 @@
 
 {% block content %}
 <div class="dncp-detail">
-<div class="clearfix">
-  <a href="{% url 'dncp_integration:dncp_list' %}" class="btn btn-sm btn-default">
-    <i class="ace-icon fa fa-arrow-left"></i>
-    Volver
-  </a>
-</div>
-
-<div class="space-12"></div>
 
 <!-- Tender Details -->
 <div class="widget-box">
@@ -95,13 +87,23 @@
       <i class="ace-icon fa fa-info-circle"></i>
       Información General
     </h4>
+    <div class="widget-toolbar">
+      <form method="post" action="{% url 'dncp_api:dncp_import' %}" style="display: inline;">
+        {% csrf_token %}
+        <input type="hidden" name="ocid" value="{{ ocid }}" />
+        <button type="submit" class="btn btn-xs btn-success" title="Importar">
+          <i class="ace-icon fa fa-download"></i>
+          Importar
+        </button>
+      </form>
+    </div>
   </div>
   <div class="widget-body">
     <div class="widget-main">
       <div class="general-info">
         <div class="general-info__item">
-          <div class="general-info__label">OCID</div>
-          <div class="general-info__value text-mono">{{ ocid }}</div>
+          <div class="general-info__label">ID Licitación</div>
+          <div class="general-info__value text-mono">{{ tender.id }}</div>
         </div>
         <div class="general-info__item">
           <div class="general-info__label">Entidad</div>
@@ -120,7 +122,7 @@
           </div>
         </div>
         <div class="general-info__item">
-          <div class="general-info__label">Valor</div>
+          <div class="general-info__label">Monto</div>
           <div class="general-info__value">{{ tender.value }}</div>
         </div>
         <div class="general-info__item general-info__item--wide">
@@ -165,6 +167,17 @@
                 <i class="ace-icon fa fa-tag"></i>
                 {{ lote.orden|default:forloop.counter }} LOTE {{ lote.description1 }} - GRUPO {{ lote.description1 }}
               </h5>
+              <div class="text-muted" style="padding: 6px 12px;">
+                {% if lote.openContractType and lote.openContractType != "No" %}
+                  <span><strong>Contrato abierto:</strong> {{ lote.openContractType }}</span>
+                {% endif %}
+                {% if lote.min_value %}
+                  <span style="margin-left: 12px;"><strong>Min:</strong> {{ lote.min_value }}</span>
+                {% endif %}
+                {% if lote.value %}
+                  <span style="margin-left: 12px;"><strong>Max:</strong> {{ lote.value }}</span>
+                {% endif %}
+              </div>
               <div class="widget-toolbar">
                 <span class="lot-value">{{ lote.value }}</span>
                 <a href="#lote-{{ forloop.counter }}" data-toggle="collapse" aria-expanded="false" class="collapsed">
@@ -178,26 +191,30 @@
                   <table class="table table-striped table-bordered table-hover datatable-items">
                     <thead>
                       <tr>
-                        <th class="center" style="width: 10%;">N° de Item</th>
-                        <th style="width: 40%;">
+                        <th class="center" style="width: 8%;">N° de Item</th>
+                        <th style="width: 36%;">
                           <i class="ace-icon fa fa-file-text-o bigger-110 hidden-480"></i>
                           Descripción
                         </th>
-                        <th class="center" style="width: 12%;">
+                        <th class="center" style="width: 10%;">
                           <i class="ace-icon fa fa-sort-numeric-asc bigger-110 hidden-480"></i>
                           Cantidad
                         </th>
-                        <th style="width: 16%;">
+                        <th style="width: 12%;">
                           <i class="ace-icon fa fa-balance-scale bigger-110 hidden-480"></i>
                           Unidad
                         </th>
-                        <th style="width: 16%;">
+                        <th class="text-right" style="width: 14%;">
                           <i class="ace-icon fa fa-money bigger-110 hidden-480"></i>
-                          Valor Unit.
+                          Precio Unit.
                         </th>
-                        <th style="width: 16%;">
+                        <th class="text-right" style="width: 14%;">
                           <i class="ace-icon fa fa-calculator bigger-110 hidden-480"></i>
                           Total
+                        </th>
+                        <th class="center" style="width: 6%;">
+                          <i class="ace-icon fa fa-list bigger-110 hidden-480"></i>
+                          Detalle
                         </th>
                       </tr>
                     </thead>
@@ -210,26 +227,29 @@
                           <td>{{ item.description }}</td>
                           <td class="center">{{ item.quantity }}</td>
                           <td>{{ item.unit }}</td>
-                          <td>{{ item.value }}</td>
-                          <td>
+                          <td class="text-right">{{ item.value }}</td>
+                          <td class="text-right">
                             <strong>{{ item.total_value }}</strong>
+                          </td>
+                          <td class="center">
                             {% if item.subitems %}
-                              <a href="#" class="open-subitems pull-right"
+                              <a href="#" class="open-subitems"
+                                 title="Ver subitems"
                                  data-subitems-id="subitems-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
                                  data-item-orden="{{ item.orden|default:forloop.counter }}"
                                  data-item-desc="{{ item.description|default:''|escape }}">
-                                <i class="ace-icon fa fa-plus-square"></i>
+                                <i class="ace-icon fa fa-list"></i>
                               </a>
                               <script type="text/template" id="subitems-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
                                 <table class="table table-condensed table-bordered datatable-subitems-modal">
                                   <thead>
                                     <tr>
-                                      <th class="center" style="width: 12%;">N° de Item</th>
+                                      <th class="center" style="width: 10%;">N° de Item</th>
                                       <th style="width: 38%;">Subitem</th>
                                       <th class="center" style="width: 12%;">Cantidad</th>
                                       <th style="width: 16%;">Unidad</th>
-                                      <th style="width: 11%;">Valor Unit.</th>
-                                      <th style="width: 11%;">Total</th>
+                                      <th class="text-right" style="width: 12%;">Valor Unit.</th>
+                                      <th class="text-right" style="width: 12%;">Total</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -239,13 +259,15 @@
                                         <td>{{ subitem.group|default:subitem.description }}</td>
                                         <td class="center">{{ subitem.quantity }}</td>
                                         <td>{{ subitem.unit }}</td>
-                                        <td>{{ subitem.value }}</td>
-                                        <td><strong>{{ subitem.total_value }}</strong></td>
+                                        <td class="text-right">{{ subitem.value }}</td>
+                                        <td class="text-right"><strong>{{ subitem.total_value }}</strong></td>
                                       </tr>
                                     {% endfor %}
                                   </tbody>
                                 </table>
                               </script>
+                            {% else %}
+                              <span class="text-muted">-</span>
                             {% endif %}
                           </td>
                         </tr>
@@ -309,9 +331,9 @@
                 <i class="ace-icon fa fa-building bigger-110 hidden-480"></i>
                 Proveedor
               </th>
-              <th class="center" style="width: 15%;">
+              <th class="text-right" style="width: 15%;">
                 <i class="ace-icon fa fa-money bigger-110 hidden-480"></i>
-                Valor
+                Monto
               </th>
               <th class="center" style="width: 15%;">
                 <i class="ace-icon fa fa-calendar bigger-110 hidden-480"></i>
@@ -324,7 +346,7 @@
               <tr>
                 <td>{{ award.title }}</td>
                 <td>{{ award.supplier }}</td>
-                <td>{{ award.value }}</td>
+                <td class="text-right">{{ award.value }}</td>
                 <td>{{ award.date }}</td>
               </tr>
             {% endfor %}

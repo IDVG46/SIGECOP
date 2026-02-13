@@ -18,12 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from apps.dncp_integration import views as dncp_views
+
+from apps.dncp_integration.views import api_views
 
 urlpatterns = [
-    path("", dncp_views.home, name="home"),
+    path("", api_views.home, name="home"),
     path('admin/', admin.site.urls),
-    path("api/dncp/", include("apps.dncp_integration.urls")),
+    path("", include("apps.dncp_integration.urls")),
+    path("api/dncp/", include(("apps.dncp_integration.api_urls", "dncp_api"), namespace="dncp_api")),
 ]
 
 # Servir archivos estáticos en desarrollo
