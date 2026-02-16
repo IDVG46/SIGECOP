@@ -245,6 +245,7 @@ class Award(AuditedModel):
 class AwardItem(AuditedModel):
 	award = models.ForeignKey(Award, on_delete=models.CASCADE, related_name="award_items")
 	item = models.ForeignKey(ItemDefinition, on_delete=models.PROTECT, related_name="award_items")
+	orden_licitado = models.IntegerField(null=True, blank=True)
 	quantity = models.IntegerField(null=True, blank=True)
 	unit_price_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
 	unit_price_currency = models.ForeignKey(Currency, on_delete=models.PROTECT, null=True, blank=True)
@@ -291,7 +292,7 @@ class TenderSubItem(AuditedModel):
 	min_quantity = models.IntegerField(null=True, blank=True)
 	unit_price_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
 	unit_price_currency = models.ForeignKey(Currency, on_delete=models.PROTECT, null=True, blank=True)
-	orden = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+	orden = models.IntegerField(null=True, blank=True)
 
 	class Meta:
 		constraints = [
@@ -312,6 +313,7 @@ class TenderSubItem(AuditedModel):
 class AwardSubItem(AuditedModel):
 	award = models.ForeignKey(Award, on_delete=models.CASCADE, related_name="award_subitems")
 	subitem = models.ForeignKey(SubItemDefinition, on_delete=models.PROTECT, related_name="award_subitems")
+	orden_licitado = models.IntegerField(null=True, blank=True)
 	quantity = models.IntegerField(null=True, blank=True)
 	unit_price_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
 	unit_price_currency = models.ForeignKey(Currency, on_delete=models.PROTECT, null=True, blank=True)

@@ -101,7 +101,9 @@ class Command(BaseCommand):
             except Exception as exc:
                 failed += 1
                 last_error = str(exc)
+                import traceback
                 self.stderr.write(f"Error en OCID {ocid}: {exc}")
+                self.stderr.write(traceback.format_exc())
 
         if run:
             run.total_records = len(ocids)

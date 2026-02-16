@@ -86,6 +86,40 @@ def parse_order_decimal(value):
     return None
 
 
+def parse_order_subitem_number(value):
+    """
+    Extrae solo el número de subitem de valores como:
+    - '2.1-Cambio discos duros' -> 1
+    - '2.10-Algo' -> 10
+    - '2.150-Descripcion' -> 150
+    """
+    if value is None:
+        return None
+    
+    # Convertir directamente a string
+    str_value = str(value)
+    
+    # Buscar el punto decimal y extraer los dígitos después
+    if '.' in str_value:
+        parts = str_value.split('.')
+        if len(parts) >= 2:
+            # Tomar la parte después del primer punto
+            after_dot = parts[1]
+            
+            # Extraer solo los dígitos iniciales (antes de cualquier carácter no numérico)
+            subitem_digits = ''
+            for char in after_dot:
+                if char.isdigit():
+                    subitem_digits += char
+                else:
+                    break  # Detener en el primer carácter no numérico
+            
+            if subitem_digits:
+                return int(subitem_digits)
+    
+    return None
+
+
 def fallback_subitem_id(item_id, subitem):
     description = subitem.get("description") or ""
     if not description:

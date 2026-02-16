@@ -1,10 +1,12 @@
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
 
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.db.models import Q
 
 from apps.dncp_integration.models import (
     Award,
@@ -133,6 +135,22 @@ def tender_detail(request, ocid):
         messages.error(request, "No se encontro el tender local asociado al OCID")
         return redirect("dncp_integration:tender_list")
 
+    ordering_qs = Tender.objects.select_related("compiled_release").order_by("-tenderID", "-id")
+    current_key = tender.tenderID or 0
+
+    previous_tender = ordering_qs.filter(
+        Q(tenderID__gt=current_key)
+        | Q(tenderID=current_key, id__gt=tender.id)
+    ).order_by("tenderID", "id").first()
+
+    next_tender = ordering_qs.filter(
+        Q(tenderID__lt=current_key)
+        | Q(tenderID=current_key, id__lt=tender.id)
+    ).order_by("-tenderID", "-id").first()
+
+    first_tender = ordering_qs.first()
+    last_tender = ordering_qs.last()
+
     lots = list(
         tender.lots.select_related("value_currency", "min_value_currency").all()
     )
@@ -166,19 +184,24 @@ def tender_detail(request, ocid):
 
     lot_entries = []
     
-    # Detectar si es contrato por item usando award_criteria_details
-    # (por item => agrupar; por lote => mostrar lotes normales)
+    # Detectar criterio de adjudicación
     criteria = (tender.award_criteria_details or "").lower().strip()
     is_item_criteria = "item" in criteria or "ítem" in criteria
     is_total_criteria = "total" in criteria
     is_lot_criteria = "lote" in criteria
+    is_contract_by_item = False  # Inicializar antes del condicional
 
-    if is_lot_criteria:
-        is_contract_by_item = False
-    elif is_item_criteria or is_total_criteria:
-        is_contract_by_item = True
+    # Determinar si agrupar items
+    # Por Lote o Por Total => mostrar lotes separados
+    # Por Ítem => agrupar todos los items
+    if is_lot_criteria or is_total_criteria:
+        show_individual_lots = True
+        is_grouped_items = False
+    elif is_item_criteria:
+        show_individual_lots = False
+        is_grouped_items = True
     else:
-        # Fallback: mismo número de lotes que items y open_contract_type válido
+        # Fallback: detectar si es por ítem según estructura
         total_items = sum(len(items_list) for items_list in items_by_lot.values() if items_list)
         is_contract_by_item = (
             len(lots) > 1
@@ -188,8 +211,10 @@ def tender_detail(request, ocid):
                 for lot in lots
             )
         ) if lots else False
+        show_individual_lots = not is_contract_by_item
+        is_grouped_items = is_contract_by_item
     
-    if is_contract_by_item and lots:
+    if is_grouped_items and lots:
         # Agrupar todos los items bajo un solo lote representativo
         representative_lot = lots[0]
         group_title = representative_lot.title if is_total_criteria and representative_lot.title else "Ítems del Solicitados"
@@ -236,8 +261,20 @@ def tender_detail(request, ocid):
             "min_value": _format_amount(group_min_amount, group_min_currency),
             "items": [],
         })
+    elif show_individual_lots:
+        # Mostrar cada lote por separado (Por Lote, Por Total)
+        for lot in lots:
+            lot_entries.append({
+                "id": lot.id,
+                "title": lot.title,
+                "status_details": lot.status_details,
+                "open_contract_type_display": _format_open_contract_type(lot.open_contract_type),
+                "value": _format_amount(lot.value_amount, lot.value_currency),
+                "min_value": _format_amount(lot.min_value_amount, lot.min_value_currency),
+                "items": [],
+            })
     else:
-        # Lógica normal: un lote por cada Lot
+        # Fallback: un lote por cada Lot
         for lot in lots:
             lot_entries.append({
                 "id": lot.id,
@@ -263,10 +300,12 @@ def tender_detail(request, ocid):
     lot_entries_index = {entry["id"]: entry for entry in lot_entries}
 
     for lot_id, lot_items in items_by_lot.items():
-        # Si es contrato por item, todos los items van al grupo único
-        if is_contract_by_item:
+        # Decidir a qué entrada agregar los items
+        if is_grouped_items:
+            # Agrupar todos los items en una sola entrada (Por Ítem)
             entry = lot_entries_index.get("grouped")
         else:
+            # Cada item va a su lote correspondiente (Por Lote, Por Total)
             entry = lot_entries_index.get(lot_id)
         
         if not entry:
@@ -296,9 +335,11 @@ def tender_detail(request, ocid):
                     tender_subitem.unit_price_amount,
                     tender_subitem.quantity,
                 )
+                
                 entry["items"][-1]["subitems"].append({
                     "id": subitem.id if subitem else None,
                     "description": subitem.description if subitem else "",
+                    "orden": tender_subitem.orden,
                     "quantity": _format_quantity(tender_subitem.quantity),
                     "unit": subitem.unit_name if subitem else "",
                     "unit_price": _format_amount(
@@ -335,7 +376,14 @@ def tender_detail(request, ocid):
         "compiled_release": compiled_release,
         "lots": lot_entries,
         "is_contract_by_item": is_contract_by_item,
+        "is_total_criteria": is_total_criteria,
         "awards": award_entries,
+        "nav_tenders": {
+            "first": first_tender,
+            "previous": previous_tender,
+            "next": next_tender,
+            "last": last_tender,
+        },
         "formatted": {
             "tender_value": _format_amount(tender.value_amount, tender.value_currency),
             "date_published": _format_date(tender.date_published),

@@ -22,6 +22,64 @@
 <div class="dncp-detail">
 
   <div class="widget-box">
+    <div class="widget-body">
+      <div class="widget-main">
+        <div class="clearfix">
+          <div class="pull-left">
+            <a href="{% url 'dncp_integration:tender_list' %}" class="btn btn-sm btn-default">
+              <i class="ace-icon fa fa-list"></i>
+              Ver listado
+            </a>
+          </div>
+          <div class="pull-right">
+            {% if nav_tenders.first and nav_tenders.first.compiled_release.ocid != ocid %}
+              <a href="{% url 'dncp_integration:tender_detail' nav_tenders.first.compiled_release.ocid %}" class="btn btn-sm btn-info" title="Primero">
+                <i class="ace-icon fa fa-angle-double-left"></i>
+              </a>
+            {% else %}
+              <button class="btn btn-sm btn-info" disabled>
+                <i class="ace-icon fa fa-angle-double-left"></i>
+              </button>
+            {% endif %}
+
+            {% if nav_tenders.previous %}
+              <a href="{% url 'dncp_integration:tender_detail' nav_tenders.previous.compiled_release.ocid %}" class="btn btn-sm btn-primary" title="Anterior">
+                <i class="ace-icon fa fa-angle-left"></i>
+              </a>
+            {% else %}
+              <button class="btn btn-sm btn-primary" disabled>
+                <i class="ace-icon fa fa-angle-left"></i>
+              </button>
+            {% endif %}
+
+            {% if nav_tenders.next %}
+              <a href="{% url 'dncp_integration:tender_detail' nav_tenders.next.compiled_release.ocid %}" class="btn btn-sm btn-primary" title="Siguiente">
+                <i class="ace-icon fa fa-angle-right"></i>
+              </a>
+            {% else %}
+              <button class="btn btn-sm btn-primary" disabled>
+                <i class="ace-icon fa fa-angle-right"></i>
+              </button>
+            {% endif %}
+
+            {% if nav_tenders.last and nav_tenders.last.compiled_release.ocid != ocid %}
+              <a href="{% url 'dncp_integration:tender_detail' nav_tenders.last.compiled_release.ocid %}" class="btn btn-sm btn-info" title="Ultimo">
+                <i class="ace-icon fa fa-angle-double-right"></i>
+              </a>
+            {% else %}
+              <button class="btn btn-sm btn-info" disabled>
+                <i class="ace-icon fa fa-angle-double-right"></i>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-12"></div>
+
+  <div class="widget-box">
     <div class="widget-header widget-header-blue widget-header-flat">
       <h4 class="widget-title lighter">
         <i class="ace-icon fa fa-info-circle"></i>
@@ -54,45 +112,31 @@
     <div class="widget-header widget-header-blue widget-header-flat">
       <h4 class="widget-title lighter">
         <i class="ace-icon fa fa-tags"></i>
-        Lotes / Grupos
+        {% if is_contract_by_item %}
+          Items solicitados
+        {% else %}
+          Lotes / Grupos
+        {% endif %}
       </h4>
-      <div class="widget-toolbar">
-        <a href="#" id="expand-all-lotes" title="Expandir todos">
-          <i class="ace-icon fa fa-plus-square"></i>
-        </a>
-        <span class="divider">|</span>
-        <a href="#" id="collapse-all-lotes" title="Contraer todos">
-          <i class="ace-icon fa fa-minus-square"></i>
-        </a>
-      </div>
+      {% if not is_contract_by_item %}
+        <div class="widget-toolbar">
+          <a href="#" id="expand-all-lotes" title="Expandir todos">
+            <i class="ace-icon fa fa-plus-square"></i>
+          </a>
+          <span class="divider">|</span>
+          <a href="#" id="collapse-all-lotes" title="Contraer todos">
+            <i class="ace-icon fa fa-minus-square"></i>
+          </a>
+        </div>
+      {% endif %}
     </div>
     <div class="widget-body">
       <div class="widget-main">
         {% if lots %}
-          {% if is_contract_by_item %}
+          {% if is_contract_by_item and not is_total_criteria %}
             {% with lot=lots.0 %}
-              <div class="widget-box">
-                <div class="widget-header widget-header-blue widget-header-flat">
-                  <h5 class="widget-title smaller">
-                    <i class="ace-icon fa fa-list"></i>
-                    {{ lot.title|default:"Items" }}
-                  </h5>
-                  <div class="text-muted" style="padding: 6px 12px;">
-                    {% if lot.open_contract_type_display and lot.open_contract_type_display != "No" %}
-                      <span><strong>Contrato abierto:</strong> {{ lot.open_contract_type_display }}</span>
-                    {% endif %}
-                    {% if lot.min_value != "-" %}
-                      <span style="margin-left: 12px;"><strong>Min:</strong> {{ lot.min_value }}</span>
-                    {% endif %}
-                    {% if lot.value != "-" %}
-                      <span style="margin-left: 12px;"><strong>Max:</strong> {{ lot.value }}</span>
-                    {% endif %}
-                  </div>
-                </div>
-                <div class="widget-body">
-                  <div class="widget-main no-padding">
-                    {% if lot.items %}
-                      <table class="table table-striped table-bordered table-hover datatable-items">
+              {% if lot.items %}
+                <table class="table table-striped table-bordered table-hover datatable-items">
                         <thead>
                           <tr>
                             <th class="center" style="width: 8%">Nro Item</th>
@@ -175,15 +219,12 @@
                             </tr>
                           {% endfor %}
                         </tbody>
-                      </table>
-                    {% else %}
-                      <div class="alert alert-warning">
-                        <strong>Atencion:</strong> Sin items registrados para este proceso
-                      </div>
-                    {% endif %}
-                  </div>
+                </table>
+              {% else %}
+                <div class="alert alert-warning">
+                  <strong>Atencion:</strong> Sin items registrados para este proceso
                 </div>
-              </div>
+              {% endif %}
             {% endwith %}
           {% else %}
             {% for lot in lots %}
@@ -206,12 +247,12 @@
                   </div>
                   <div class="widget-toolbar">
                     <span class="lot-value"><strong>{{ lot.value }}</strong></span>
-                    <a href="#lote-{{ forloop.counter }}" data-toggle="collapse" aria-expanded="false" class="collapsed">
+                    <a href="#lote-{{ forloop.counter }}" data-toggle="collapse" aria-expanded="{% if forloop.length == 1 %}true{% else %}false{% endif %}" class="{% if forloop.length > 1 %}collapsed{% endif %}">
                       <i class="ace-icon fa fa-chevron-down"></i>
                     </a>
                   </div>
                 </div>
-                <div id="lote-{{ forloop.counter }}" class="widget-body collapse lote-collapse">
+                <div id="lote-{{ forloop.counter }}" class="widget-body {% if forloop.length > 1 %}collapse{% endif %} lote-collapse {% if forloop.length == 1 %}in{% endif %}">
                   <div class="widget-main no-padding">
                     {% if lot.items %}
                       <table class="table table-striped table-bordered table-hover datatable-items">

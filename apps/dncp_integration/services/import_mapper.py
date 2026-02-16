@@ -1,3 +1,5 @@
+import logging
+
 from apps.dncp_integration.models import (
     Award,
     AwardItem,
@@ -21,11 +23,139 @@ from apps.dncp_integration.services.import_helpers import (
     get_attribute_value,
     parse_order_decimal,
     parse_order_int,
+    parse_order_subitem_number,
     parse_dt,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ImportMapper:
+    def _deduplicate_subitems(self, subitems):
+        """
+        Elimina subitems duplicados basándose en el campo 'group'.
+        Si hay duplicados, mantiene el primero encontrado.
+        """
+        if not subitems:
+            return []
+        
+        seen_groups = {}
+        unique_subitems = []
+        duplicates_found = []
+        
+        for subitem in subitems:
+            group = subitem.get("group")
+            subitem_id = subitem.get("id")
+            
+            if not group:
+                # Sin grupo, mantener (puede ser subitem sin group)
+                unique_subitems.append(subitem)
+                continue
+            
+            if group in seen_groups:
+                # Duplicado detectado
+                duplicates_found.append({
+                    "group": group,
+                    "id": subitem_id,
+                    "kept_id": seen_groups[group]
+                })
+                logger.warning(
+                    f"Subitem duplicado detectado: group='{group}', "
+                    f"id='{subitem_id}' (descartado), "
+                    f"kept_id='{seen_groups[group]}'"
+                )
+            else:
+                # Primera vez que vemos este group
+                seen_groups[group] = subitem_id
+                unique_subitems.append(subitem)
+        
+        if duplicates_found:
+            logger.info(f"Se eliminaron {len(duplicates_found)} subitems duplicados")
+        
+        return unique_subitems
+    
+    def _find_original_tender_item(self, award_item, tender_items):
+        """
+        Encuentra el item original del tender que corresponde a un award item "fantasma".
+        
+        Estrategia:
+        1. Comparar por número de subitems
+        2. Comparar descripciones de subitems (por campo 'group')
+        3. Verificar orden de subitems
+        
+        Args:
+            award_item: Dict con datos del award item
+            tender_items: Lista de dicts con datos de tender items
+        
+        Returns:
+            Dict del tender item original, o None si no se encuentra
+        """
+        award_subitems = award_item.get("subItems", [])
+        
+        if not award_subitems:
+            return None
+        
+        # Deduplicar subitems del award antes de comparar
+        award_subitems_unique = self._deduplicate_subitems(award_subitems)
+        award_subitem_count = len(award_subitems_unique)
+        
+        # Extraer grupos de subitems del award para comparación
+        award_groups = [sub.get("group") for sub in award_subitems_unique if sub.get("group")]
+        award_groups_set = set(award_groups)
+        
+        if len(award_groups) == 0:
+            return None
+        
+        best_match = None
+        best_match_score = 0
+        candidates_checked = 0
+        
+        for tender_item in tender_items:
+            tender_subitems = tender_item.get("subItems", [])
+            
+            if not tender_subitems:
+                continue
+            
+            candidates_checked += 1
+            tender_subitem_count = len(tender_subitems)
+            
+            # Criterio 1: Número de subitems similar (±1 por posibles duplicados)
+            if abs(tender_subitem_count - award_subitem_count) > 1:
+                continue
+            
+            # Extraer grupos de tender subitems
+            tender_groups = [sub.get("group") for sub in tender_subitems if sub.get("group")]
+            tender_groups_set = set(tender_groups)
+            
+            # Criterio 2: Intersección de grupos
+            matching_groups = award_groups_set & tender_groups_set
+            match_ratio = len(matching_groups) / max(len(award_groups_set), 1)
+            
+            # Criterio 3: Orden de los grupos (primeros 3)
+            order_match = 0
+            for i in range(min(3, len(award_groups), len(tender_groups))):
+                if award_groups[i] == tender_groups[i]:
+                    order_match += 1
+            
+            # Puntaje total: 60% match ratio + 40% order match
+            score = (match_ratio * 0.6) + ((order_match / max(3, 1)) * 0.4)
+            
+            if score > best_match_score and score >= 0.5:  # Umbral del 50% (prioriza coincidencia de grupos)
+                best_match_score = score
+                best_match = tender_item
+        
+        if best_match:
+            logger.info(
+                f"Mapeado: award item fantasma {award_item.get('id')[:20]}... → "
+                f"tender item {best_match.get('id')[:20]}... (score: {best_match_score:.2f})"
+            )
+        else:
+            logger.warning(
+                f"No se pudo mapear award item fantasma {award_item.get('id')[:20]}... a tender item"
+            )
+        
+        return best_match
+    
     def persist(self, compiled_release_obj, compiled_release):
         tender_data = compiled_release.get("tender", {})
         awards_data = compiled_release.get("awards", [])
@@ -146,7 +276,7 @@ class ImportMapper:
                         "unit_price_currency": self._get_currency(
                             subitem.get("unit", {}).get("value", {}).get("currency")
                         ),
-                        "orden": parse_order_decimal(subitem.get("group")),
+                        "orden": parse_order_subitem_number(subitem.get("group")),
                     },
                 )
 
@@ -190,59 +320,117 @@ class ImportMapper:
 
             for item in award.get("items", []) or []:
                 item_id = item.get("id") or fallback_item_id(item, prefix=award_id)
-                if not item_id or not item.get("description"):
+                if not item_id:
                     continue
+                
+                # Buscar el item en el índice del tender
                 item_obj = item_index.get(item_id)
+                create_award_item = True  # Por defecto, crear AwardItem
+                
+                # Si el item NO existe en el índice, es un "item fantasma"
                 if not item_obj:
-                    classification_obj = self._upsert_classification(item.get("classification", {}))
-                    item_obj, _ = self._upsert(
-                        ItemDefinition,
-                        lookup={"id": item_id},
-                        defaults={
-                            "description": item.get("description") or "",
-                            "classification": classification_obj,
-                            "unit_name": item.get("unit", {}).get("name"),
-                        },
+                    # Intentar encontrar el item original del tender
+                    original_tender_item = self._find_original_tender_item(
+                        item, 
+                        tender_data.get("items", [])
                     )
+                    
+                    if original_tender_item:
+                        # Usar el item original del tender
+                        original_item_id = original_tender_item.get("id")
+                        item_obj = item_index.get(original_item_id)
+                        
+                        if item_obj:
+                            logger.info(
+                                f"Mapeando award item fantasma '{item_id}' → "
+                                f"tender item original '{original_item_id}'"
+                            )
+                            # NO crear AwardItem para items fantasma, solo procesar subitems
+                            create_award_item = False
+                        else:
+                            logger.warning(
+                                f"Item original '{original_item_id}' no encontrado en item_index"
+                            )
+                    
+                    # Si aún no tenemos item_obj Y el item tiene descripción, crearlo como fallback
+                    if not item_obj and item.get("description"):
+                        logger.warning(
+                            f"Creando ItemDefinition para award item '{item_id}' "
+                            f"(no se pudo mapear a tender item)"
+                        )
+                        
+                        classification_obj = self._upsert_classification(item.get("classification", {}))
+                        item_obj, _ = self._upsert(
+                            ItemDefinition,
+                            lookup={"id": item_id},
+                            defaults={
+                                "description": item.get("description") or f"Item adjudicado {item_id}",
+                                "classification": classification_obj,
+                                "unit_name": item.get("unit", {}).get("name"),
+                            },
+                        )
 
-                if item_obj:
+                # Procesar solo si tenemos un item_obj válido
+                if not item_obj:
+                    logger.warning(f"No se pudo obtener item_obj para award item '{item_id}', omitiendo")
+                    continue
+
+                # Crear AwardItem solo si es necesario (items normales, no fantasma)
+                if create_award_item:
                     self._upsert(
                         AwardItem,
                         lookup={"award": award_obj, "item": item_obj},
                         defaults={
+                            "orden_licitado": parse_order_int(
+                                get_attribute_value(item.get("attributes"), "Orden")
+                            ),
                             "quantity": item.get("quantity"),
                             "unit_price_amount": get_amount(item.get("unit", {}).get("value")),
                             "unit_price_currency": self._get_currency(item.get("unit", {}).get("value", {}).get("currency")),
                         },
                     )
 
-                    for subitem in item.get("subItems", []) or []:
-                        subitem_id = subitem.get("id") or fallback_subitem_id(item_id, subitem)
-                        if not subitem_id or not subitem.get("description"):
-                            continue
-                        subitem_obj, _ = self._upsert(
-                            SubItemDefinition,
-                            lookup={"id": subitem_id},
+                # Procesar subitems (tanto para items normales como fantasma)
+                subitems = item.get("subItems", []) or []
+                unique_subitems = self._deduplicate_subitems(subitems)
+                
+                if len(unique_subitems) < len(subitems):
+                    logger.info(
+                        f"Item '{item_obj.id}': {len(subitems)} subitems originales → "
+                        f"{len(unique_subitems)} únicos (eliminados {len(subitems) - len(unique_subitems)} duplicados)"
+                    )
+                
+                for subitem in unique_subitems:
+                    subitem_id = subitem.get("id") or fallback_subitem_id(item_obj.id, subitem)
+                    if not subitem_id or not subitem.get("description"):
+                        continue
+                    subitem_obj, _ = self._upsert(
+                        SubItemDefinition,
+                        lookup={"id": subitem_id},
+                        defaults={
+                            "item": item_obj,
+                            "description": subitem.get("description") or "",
+                            "unit_name": subitem.get("unit", {}).get("name"),
+                            "attributes": subitem.get("attributes") or None,
+                        },
+                    )
+
+                    if subitem_obj:
+                        self._upsert(
+                            AwardSubItem,
+                            lookup={"award": award_obj, "subitem": subitem_obj},
                             defaults={
-                                "item": item_obj,
-                                "description": subitem.get("description") or "",
-                                "unit_name": subitem.get("unit", {}).get("name"),
-                                "attributes": subitem.get("attributes") or None,
+                                "orden_licitado": parse_order_subitem_number(
+                                    subitem.get("group")
+                                    or get_attribute_value(subitem.get("attributes"), "Orden")
+                                ),
+                                "quantity": subitem.get("quantity"),
+                                "unit_price_amount": get_amount(subitem.get("unit", {}).get("value")),
+                                "unit_price_currency": self._get_currency(
+                                    subitem.get("unit", {}).get("value", {}).get("currency")
+                                ),
                             },
                         )
-
-                        if subitem_obj:
-                            self._upsert(
-                                AwardSubItem,
-                                lookup={"award": award_obj, "subitem": subitem_obj},
-                                defaults={
-                                    "quantity": subitem.get("quantity"),
-                                    "unit_price_amount": get_amount(subitem.get("unit", {}).get("value")),
-                                    "unit_price_currency": self._get_currency(
-                                        subitem.get("unit", {}).get("value", {}).get("currency")
-                                    ),
-                                },
-                            )
 
         for contract in contracts_data:
             contract_id = contract.get("id")

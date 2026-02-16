@@ -44,7 +44,24 @@
     {% block extra_css %}{% endblock %}
   </head>
   <body class="skin-1">
-    <div id="navbar" class="navbar navbar-default          ace-save-state">
+    <style>
+      /* Avatar del usuario */
+      .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        margin-right: 8px;
+        border: 2px solid #fff;
+        object-fit: cover;
+      }
+      
+      .user-info-avatar {
+        display: flex;
+        align-items: center;
+      }
+    </style>
+
+    <div id="navbar" class="navbar navbar-default          ace-save-state  navbar-fixed-top">
       <div class="navbar-container ace-save-state" id="navbar-container">
         <button type="button" class="navbar-toggle menu-toggler pull-left" id="menu-toggler" data-target="#sidebar">
           <span class="sr-only">Toggle sidebar</span>
@@ -65,11 +82,18 @@
         <div class="navbar-buttons navbar-header pull-right" role="navigation">
           <ul class="nav ace-nav">
             <li class="light-blue dropdown-modal">
-              <a data-toggle="dropdown" href="#" class="dropdown-toggle">
-                <span class="user-info">
-                  <small>Bienvenido,</small>
-                  {% if user.is_authenticated %}{{ user.username }}{% else %}Invitado{% endif %}
-                </span>
+              <a data-toggle="dropdown" href="#" class="dropdown-toggle" aria-expanded="false">
+                    {% if user.is_authenticated %}
+                    {% if user.profile.avatar %}
+                      <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="user-avatar">
+                    {% else %}
+                      <img src="https://ui-avatars.com/api/?name={{ user.first_name|default:user.username }}&background=4B7BE5&color=fff&rounded=true" alt="{{ user.username }}" class="user-avatar">
+                    {% endif %}
+                  {% endif %}
+                  <span class="user-info">
+                    <small>Bienvenido,</small>
+                    {% if user.is_authenticated %}{{ user.username }}{% else %}Invitado{% endif %}
+                  </span>
                 <i class="ace-icon fa fa-caret-down"></i>
               </a>
 
@@ -114,7 +138,7 @@
         try{ace.settings.loadState('main-container')}catch(e){}
       </script>
 
-      <div id="sidebar" class="sidebar                  responsive                    ace-save-state">
+      <div id="sidebar" class="sidebar    sidebar-fixed              responsive                    ace-save-state">
         <script type="text/javascript">
           try{ace.settings.loadState('sidebar')}catch(e){}
         </script>
@@ -272,6 +296,15 @@
       jQuery(function($) {
         $('.datatable').each(function() {
           if (!$.fn.DataTable.isDataTable(this)) {
+            var orderColumn = $(this).data('order-column');
+            var orderDir = $(this).data('order-dir');
+            var defaultOrder = [[0, 'desc']];
+            if (orderColumn !== undefined && orderColumn !== null && orderColumn !== '') {
+              var parsedColumn = Number(orderColumn);
+              if (!Number.isNaN(parsedColumn)) {
+                defaultOrder = [[parsedColumn, orderDir || 'asc']];
+              }
+            }
             $(this).DataTable({
               language: {
                 "sProcessing":     "Procesando...",
@@ -299,7 +332,7 @@
               },
               pageLength: 10,
               bAutoWidth: false,
-              order: [[0, 'desc']],
+              order: defaultOrder,
               buttons: [ 'copy', 'csv', 'excel', 'pdf', 'print' ]
             });
           }

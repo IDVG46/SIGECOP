@@ -26,7 +26,7 @@
 
   <div class="widget-body">
     <div class="widget-main no-padding">
-      <table class="table table-striped table-bordered table-hover datatable">
+      <table class="table table-striped table-bordered table-hover datatable" data-order-column="4" data-order-dir="desc">
         <thead>
           <tr>
             <th class="center" style="width: 12%;">Contrato</th>
@@ -42,8 +42,8 @@
           {% for contract in contracts %}
           <tr>
             <td class="center">
-              <span style="font-family: monospace; font-weight: 600; color: #4D90FE;">
-                {{ contract.id|slice:":10" }}
+              <span style="font-family: monospace; font-weight: 600; color: #4D90FE;" title="{{ contract.id }}">
+                {{ contract.id }}
               </span>
             </td>
             <td class="center">{{ contract.tender_id }}</td>
@@ -57,7 +57,7 @@
                 {{ contract.status|default:"-" }}
               </span>
             </td>
-            <td class="center hidden-480">{{ contract.period }}</td>
+            <td class="center hidden-480" data-order="{{ contract.period_start_sort }}">{{ contract.period }}</td>
             <td class="text-right hidden-480"><strong>{{ contract.value }}</strong></td>
             <td class="center">
               <div class="action-buttons">

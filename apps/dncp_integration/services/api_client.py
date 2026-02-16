@@ -62,11 +62,11 @@ class DNCPApiClient:
     def _ensure_token(self):
         """Asegura que el token esté válido, renueva si es necesario."""
         if self.request_token is None:
-            print("⚠️ Sin token DNCP - modo limitado (15 req/min)")
+            print("[!] Sin token DNCP - modo limitado (15 req/min)")
             return None
         
         if self.access_token is None or datetime.now() >= self.token_expiry:
-            print("🔑 Renovando token DNCP...")
+            print("[*] Renovando token DNCP...")
             self._get_access_token()
-            print(f"✅ Token obtenido: {self.access_token[:20]}...")
+            print(f"[OK] Token obtenido: {self.access_token[:20]}...")
         return self.access_token
