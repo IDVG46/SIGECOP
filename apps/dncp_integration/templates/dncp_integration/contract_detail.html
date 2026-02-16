@@ -30,6 +30,10 @@
               <i class="ace-icon fa fa-list"></i>
               Ver listado
             </a>
+            <a href="{% url 'dncp_integration:contract_edit' contract.id %}" class="btn btn-sm btn-warning">
+              <i class="ace-icon fa fa-pencil"></i>
+              Editar
+            </a>
           </div>
           <div class="pull-right">
             {% if nav_contracts.first and nav_contracts.first.id != contract.id %}

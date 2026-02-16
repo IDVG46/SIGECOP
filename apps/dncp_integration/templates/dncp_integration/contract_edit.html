@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editar Contrato{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>Editar Contrato</h1>
+                <a href="{% url 'dncp_integration:contract_detail' contract.id %}" class="btn btn-secondary">
+                    <i class="fas fa-eye"></i> Ver Detalle
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- INFORMACIÓN DEL CONTRATO -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-contract"></i> Datos del Contrato
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="contractForm">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">ID Contrato</label>
+                                <input type="text" class="form-control" value="{{ contract.id }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Estado</label>
+                                {{ contract_form.status_details }}
+                                {% if contract_form.status_details.errors %}
+                                    <small class="text-danger">{{ contract_form.status_details.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha Inicio</label>
+                                {{ contract_form.period_start_date }}
+                                {% if contract_form.period_start_date.errors %}
+                                    <small class="text-danger">{{ contract_form.period_start_date.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha Fin</label>
+                                {{ contract_form.period_end_date }}
+                                {% if contract_form.period_end_date.errors %}
+                                    <small class="text-danger">{{ contract_form.period_end_date.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Monto</label>
+                                <div class="input-group">
+                                    {{ contract_form.value_amount }}
+                                    <span class="input-group-text">{{ contract.value_currency.symbol|default:"" }}</span>
+                                </div>
+                                {% if contract_form.value_amount.errors %}
+                                    <small class="text-danger">{{ contract_form.value_amount.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{% url 'dncp_integration:contract_detail' contract.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- INFORMACIÓN DE LA ADJUDICACIÓN -->
+            {% if award %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-award"></i> Datos de Adjudicación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="awardForm">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">ID Adjudicación</label>
+                                <input type="text" class="form-control" value="{{ award.id }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Estado</label>
+                                {{ award_form.status_details }}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha de Adjudicación</label>
+                                {{ award_form.date }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Monto</label>
+                                <div class="input-group">
+                                    {{ award_form.value_amount }}
+                                    <span class="input-group-text">{{ award.value_currency.symbol|default:"" }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Proveedores Adjudicados</label>
+                            <div class="border rounded p-3 bg-light">
+                                {% if suppliers %}
+                                    {% for supplier in suppliers %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="supplier_{{ supplier.id }}" 
+                                                   name="suppliers" 
+                                                   value="{{ supplier.id }}"
+                                                   checked>
+                                            <label class="form-check-label" for="supplier_{{ supplier.id }}">
+                                                {{ supplier.name }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted mb-0">No hay proveedores adjudicados</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success" form="contractForm">
+                            <i class="fas fa-save"></i> Guardar Cambios
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- INFORMACIÓN ADICIONAL -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Información de Referencia
+                    </h5>
+                </div>
+                <div class="card-body small">
+                    {% if tender %}
+                    <div class="mb-3">
+                        <label class="fw-bold">Licitación:</label>
+                        <p class="mb-0">{{ tender.tenderID }}</p>
+                        <p class="text-muted small mb-0">{{ tender.title }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if award %}
+                    <div class="mb-3">
+                        <label class="fw-bold">Proveedores:</label>
+                        <p class="mb-0">{{ formatted.suppliers }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="fw-bold">Período:</label>
+                        <p class="mb-0">{{ formatted.period_start }} → {{ formatted.period_end }}</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold">Monto:</label>
+                        <p class="mb-0">{{ formatted.value }}</p>
+                    </div>
+
+                    <hr>
+                    <small class="text-muted">
+                        Creado: {{ contract.created_at|date:"d/m/Y H:i" }}<br>
+                        Actualizado: {{ contract.updated_at|date:"d/m/Y H:i" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ITEMS Y SUBITEMS -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Items y Precios (Editable)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if show_lot_groups and lots %}
+                        <!-- Vista por Lotes -->
+                        {% for lot in lots %}
+                        <div class="mb-4">
+                            <div class="alert alert-light border-start border-success border-3 mb-3">
+                                <h6 class="mb-2 text-success">
+                                    <i class="fas fa-boxes"></i> {{ lot.title|default:"Sin lote" }}
+                                </h6>
+                                {% if lot.value %}
+                                    <small class="text-muted">Valor: {{ lot.value }} | Min: {{ lot.min_value }}</small>
+                                {% endif %}
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th class="text-end" style="width: 120px;">Cantidad</th>
+                                            <th class="text-end" style="width: 140px;">Precio Unit.</th>
+                                            <th class="text-end" style="width: 140px;">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in lot.items %}
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <strong>{{ item.description|truncatewords:15 }}</strong>
+                                                    <br>
+                                                    <small class="text-muted">{{ item.unit }}</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm item-quantity"
+                                                       data-award-item-id="{{ item.award_item_id }}"
+                                                       value="{{ item.quantity|default:'' }}"
+                                                       step="1" min="0">
+                                            </td>
+                                            <td>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm item-price"
+                                                       data-award-item-id="{{ item.award_item_id }}"
+                                                       value="{{ item.unit_price|default:'' }}"
+                                                       step="0.01" min="0">
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="item-total" data-award-item-id="{{ item.award_item_id }}">
+                                                    {{ item.total }}
+                                                </span>
+                                            </td>
+                                        </tr>
+
+                                        {% if item.subitems %}
+                                            {% for subitem in item.subitems %}
+                                            <tr class="table-secondary">
+                                                <td class="ps-5">
+                                                    <small>
+                                                        <i class="fas fa-arrow-right text-muted"></i>
+                                                        {{ subitem.description|truncatewords:15 }}
+                                                        <br>
+                                                        <span class="text-muted">{{ subitem.unit }}</span>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm subitem-quantity"
+                                                           data-award-subitem-id="{{ subitem.award_subitem_id }}"
+                                                           value="{{ subitem.quantity|default:'' }}"
+                                                           step="1" min="0">
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm subitem-price"
+                                                           data-award-subitem-id="{{ subitem.award_subitem_id }}"
+                                                           value="{{ subitem.unit_price|default:'' }}"
+                                                           step="0.01" min="0">
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="subitem-total" data-award-subitem-id="{{ subitem.award_subitem_id }}">
+                                                        {{ subitem.total }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% elif items %}
+                        <!-- Vista sin lotes -->
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-end" style="width: 120px;">Cantidad</th>
+                                        <th class="text-end" style="width: 140px;">Precio Unit.</th>
+                                        <th class="text-end" style="width: 140px;">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>{{ item.description|truncatewords:15 }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ item.unit }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="number" 
+                                                   class="form-control form-control-sm item-quantity"
+                                                   data-award-item-id="{{ item.award_item_id }}"
+                                                   value="{{ item.quantity|default:'' }}"
+                                                   step="1" min="0">
+                                        </td>
+                                        <td>
+                                            <input type="number" 
+                                                   class="form-control form-control-sm item-price"
+                                                   data-award-item-id="{{ item.award_item_id }}"
+                                                   value="{{ item.unit_price|default:'' }}"
+                                                   step="0.01" min="0">
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="item-total" data-award-item-id="{{ item.award_item_id }}">
+                                                {{ item.total }}
+                                            </span>
+                                        </td>
+                                    </tr>
+
+                                    {% if item.subitems %}
+                                        {% for subitem in item.subitems %}
+                                        <tr class="table-secondary">
+                                            <td class="ps-5">
+                                                <small>
+                                                    <i class="fas fa-arrow-right text-muted"></i>
+                                                    {{ subitem.description|truncatewords:15 }}
+                                                    <br>
+                                                    <span class="text-muted">{{ subitem.unit }}</span>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm subitem-quantity"
+                                                       data-award-subitem-id="{{ subitem.award_subitem_id }}"
+                                                       value="{{ subitem.quantity|default:'' }}"
+                                                       step="1" min="0">
+                                            </td>
+                                            <td>
+                                                <input type="number" 
+                                                       class="form-control form-control-sm subitem-price"
+                                                       data-award-subitem-id="{{ subitem.award_subitem_id }}"
+                                                       value="{{ subitem.unit_price|default:'' }}"
+                                                       step="0.01" min="0">
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="subitem-total" data-award-subitem-id="{{ subitem.award_subitem_id }}">
+                                                    {{ subitem.total }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No hay items en este contrato.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .inline-edit {
+        min-width: 100px;
+        transition: box-shadow 0.2s;
+    }
+
+    .inline-edit:focus {
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+
+    .inline-edit.unsaved {
+        background-color: #fff3cd;
+        border-color: #ffc107;
+    }
+
+    .item-total, .subitem-total {
+        font-weight: 500;
+        color: #28a745;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calcular total cuando cambia cantidad o precio
+    document.querySelectorAll('.item-quantity, .item-price').forEach(input => {
+        input.addEventListener('change', function() {
+            const awardItemId = this.dataset.awardItemId;
+            updateItemTotal(awardItemId);
+            saveItemChange(awardItemId);
+        });
+    });
+
+    document.querySelectorAll('.subitem-quantity, .subitem-price').forEach(input => {
+        input.addEventListener('change', function() {
+            const awardSubItemId = this.dataset.awardSubitemId;
+            updateSubitemTotal(awardSubItemId);
+            saveSubitemChange(awardSubItemId);
+        });
+    });
+
+    function updateItemTotal(awardItemId) {
+        const quantity = parseFloat(document.querySelector(`.item-quantity[data-award-item-id="${awardItemId}"]`).value) || 0;
+        const price = parseFloat(document.querySelector(`.item-price[data-award-item-id="${awardItemId}"]`).value) || 0;
+        const total = (quantity * price).toFixed(2);
+        document.querySelector(`.item-total[data-award-item-id="${awardItemId}"]`).textContent = total;
+    }
+
+    function updateSubitemTotal(awardSubItemId) {
+        const quantity = parseFloat(document.querySelector(`.subitem-quantity[data-award-subitem-id="${awardSubItemId}"]`).value) || 0;
+        const price = parseFloat(document.querySelector(`.subitem-price[data-award-subitem-id="${awardSubItemId}"]`).value) || 0;
+        const total = (quantity * price).toFixed(2);
+        document.querySelector(`.subitem-total[data-award-subitem-id="${awardSubItemId}"]`).textContent = total;
+    }
+
+    function saveItemChange(awardItemId) {
+        const quantity = document.querySelector(`.item-quantity[data-award-item-id="${awardItemId}"]`).value;
+        const unitPrice = document.querySelector(`.item-price[data-award-item-id="${awardItemId}"]`).value;
+
+        fetch(`{% url 'dncp_integration:update_award_item' award_item_id=0 %}`.replace('0', awardItemId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: JSON.stringify({
+                quantity: quantity ? parseInt(quantity) : null,
+                unit_price_amount: unitPrice ? parseFloat(unitPrice) : null,
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function saveSubitemChange(awardSubItemId) {
+        const quantity = document.querySelector(`.subitem-quantity[data-award-subitem-id="${awardSubItemId}"]`).value;
+        const unitPrice = document.querySelector(`.subitem-price[data-award-subitem-id="${awardSubItemId}"]`).value;
+
+        fetch(`{% url 'dncp_integration:update_award_subitem' award_subitem_id=0 %}`.replace('0', awardSubItemId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: JSON.stringify({
+                quantity: quantity ? parseInt(quantity) : null,
+                unit_price_amount: unitPrice ? parseFloat(unitPrice) : null,
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+});
+</script>
+{% endblock %}
