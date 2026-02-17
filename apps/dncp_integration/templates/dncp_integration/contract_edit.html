@@ -1,21 +1,29 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Editar Contrato{% endblock %}
+{% block title %}Editar Contrato - SIGECOP{% endblock %}
+
+{% block page_title %}
+    <i class="ace-icon fa fa-file-contract"></i>
+    Editar Contrato
+{% endblock %}
+
+{% block page_subtitle %}
+    Gestión integral de adjudicación e items
+{% endblock %}
+
+{% block breadcrumb %}
+<li>
+    <i class="ace-icon fa fa-home home-icon"></i>
+    <a href="{% url 'home' %}">Inicio</a>
+</li>
+<li>
+    <a href="{% url 'dncp_integration:contract_list' %}">Contratos</a>
+</li>
+<li class="active">Editar</li>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1>Editar Contrato</h1>
-                <a href="{% url 'dncp_integration:contract_detail' contract.id %}" class="btn btn-secondary">
-                    <i class="fas fa-eye"></i> Ver Detalle
-                </a>
-            </div>
-        </div>
-    </div>
-
     <!-- Messages -->
     {% if messages %}
         {% for message in messages %}
@@ -26,19 +34,26 @@
         {% endfor %}
     {% endif %}
 
-    <div class="row">
-        <!-- INFORMACIÓN DEL CONTRATO -->
-        <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-file-contract"></i> Datos del Contrato
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" id="contractForm">
-                        {% csrf_token %}
-                        
+    <form method="POST" id="contractForm" class="form-horizontal">
+        {% csrf_token %}
+        <div class="row">
+            <!-- INFORMACIÓN DEL CONTRATO -->
+            <div class="col-sm-8">
+                <div class="widget-box">
+                    <div class="widget-header widget-header-blue widget-header-flat">
+                        <h4 class="widget-title lighter">
+                            <i class="ace-icon fa fa-info-circle"></i>
+                            Datos del Contrato
+                        </h4>
+                        <div class="widget-toolbar">
+                            <a href="#" data-action="collapse">
+                                <i class="ace-icon fa fa-chevron-up"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="widget-body">
+                        <div class="widget-main">
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">ID Contrato</label>
@@ -82,34 +97,29 @@
                                 {% endif %}
                             </div>
                         </div>
+                        </div>
+                    </div>
+                </div>
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-save"></i> Guardar Cambios
-                            </button>
-                            <a href="{% url 'dncp_integration:contract_detail' contract.id %}" class="btn btn-secondary">
-                                <i class="fas fa-times"></i> Cancelar
+                <!-- INFORMACIÓN DE LA ADJUDICACIÓN -->
+                {% if award %}
+                <div class="widget-box">
+                    <div class="widget-header widget-header-purple widget-header-flat">
+                        <h4 class="widget-title lighter">
+                            <i class="ace-icon fa fa-award"></i>
+                            Datos de Adjudicacion
+                        </h4>
+                        <div class="widget-toolbar">
+                            <a href="#" data-action="collapse">
+                                <i class="ace-icon fa fa-chevron-up"></i>
                             </a>
                         </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- INFORMACIÓN DE LA ADJUDICACIÓN -->
-            {% if award %}
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-award"></i> Datos de Adjudicación
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" id="awardForm">
-                        {% csrf_token %}
-                        
+                    </div>
+                    <div class="widget-body">
+                        <div class="widget-main">
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">ID Adjudicación</label>
+                                <label class="form-label">ID Adjudicacion</label>
                                 <input type="text" class="form-control" value="{{ award.id }}" readonly>
                             </div>
                             <div class="col-md-6">
@@ -120,7 +130,7 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Fecha de Adjudicación</label>
+                                <label class="form-label">Fecha de Adjudicacion</label>
                                 {{ award_form.date }}
                             </div>
                             <div class="col-md-6">
@@ -133,7 +143,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Proveedores Adjudicados</label>
+                            <label class="form-label">Proveedores adjudicados</label>
                             <div class="border rounded p-3 bg-light">
                                 {% if suppliers %}
                                     {% for supplier in suppliers %}
@@ -153,25 +163,22 @@
                                 {% endif %}
                             </div>
                         </div>
-
-                        <button type="submit" class="btn btn-success" form="contractForm">
-                            <i class="fas fa-save"></i> Guardar Cambios
-                        </button>
-                    </form>
+                        </div>
+                    </div>
                 </div>
+                {% endif %}
             </div>
-            {% endif %}
-        </div>
 
         <!-- INFORMACIÓN ADICIONAL -->
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-info-circle"></i> Información de Referencia
-                    </h5>
+        <div class="col-sm-4">
+            <div class="widget-box">
+                <div class="widget-header widget-header-grey">
+                    <h4 class="widget-title lighter">
+                        <i class="ace-icon fa fa-info-circle"></i> Informacion de Referencia
+                    </h4>
                 </div>
-                <div class="card-body small">
+                <div class="widget-body">
+                    <div class="widget-main small">
                     {% if tender %}
                     <div class="mb-3">
                         <label class="fw-bold">Licitación:</label>
@@ -202,6 +209,7 @@
                         Creado: {{ contract.created_at|date:"d/m/Y H:i" }}<br>
                         Actualizado: {{ contract.updated_at|date:"d/m/Y H:i" }}
                     </small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,14 +217,27 @@
 
     <!-- ITEMS Y SUBITEMS -->
     <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list"></i> Items y Precios (Editable)
-                    </h5>
+        <div class="col-xs-12">
+            <div class="widget-box">
+                <div class="widget-header widget-header-green">
+                    <h4 class="widget-title lighter">
+                        <i class="ace-icon fa fa-list"></i>
+                        Items y Precios (Editable)
+                    </h4>
+                    <div class="widget-toolbar">
+                        <button type="button" class="btn btn-xs btn-success" id="saveItemsButton" disabled>
+                            <i class="ace-icon fa fa-check"></i>
+                            Guardar items
+                        </button>
+                    </div>
+                    <div class="widget-toolbar">
+                        <a href="#" data-action="collapse">
+                            <i class="ace-icon fa fa-chevron-up"></i>
+                        </a>
+                    </div>
                 </div>
-                <div class="card-body">
+                <div class="widget-body">
+                    <div class="widget-main no-padding">
                     {% if show_lot_groups and lots %}
                         <!-- Vista por Lotes -->
                         {% for lot in lots %}
@@ -251,18 +272,18 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <input type="number" 
+                                                <input type="text" 
                                                        class="form-control form-control-sm item-quantity"
                                                        data-award-item-id="{{ item.award_item_id }}"
                                                        value="{{ item.quantity|default:'' }}"
-                                                       step="1" min="0">
+                                                       inputmode="numeric">
                                             </td>
                                             <td>
-                                                <input type="number" 
-                                                       class="form-control form-control-sm item-price"
+                                                <input type="text" 
+                                                       class="form-control form-control-sm item-price money-input"
                                                        data-award-item-id="{{ item.award_item_id }}"
                                                        value="{{ item.unit_price|default:'' }}"
-                                                       step="0.01" min="0">
+                                                       inputmode="decimal">
                                             </td>
                                             <td class="text-end">
                                                 <span class="item-total" data-award-item-id="{{ item.award_item_id }}">
@@ -283,18 +304,18 @@
                                                     </small>
                                                 </td>
                                                 <td>
-                                                    <input type="number" 
+                                                    <input type="text" 
                                                            class="form-control form-control-sm subitem-quantity"
                                                            data-award-subitem-id="{{ subitem.award_subitem_id }}"
                                                            value="{{ subitem.quantity|default:'' }}"
-                                                           step="1" min="0">
+                                                           inputmode="numeric">
                                                 </td>
                                                 <td>
-                                                    <input type="number" 
-                                                           class="form-control form-control-sm subitem-price"
+                                                    <input type="text" 
+                                                           class="form-control form-control-sm subitem-price money-input"
                                                            data-award-subitem-id="{{ subitem.award_subitem_id }}"
                                                            value="{{ subitem.unit_price|default:'' }}"
-                                                           step="0.01" min="0">
+                                                           inputmode="decimal">
                                                 </td>
                                                 <td class="text-end">
                                                     <span class="subitem-total" data-award-subitem-id="{{ subitem.award_subitem_id }}">
@@ -333,18 +354,18 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <input type="number" 
+                                            <input type="text" 
                                                    class="form-control form-control-sm item-quantity"
                                                    data-award-item-id="{{ item.award_item_id }}"
                                                    value="{{ item.quantity|default:'' }}"
-                                                   step="1" min="0">
+                                                   inputmode="numeric">
                                         </td>
                                         <td>
-                                            <input type="number" 
-                                                   class="form-control form-control-sm item-price"
+                                            <input type="text" 
+                                                   class="form-control form-control-sm item-price money-input"
                                                    data-award-item-id="{{ item.award_item_id }}"
                                                    value="{{ item.unit_price|default:'' }}"
-                                                   step="0.01" min="0">
+                                                   inputmode="decimal">
                                         </td>
                                         <td class="text-end">
                                             <span class="item-total" data-award-item-id="{{ item.award_item_id }}">
@@ -369,14 +390,14 @@
                                                        class="form-control form-control-sm subitem-quantity"
                                                        data-award-subitem-id="{{ subitem.award_subitem_id }}"
                                                        value="{{ subitem.quantity|default:'' }}"
-                                                       step="1" min="0">
+                                                       inputmode="numeric">
                                             </td>
                                             <td>
                                                 <input type="number" 
-                                                       class="form-control form-control-sm subitem-price"
+                                                       class="form-control form-control-sm subitem-price money-input"
                                                        data-award-subitem-id="{{ subitem.award_subitem_id }}"
                                                        value="{{ subitem.unit_price|default:'' }}"
-                                                       step="0.01" min="0">
+                                                       inputmode="decimal">
                                             </td>
                                             <td class="text-end">
                                                 <span class="subitem-total" data-award-subitem-id="{{ subitem.award_subitem_id }}">
@@ -395,11 +416,26 @@
                             <i class="fas fa-info-circle"></i> No hay items en este contrato.
                         </div>
                     {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="clearfix form-actions">
+        <div class="col-md-offset-3 col-md-6 center">
+            <button class="btn btn-success" type="submit">
+                <i class="ace-icon fa fa-check bigger-110"></i>
+                Guardar contrato
+            </button>
+            &nbsp; &nbsp; &nbsp;
+            <a href="{% url 'dncp_integration:contract_detail' contract.id %}" class="btn btn-default" type="button">
+                <i class="ace-icon fa fa-undo bigger-110"></i>
+                Cancelar
+            </a>
+        </div>
+    </div>
+</form>
 
 <style>
     .inline-edit {
@@ -411,9 +447,9 @@
         box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
     }
 
-    .inline-edit.unsaved {
-        background-color: #fff3cd;
-        border-color: #ffc107;
+    .dirty-input {
+        background-color: #fff8e1;
+        border-color: #ffb300;
     }
 
     .item-total, .subitem-total {
@@ -424,46 +460,334 @@
     .table-hover tbody tr:hover {
         background-color: rgba(40, 167, 69, 0.05);
     }
+
+    .widget-header .widget-title {
+        letter-spacing: 0.2px;
+    }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Calcular total cuando cambia cantidad o precio
-    document.querySelectorAll('.item-quantity, .item-price').forEach(input => {
-        input.addEventListener('change', function() {
-            const awardItemId = this.dataset.awardItemId;
-            updateItemTotal(awardItemId);
-            saveItemChange(awardItemId);
+    // ===========================
+    // Money formatter para inputs de dinero
+    // ===========================
+    const moneyFormatter = new Intl.NumberFormat('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    function normalizeMoney(value) {
+        // Convierte formato español (1.234,56) a número IEEE (1234.56)
+        const raw = (value || '').trim();
+        if (!raw) return '';
+        
+        // Regla simple:
+        // Si hay coma → coma es decimal, puntos son miles
+        // Si NO hay coma pero hay puntos → depende de cuántos dígitos después del último punto
+        
+        if (raw.includes(',')) {
+            // Hay coma → formato español: 1.234,56
+            // Quitar todos los puntos y convertir coma a punto
+            return raw.replace(/\./g, '').replace(',', '.');
+        } else if (raw.includes('.')) {
+            // No hay coma, pero hay puntos
+            // Si el último punto tiene 2-3 dígitos después → es decimal (50.00 o 50.000)
+            const lastDotIndex = raw.lastIndexOf('.');
+            const afterLastDot = raw.substring(lastDotIndex + 1);
+            
+            if (afterLastDot.length === 2 || afterLastDot.length === 3) {
+                // Parece ser decimal: 50.00 o 50.000 → quitar otros puntos y dejar el último
+                const beforeLastDot = raw.substring(0, lastDotIndex).replace(/\./g, '');
+                return beforeLastDot + '.' + afterLastDot;
+            } else {
+                // Todos los puntos son separadores de miles
+                return raw.replace(/\./g, '');
+            }
+        }
+        
+        // Sin puntos ni comas
+        return raw;
+    }
+
+    function formatMoneyDisplay(numericValue) {
+        // Convierte número IEEE a formato español: 1234.56 → 1.234,56
+        // Solo muestra decimales si realmente existen
+        if (Number.isNaN(numericValue)) return '';
+        
+        // Detecta si tiene decimales
+        const hasDecimals = numericValue % 1 !== 0;
+        
+        if (hasDecimals) {
+            // Con 2 decimales
+            return new Intl.NumberFormat('es-ES', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(numericValue);
+        } else {
+            // Sin decimales si es número entero
+            return new Intl.NumberFormat('es-ES', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(numericValue);
+        }
+    }
+
+    // Inicializar todos los inputs de dinero - SIMPLE AND DIRECT
+    const moneyInputs = document.querySelectorAll('.money-input');
+    console.log('Found money inputs:', moneyInputs.length);
+    
+    function formatNumberWithDots(numberStr) {
+        // Quita todo excepto dígitos y coma
+        let clean = numberStr.replace(/[^\d,]/g, '');
+        if (!clean) return '';
+        
+        // Si hay coma, separa por ella
+        if (clean.includes(',')) {
+            const parts = clean.split(',');
+            const integer = parts[0];
+            const decimal = parts[1] || '';
+            
+            // Agrega puntos cada 3 dígitos en la parte entera
+            const withDots = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            
+            // Limita decimales a 2
+            const limitedDecimal = decimal.substring(0, 2);
+            
+            return limitedDecimal ? withDots + ',' + limitedDecimal : withDots;
+        } else {
+            // Sin coma, todo es parte entera
+            // Agrega puntos cada 3 dígitos
+            return clean.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+    }
+    
+    moneyInputs.forEach(input => {
+        // Formatear el valor inicial (sin decimales, solo parte entera con puntos de miles)
+        if (input.value) {
+            let initialValue = input.value.trim();
+            
+            // Si tiene coma, es formato español ya (960950,00)
+            if (initialValue.includes(',')) {
+                // Quitar la coma y todo lo que viene después (decimales)
+                initialValue = initialValue.split(',')[0];
+            }
+            
+            // Si tiene punto decimal (IEEE: 50000000.00), quitar decimales
+            const lastDotPos = initialValue.lastIndexOf('.');
+            if (lastDotPos > 0) {
+                const afterDot = initialValue.substring(lastDotPos + 1);
+                // Si hay exactamente 2 dígitos después del punto, es decimal IEEE
+                if (afterDot.length === 2 && /^\d+$/.test(afterDot)) {
+                    initialValue = initialValue.substring(0, lastDotPos);
+                }
+            }
+            
+            // Remover cualquier punto de miles existente
+            initialValue = initialValue.replace(/\./g, '');
+            
+            // Formatear con puntos de miles
+            const formatted = formatNumberWithDots(initialValue);
+            input.value = formatted;
+        }
+        
+        input.dataset.originalValue = input.value;
+        
+        // Evento input: formatear mientras escribes
+        input.addEventListener('input', function(e) {
+            console.log('Input changed:', this.value);
+            const formatted = formatNumberWithDots(this.value);
+            console.log('Formatted to:', formatted);
+            if (formatted !== this.value) {
+                this.value = formatted;
+            }
+            markDirty(this);
+        });
+    });
+    
+    // Normalizar antes de enviar
+    const contractForm = document.getElementById('contractForm');
+    if (contractForm) {
+        contractForm.addEventListener('submit', function(e) {
+            moneyInputs.forEach(input => {
+                const value = input.value.trim();
+                if (value) {
+                    const normalized = normalizeMoney(value);
+                    input.value = parseFloat(normalized) || value;
+                }
+            });
+        });
+    }
+    
+    // ===========================
+    // Widget collapse functionality (ACE compatible)
+    // ===========================
+    document.querySelectorAll('.widget-header [data-action="collapse"]').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Navigate up to find the widget-box
+            let widget = this.parentElement; // widget-toolbar
+            widget = widget.parentElement; // widget-header
+            widget = widget.parentElement; // widget-box
+            
+            if (!widget || !widget.classList.contains('widget-box')) {
+                return;
+            }
+            
+            // Find the body and icon
+            const body = widget.querySelector('.widget-body');
+            const icon = this.querySelector('i');
+            
+            if (!body || !icon) return;
+            
+            // Toggle state
+            const isVisible = body.style.display !== 'none';
+            
+            if (isVisible) {
+                // Hide the body
+                body.style.display = 'none';
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                // Show the body
+                body.style.display = 'block';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
         });
     });
 
-    document.querySelectorAll('.subitem-quantity, .subitem-price').forEach(input => {
+    const normalizeOnSubmit = function() {
+        // Normalizar todos los inputs de dinero antes de enviar
+        const moneyInputs = document.querySelectorAll('.money-input');
+        moneyInputs.forEach(input => {
+            input.value = normalizeMoney(input.value);
+        });
+    };
+
+    const contractFormLocal = document.getElementById('contractForm');
+    if (contractFormLocal) {
+        contractFormLocal.addEventListener('submit', normalizeOnSubmit);
+    }
+
+    const saveItemsButton = document.getElementById('saveItemsButton');
+    const itemInputs = document.querySelectorAll('.item-quantity, .item-price');
+    const subitemInputs = document.querySelectorAll('.subitem-quantity, .subitem-price');
+
+    function markOriginalValues(inputs) {
+        inputs.forEach(input => {
+            input.dataset.originalValue = input.value || '';
+        });
+    }
+
+    function markDirty(input) {
+        const original = input.dataset.originalValue || '';
+        const currentValue = normalizeMoney(input.value || '');
+        const originalNormalized = normalizeMoney(original);
+        
+        if (currentValue !== originalNormalized) {
+            input.classList.add('dirty-input');
+        } else {
+            input.classList.remove('dirty-input');
+        }
+        const hasDirty = document.querySelectorAll('.dirty-input').length > 0;
+        if (saveItemsButton) {
+            saveItemsButton.disabled = !hasDirty;
+        }
+    }
+
+    markOriginalValues(itemInputs);
+    markOriginalValues(subitemInputs);
+
+    // Add dirty detection to all item/subitem inputs
+    itemInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            markDirty(this);
+        });
         input.addEventListener('change', function() {
+            markDirty(this);
+        });
+    });
+
+    subitemInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            markDirty(this);
+        });
+        input.addEventListener('change', function() {
+            markDirty(this);
+        });
+    });
+
+    itemInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const awardItemId = this.dataset.awardItemId;
+            updateItemTotal(awardItemId);
+            markDirty(this);
+        });
+    });
+
+    subitemInputs.forEach(input => {
+        input.addEventListener('input', function() {
             const awardSubItemId = this.dataset.awardSubitemId;
             updateSubitemTotal(awardSubItemId);
-            saveSubitemChange(awardSubItemId);
+            markDirty(this);
         });
     });
 
     function updateItemTotal(awardItemId) {
-        const quantity = parseFloat(document.querySelector(`.item-quantity[data-award-item-id="${awardItemId}"]`).value) || 0;
-        const price = parseFloat(document.querySelector(`.item-price[data-award-item-id="${awardItemId}"]`).value) || 0;
-        const total = (quantity * price).toFixed(2);
-        document.querySelector(`.item-total[data-award-item-id="${awardItemId}"]`).textContent = total;
+        const quantityInput = document.querySelector(`.item-quantity[data-award-item-id="${awardItemId}"]`);
+        const priceInput = document.querySelector(`.item-price[data-award-item-id="${awardItemId}"]`);
+        const totalSpan = document.querySelector(`.item-total[data-award-item-id="${awardItemId}"]`);
+        
+        // Normalizar cantidad: quitar puntos de miles
+        const quantityStr = (quantityInput?.value || '0').replace(/\./g, '');
+        const quantity = parseFloat(quantityStr) || 0;
+        
+        // Normalizar precio: quitar puntos de miles y convertir coma a punto si existe
+        const priceStr = (priceInput?.value || '0').replace(/\./g, '').replace(',', '.');
+        const price = parseFloat(priceStr) || 0;
+        
+        const total = quantity * price;
+        const formattedTotal = formatMoneyDisplay(total);
+        
+        // Mantener el prefijo original (ej: "Gs. ")
+        const originalText = totalSpan?.textContent || '';
+        const prefix = originalText.match(/^[^0-9]*/)?.[0] || '';
+        
+        totalSpan.textContent = prefix + formattedTotal;
     }
 
     function updateSubitemTotal(awardSubItemId) {
-        const quantity = parseFloat(document.querySelector(`.subitem-quantity[data-award-subitem-id="${awardSubItemId}"]`).value) || 0;
-        const price = parseFloat(document.querySelector(`.subitem-price[data-award-subitem-id="${awardSubItemId}"]`).value) || 0;
-        const total = (quantity * price).toFixed(2);
-        document.querySelector(`.subitem-total[data-award-subitem-id="${awardSubItemId}"]`).textContent = total;
+        const quantityInput = document.querySelector(`.subitem-quantity[data-award-subitem-id="${awardSubItemId}"]`);
+        const priceInput = document.querySelector(`.subitem-price[data-award-subitem-id="${awardSubItemId}"]`);
+        const totalSpan = document.querySelector(`.subitem-total[data-award-subitem-id="${awardSubItemId}"]`);
+        
+        // Normalizar cantidad: quitar puntos de miles
+        const quantityStr = (quantityInput?.value || '0').replace(/\./g, '');
+        const quantity = parseFloat(quantityStr) || 0;
+        
+        // Normalizar precio: quitar puntos de miles y convertir coma a punto si existe
+        const priceStr = (priceInput?.value || '0').replace(/\./g, '').replace(',', '.');
+        const price = parseFloat(priceStr) || 0;
+        
+        const total = quantity * price;
+        const formattedTotal = formatMoneyDisplay(total);
+        
+        // Mantener el prefijo original (ej: "Gs. ")
+        const originalText = totalSpan?.textContent || '';
+        const prefix = originalText.match(/^[^0-9]*/)?.[0] || '';
+        
+        totalSpan.textContent = prefix + formattedTotal;
     }
 
     function saveItemChange(awardItemId) {
-        const quantity = document.querySelector(`.item-quantity[data-award-item-id="${awardItemId}"]`).value;
-        const unitPrice = document.querySelector(`.item-price[data-award-item-id="${awardItemId}"]`).value;
+        const quantityInput = document.querySelector(`.item-quantity[data-award-item-id="${awardItemId}"]`);
+        const priceInput = document.querySelector(`.item-price[data-award-item-id="${awardItemId}"]`);
+        
+        const quantity = quantityInput?.value;
+        const unitPrice = normalizeMoney(priceInput?.value || '');
 
-        fetch(`{% url 'dncp_integration:update_award_item' award_item_id=0 %}`.replace('0', awardItemId), {
+        return fetch(`{% url 'dncp_integration:update_award_item' award_item_id=0 %}`.replace('0', awardItemId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -484,10 +808,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function saveSubitemChange(awardSubItemId) {
-        const quantity = document.querySelector(`.subitem-quantity[data-award-subitem-id="${awardSubItemId}"]`).value;
-        const unitPrice = document.querySelector(`.subitem-price[data-award-subitem-id="${awardSubItemId}"]`).value;
+        const quantityInput = document.querySelector(`.subitem-quantity[data-award-subitem-id="${awardSubItemId}"]`);
+        const priceInput = document.querySelector(`.subitem-price[data-award-subitem-id="${awardSubItemId}"]`);
+        
+        const quantity = quantityInput?.value;
+        const unitPrice = normalizeMoney(priceInput?.value || '');
 
-        fetch(`{% url 'dncp_integration:update_award_subitem' award_subitem_id=0 %}`.replace('0', awardSubItemId), {
+        return fetch(`{% url 'dncp_integration:update_award_subitem' award_subitem_id=0 %}`.replace('0', awardSubItemId), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -505,6 +832,49 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => console.error('Error:', error));
+    }
+
+    if (saveItemsButton) {
+        saveItemsButton.addEventListener('click', function() {
+            const dirtyItemIds = new Set();
+            const dirtySubitemIds = new Set();
+
+            document.querySelectorAll('.dirty-input').forEach(input => {
+                if (input.classList.contains('item-quantity') || input.classList.contains('item-price')) {
+                    dirtyItemIds.add(input.dataset.awardItemId);
+                }
+                if (input.classList.contains('subitem-quantity') || input.classList.contains('subitem-price')) {
+                    dirtySubitemIds.add(input.dataset.awardSubitemId);
+                }
+            });
+
+            if (dirtyItemIds.size === 0 && dirtySubitemIds.size === 0) {
+                return;
+            }
+
+            saveItemsButton.disabled = true;
+            saveItemsButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+            const itemPromises = Array.from(dirtyItemIds).map(saveItemChange);
+            const subitemPromises = Array.from(dirtySubitemIds).map(saveSubitemChange);
+
+            Promise.all([...itemPromises, ...subitemPromises])
+                .then(() => {
+                    document.querySelectorAll('.dirty-input').forEach(input => {
+                        // Normalizar y guardar como nuevo valor original para próximas comparaciones
+                        input.dataset.originalValue = normalizeMoney(input.value || '');
+                        input.classList.remove('dirty-input');
+                    });
+                    saveItemsButton.disabled = true;
+                })
+                .catch(() => {
+                    alert('Hubo un error al guardar los items. Intenta de nuevo.');
+                })
+                .finally(() => {
+                    saveItemsButton.innerHTML = '<i class="fas fa-check"></i> Guardar items';
+                    saveItemsButton.disabled = false;
+                });
+        });
     }
 });
 </script>

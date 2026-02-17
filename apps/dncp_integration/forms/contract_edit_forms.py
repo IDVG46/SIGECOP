@@ -1,5 +1,8 @@
+from decimal import Decimal, InvalidOperation
+
 from django import forms
-from django.forms import modelformset_factory, inlineformset_factory
+from django.forms import modelformset_factory
+from django.utils import timezone
 from apps.dncp_integration.models import (
     Contract,
     Award,
@@ -10,8 +13,43 @@ from apps.dncp_integration.models import (
 
 
 class ContractEditForm(forms.ModelForm):
-    """Formulario para editar datos básicos del contrato"""
-    
+    """Formulario para editar datos basicos del contrato"""
+
+    period_start_date = forms.DateTimeField(
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(
+            format="%Y-%m-%dT%H:%M",
+            attrs={
+                "class": "form-control form-control-sm",
+                "type": "datetime-local",
+            },
+        ),
+    )
+    period_end_date = forms.DateTimeField(
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(
+            format="%Y-%m-%dT%H:%M",
+            attrs={
+                "class": "form-control form-control-sm",
+                "type": "datetime-local",
+            },
+        ),
+    )
+    value_amount = forms.DecimalField(
+        required=False,
+        max_digits=18,
+        decimal_places=2,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm money-input",
+                "inputmode": "decimal",
+                "placeholder": "Monto",
+            }
+        ),
+    )
+
     class Meta:
         model = Contract
         fields = ['status_details', 'period_start_date', 'period_end_date', 'value_amount']
@@ -20,26 +58,63 @@ class ContractEditForm(forms.ModelForm):
                 'class': 'form-control form-control-sm',
                 'placeholder': 'Estado del contrato'
             }),
-            'period_start_date': forms.DateTimeInput(attrs={
-                'class': 'form-control form-control-sm',
-                'type': 'datetime-local',
-            }),
-            'period_end_date': forms.DateTimeInput(attrs={
-                'class': 'form-control form-control-sm',
-                'type': 'datetime-local',
-            }),
-            'value_amount': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': 'Monto'
-            }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.period_start_date:
+            start_date = self.instance.period_start_date
+            if timezone.is_aware(start_date):
+                start_date = timezone.localtime(start_date)
+            self.initial["period_start_date"] = start_date.strftime("%Y-%m-%dT%H:%M")
+        if self.instance and self.instance.period_end_date:
+            end_date = self.instance.period_end_date
+            if timezone.is_aware(end_date):
+                end_date = timezone.localtime(end_date)
+            self.initial["period_end_date"] = end_date.strftime("%Y-%m-%dT%H:%M")
+
+    def clean_value_amount(self):
+        raw_value = self.cleaned_data.get("value_amount")
+        if raw_value in (None, ""):
+            return None
+        if isinstance(raw_value, Decimal):
+            return raw_value
+        if isinstance(raw_value, str):
+            normalized = raw_value.replace(".", "").replace(",", ".").strip()
+            try:
+                return Decimal(normalized)
+            except InvalidOperation:
+                raise forms.ValidationError("Monto invalido.")
+        return raw_value
 
 
 class AwardEditForm(forms.ModelForm):
-    """Formulario para editar datos básicos de la adjudicación"""
-    
+    """Formulario para editar datos basicos de la adjudicacion"""
+
+    date = forms.DateTimeField(
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(
+            format="%Y-%m-%dT%H:%M",
+            attrs={
+                "class": "form-control form-control-sm",
+                "type": "datetime-local",
+            },
+        ),
+    )
+    value_amount = forms.DecimalField(
+        required=False,
+        max_digits=18,
+        decimal_places=2,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm money-input",
+                "inputmode": "decimal",
+                "placeholder": "Monto",
+            }
+        ),
+    )
+
     suppliers = forms.ModelMultipleChoiceField(
         queryset=Party.objects.filter(role=Party.ROLE_SUPPLIER),
         widget=forms.CheckboxSelectMultiple,
@@ -55,17 +130,29 @@ class AwardEditForm(forms.ModelForm):
                 'class': 'form-control form-control-sm',
                 'placeholder': 'Estado de adjudicación'
             }),
-            'date': forms.DateTimeInput(attrs={
-                'class': 'form-control form-control-sm',
-                'type': 'datetime-local',
-            }),
-            'value_amount': forms.NumberInput(attrs={
-                'class': 'form-control form-control-sm',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': 'Monto'
-            }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.date:
+            award_date = self.instance.date
+            if timezone.is_aware(award_date):
+                award_date = timezone.localtime(award_date)
+            self.initial["date"] = award_date.strftime("%Y-%m-%dT%H:%M")
+
+    def clean_value_amount(self):
+        raw_value = self.cleaned_data.get("value_amount")
+        if raw_value in (None, ""):
+            return None
+        if isinstance(raw_value, Decimal):
+            return raw_value
+        if isinstance(raw_value, str):
+            normalized = raw_value.replace(".", "").replace(",", ".").strip()
+            try:
+                return Decimal(normalized)
+            except InvalidOperation:
+                raise forms.ValidationError("Monto invalido.")
+        return raw_value
 
 
 class AwardItemEditForm(forms.ModelForm):
