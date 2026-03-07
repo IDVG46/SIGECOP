@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Entidades DNCP - SIGECOP{% endblock %}
+
+{% block page_title %}Entidades DNCP{% endblock %}
+{% block page_subtitle %}Configuracion multi-entidad{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-sm-6">
+    <div class="widget-box">
+      <div class="widget-header widget-header-blue widget-header-flat">
+        <h4 class="widget-title lighter">Seleccion de entidad activa</h4>
+      </div>
+      <div class="widget-body">
+        <div class="widget-main">
+          <form method="post" action="{% url 'dncp_integration:organization_select' %}">
+            {% csrf_token %}
+            <div class="form-group">
+              {{ select_form.organization.label_tag }}
+              {{ select_form.organization }}
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="ace-icon fa fa-check"></i>
+              Establecer entidad activa
+            </button>
+            <a href="{% url 'dncp_api:dncp_list' %}" class="btn btn-default btn-sm">Volver a DNCP</a>
+          </form>
+          {% if selected_org %}
+          <div class="alert alert-info" style="margin-top: 12px; margin-bottom: 0;">
+            Activa: <strong>{{ selected_org.name }}</strong> (Codigo: {{ selected_org.code }})
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="widget-box" style="margin-top: 16px;">
+      <div class="widget-header widget-header-green widget-header-flat">
+        <h4 class="widget-title lighter">Nueva entidad</h4>
+      </div>
+      <div class="widget-body">
+        <div class="widget-main">
+          <form method="post" action="{% url 'dncp_integration:organization_list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create" />
+            <div class="form-group">{{ form.code.label_tag }}{{ form.code }}</div>
+            <div class="form-group">{{ form.name.label_tag }}{{ form.name }}</div>
+            <div class="form-group">{{ form.procuring_entity_name.label_tag }}{{ form.procuring_entity_name }}</div>
+            <div class="form-group">
+              <label>
+                {{ form.is_active }}
+                <span class="lbl"> Activa</span>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm">
+              <i class="ace-icon fa fa-plus"></i>
+              Guardar entidad
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6">
+    <div class="widget-box">
+      <div class="widget-header widget-header-orange widget-header-flat">
+        <h4 class="widget-title lighter">Entidades registradas</h4>
+      </div>
+      <div class="widget-body">
+        <div class="widget-main no-padding">
+          <table class="table table-striped table-bordered table-hover">
+            <thead>
+              <tr>
+                <th>Codigo</th>
+                <th>Nombre</th>
+                <th>Nombre en API</th>
+                <th>Activa</th>
+                <th>Accion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for org in organizations %}
+              <tr>
+                <td>{{ org.code }}</td>
+                <td>{{ org.name }}</td>
+                <td>{{ org.procuring_entity_name }}</td>
+                <td class="center">
+                  {% if org.is_active %}
+                  <span class="label label-success">Si</span>
+                  {% else %}
+                  <span class="label label-default">No</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <form method="post" action="{% url 'dncp_integration:organization_update' org.id %}">
+                    {% csrf_token %}
+                    <div class="form-group" style="margin-bottom: 6px;">
+                      <input type="text" name="code" class="form-control input-sm" value="{{ org.code }}" required />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 6px;">
+                      <input type="text" name="name" class="form-control input-sm" value="{{ org.name }}" required />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 6px;">
+                      <input type="text" name="procuring_entity_name" class="form-control input-sm" value="{{ org.procuring_entity_name }}" required />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 6px;">
+                      <label>
+                        <input type="checkbox" name="is_active" {% if org.is_active %}checked{% endif %} /> Activa
+                      </label>
+                    </div>
+                    <button type="submit" class="btn btn-xs btn-info">
+                      <i class="ace-icon fa fa-save"></i>
+                      Actualizar
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="center">Sin entidades configuradas</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

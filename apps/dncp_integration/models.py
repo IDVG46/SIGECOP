@@ -49,6 +49,50 @@ class ImportRun(models.Model):
 		return f"ImportRun #{self.pk} ({self.status})"
 
 
+class DNCPOrganization(models.Model):
+	"""Entidad configurable para consultas a la API DNCP."""
+
+	code = models.CharField(max_length=30, unique=True, db_index=True)
+	name = models.CharField(max_length=255)
+	procuring_entity_name = models.CharField(max_length=255)
+	is_active = models.BooleanField(default=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ["name"]
+		indexes = [
+			models.Index(fields=["is_active"], name="dncp_org_active_idx"),
+		]
+
+	def __str__(self):
+		return f"{self.code} - {self.name}"
+
+
+class UserDNCPOrganizationSelection(models.Model):
+	"""Seleccion persistente de entidad DNCP por usuario."""
+
+	user = models.OneToOneField(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="dncp_organization_selection",
+	)
+	organization = models.ForeignKey(
+		DNCPOrganization,
+		on_delete=models.PROTECT,
+		related_name="selected_by_users",
+	)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		indexes = [
+			models.Index(fields=["organization"], name="user_dncp_org_idx"),
+		]
+
+	def __str__(self):
+		return f"{self.user} -> {self.organization}"
+
+
 class RawRelease(models.Model):
 	ocid = models.CharField(max_length=255, db_index=True)
 	release_id = models.CharField(max_length=255)

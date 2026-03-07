@@ -16,6 +16,21 @@
 {% endblock %}
 
 {% block content %}
+<div class="alert alert-info">
+  <i class="ace-icon fa fa-building"></i>
+  {% if selected_organization %}
+    Entidad activa: <strong>{{ selected_organization.name }}</strong>
+    (Codigo: {{ selected_organization.code }})
+  {% else %}
+    No hay entidad activa configurada.
+  {% endif %}
+  <a href="{% url 'dncp_integration:organization_list' %}" class="btn btn-xs btn-primary pull-right">
+    <i class="ace-icon fa fa-cog"></i>
+    Gestionar entidades
+  </a>
+  <div class="clearfix"></div>
+</div>
+
 <div class="widget-box">
   <div class="widget-header widget-header-blue widget-header-flat">
     <h4 class="widget-title lighter">

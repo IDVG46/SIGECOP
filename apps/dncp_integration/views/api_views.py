@@ -14,7 +14,49 @@ import requests
 from apps.dncp_integration.services.api_client import DNCPApiClient
 from apps.dncp_integration.services.data_processor import DNCPDataProcessor
 from apps.dncp_integration.services.import_mapper import ImportMapper
-from apps.dncp_integration.models import CompiledRelease, ImportRun, RawRelease
+from apps.dncp_integration.models import (
+    CompiledRelease,
+    DNCPOrganization,
+    ImportRun,
+    RawRelease,
+    UserDNCPOrganizationSelection,
+)
+
+
+def _get_selected_organization(request):
+    """Obtiene la entidad DNCP activa del usuario o una por defecto."""
+    if request.user.is_authenticated:
+        selection = (
+            UserDNCPOrganizationSelection.objects.filter(user=request.user)
+            .select_related("organization")
+            .first()
+        )
+        if selection and selection.organization and selection.organization.is_active:
+            request.session["selected_dncp_organization_id"] = selection.organization_id
+            return selection.organization
+
+    session_org_id = request.session.get("selected_dncp_organization_id")
+    if session_org_id:
+        org = DNCPOrganization.objects.filter(id=session_org_id, is_active=True).first()
+        if org:
+            return org
+
+    return (
+        DNCPOrganization.objects.filter(is_active=True)
+        .order_by("name")
+        .first()
+    )
+
+
+def _build_search_params(organization, page=1):
+    params = {
+        "items_per_page": 100,
+        "page": page,
+    }
+    if organization:
+        params["parties.identifier.id"] = organization.code
+        params["tender.procuringEntity.name"] = organization.procuring_entity_name
+    return params
 
 
 def _get_error_message(status_code):
@@ -53,13 +95,8 @@ def dncp_list(request):
     """
     try:
         client = DNCPApiClient()
-
-        params = {
-            "items_per_page": 100,
-            "parties.identifier.id": "1369",
-            "tender.procuringEntity.name": "Facultad Politecnica / Universidad Nacional de Asunción",
-            "page": 1,
-        }
+        selected_organization = _get_selected_organization(request)
+        params = _build_search_params(selected_organization, page=1)
 
         licitaciones = []
         ocid_list = []
@@ -94,16 +131,27 @@ def dncp_list(request):
             "licitaciones": licitaciones,
             "total": len(licitaciones),
             "latest_import_run": latest_import_run,
+            "selected_organization": selected_organization,
         }
 
     except requests.exceptions.RequestException as exc:
         status_code = getattr(exc.response, "status_code", None) if hasattr(exc, "response") else None
         error_msg = _get_error_message(status_code) if status_code else "No pudimos conectar con la API DNCP. Por favor, intenta nuevamente."
         messages.warning(request, error_msg)
-        context = {"licitaciones": [], "total": 0, "latest_import_run": None}
+        context = {
+            "licitaciones": [],
+            "total": 0,
+            "latest_import_run": None,
+            "selected_organization": _get_selected_organization(request),
+        }
     except Exception as exc:
         messages.warning(request, "Ocurrió un error al procesar los datos. Por favor, intenta nuevamente.")
-        context = {"licitaciones": [], "total": 0, "latest_import_run": None}
+        context = {
+            "licitaciones": [],
+            "total": 0,
+            "latest_import_run": None,
+            "selected_organization": _get_selected_organization(request),
+        }
 
     return render(request, "dncp_integration/dncp_list.html", context)
 
@@ -325,15 +373,15 @@ def dncp_import_bulk(request):
 
     client = DNCPApiClient()
     mapper = ImportMapper()
+    selected_organization = _get_selected_organization(request)
+    if not selected_organization:
+        messages.warning(request, "No hay entidad DNCP activa. Configura una entidad antes de importar.")
+        return redirect("dncp_integration:organization_list")
+
     run = ImportRun.objects.create(status=ImportRun.STATUS_RUNNING, source=ImportRun.SOURCE_HTTP)
 
     start_dt, end_dt = _build_date_bounds(start_date, end_date)
-    params = {
-        "items_per_page": 100,
-        "parties.identifier.id": "1369",
-        "tender.procuringEntity.name": "Facultad Politecnica / Universidad Nacional de Asunción",
-        "page": 1,
-    }
+    params = _build_search_params(selected_organization, page=1)
     start_date_obj = date.fromisoformat(start_dt) if start_dt else None
     end_date_obj = date.fromisoformat(end_dt) if end_dt else None
 
