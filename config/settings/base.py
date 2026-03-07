@@ -48,6 +48,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     # Add local apps here
     "apps.dncp_integration",
+    "apps.procurement",
 ]
 
 # Application definition

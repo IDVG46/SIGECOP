@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("", include("apps.dncp_integration.urls")),
     path("api/dncp/", include(("apps.dncp_integration.api_urls", "dncp_api"), namespace="dncp_api")),
+    path("procurement/", include(("apps.procurement.urls", "procurement"), namespace="procurement")),
 ]
 
 # Servir archivos estáticos en desarrollo

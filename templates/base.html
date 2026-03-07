@@ -171,6 +171,15 @@
             </a>
             <b class="arrow"></b>
           </li>
+          <li class="{% if request.resolver_match.namespace == 'procurement' %}active{% endif %}">
+            <a href="{% url 'procurement:order_list' %}">
+              <i class="menu-icon fa fa-shopping-cart"></i>
+              <span class="menu-text">
+                Órdenes de compra
+              </span>
+            </a>
+            <b class="arrow"></b>
+          </li>
         </ul><!-- /.nav-list -->
 
         <div class="sidebar-toggle sidebar-collapse" id="sidebar-collapse">

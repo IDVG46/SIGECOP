@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar orden - SIGECOP{% endblock %}
+
+{% block page_title %}
+<i class="ace-icon fa fa-trash-o"></i>
+Eliminar orden
+{% endblock %}
+
+{% block content %}
+<div class="widget-box">
+    <div class="widget-header widget-header-red">
+        <h4 class="widget-title">Confirmación</h4>
+    </div>
+    <div class="widget-body">
+        <div class="widget-main">
+            <p>¿Está seguro que desea eliminar la orden <strong>{{ object.order_number }}</strong>?</p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fa fa-trash-o"></i> Eliminar
+                </button>
+                <a href="{% url 'procurement:order_list' %}" class="btn btn-default">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
