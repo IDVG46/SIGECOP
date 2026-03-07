@@ -43,3 +43,6 @@ Thumbs.db
 *.p12
 *.pfx
 *.crt
+
+# Local Copilot working context (not versioned)
+.copilot_local/
