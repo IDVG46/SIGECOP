@@ -1,0 +1,37 @@
+# ---------------------------------------------------------------------------
+# PLANTILLA DE COMMIT — SIGECOP
+# Guía completa: docs/git-conventions.md
+# ---------------------------------------------------------------------------
+# Formato: <tipo>(<alcance>): <descripción corta en infinitivo, máx 72 chars>
+#
+# TIPOS:
+#   feat      → nueva funcionalidad                    (versión MINOR)
+#   fix       → corrección de error                    (versión PATCH)
+#   refactor  → reestructuración sin cambio externo
+#   perf      → mejora de rendimiento
+#   test      → agregar o corregir tests
+#   docs      → solo documentación
+#   style     → formato de código (sin lógica)
+#   chore     → mantenimiento, dependencias, config
+#   ci        → pipelines CI/CD
+#   revert    → revertir commit anterior
+#
+# ALCANCES:
+#   dncp · procurement · orders · budget · memos · payments
+#   api · ui · db · auth · config · tests · docs · git
+#
+# BREAKING CHANGE: agregar en el pie si el cambio rompe compatibilidad.
+# ---------------------------------------------------------------------------
+
+# <tipo>(<alcance>): <descripción>
+
+# ---------------------------------------------------------------------------
+# Cuerpo (opcional) — explica el QUÉ y el POR QUÉ, no el cómo:
+
+
+
+# ---------------------------------------------------------------------------
+# Pie (opcional):
+#   BREAKING CHANGE: <descripción del cambio incompatible>
+#   Closes #<número de issue>
+

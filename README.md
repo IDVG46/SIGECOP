@@ -1,82 +1,75 @@
-# 📋 SIGECOP - Sistema de Gestión de Contrataciones Públicas
+# SIGECOP - Sistema de Gestión de Contrataciones Públicas
 
-> Plataforma web para gestionar procesos de licitación pública con integración a la API del DNCP
+> Plataforma web construida con Django para gestionar procesos de contratación pública: importación desde DNCP, órdenes de compra, presupuestos, cumplimientos y pagos.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat-square)
-![Django](https://img.shields.io/badge/Django-6.0+-darkgreen?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.12+-blue?style=flat-square)
+![Django](https://img.shields.io/badge/Django-6.0-darkgreen?style=flat-square)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-336791?style=flat-square)
 
 ---
 
-## 📑 Tabla de Contenidos
+## Tabla de Contenidos
 
-- [¿Qué es SIGECOP?](#-qué-es-sigecop)
-- [Características](#-características)
-- [Requisitos](#-requisitos)
-- [Instalación](#-instalación)
-- [Configuración](#-configuración)
-- [Funcionalidades](#-funcionalidades)
-- [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Uso](#-uso)
-- [Troubleshooting](#-troubleshooting)
-
----
-
-## 🎯 ¿Qué es SIGECOP?
-
-**SIGECOP** es un sistema web construido con Django que automatiza la importación, procesamiento y gestión de procesos de licitación pública desde la API del DNCP (Dirección Nacional de Contrataciones Públicas).
-
-Te permite:
-- 📥 Importar licitaciones automáticamente desde DNCP
-- 📊 Centralizar toda la información de contrataciones
-- 🔍 Auditar cambios (quién modificó qué y cuándo)
-- ⚡ Gestionar lotes, items, adjudicaciones y contratos
-- 🔐 Controlar acceso con autenticación
+- [¿Qué es SIGECOP?](#qué-es-sigecop)
+- [Módulos](#módulos)
+- [Requisitos](#requisitos)
+- [Instalación](#instalación)
+- [Configuración](#configuración)
+- [Rutas Principales](#rutas-principales)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Tests](#tests)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## ✨ Características Principales
+## ¿Qué es SIGECOP?
 
-### ✅ Importación de Licitaciones
-- Sincronización automática con API DNCP
-- Soporte para múltiples OCIDs en una sola operación
-- Manejo robusto de errores y reintentos
-- Registro de cada importación (fecha, usuario, estado)
+**SIGECOP** automatiza el ciclo completo de gestión de contrataciones públicas en una entidad:
 
-### ✅ Gestión Completa de Datos
-- **Procesos (Tenders)**: Título, estado, monto, método de contratación
-- **Lotes**: Organizados por procesos
-- **Items y Subitems**: Detalle técnico de lo que se contrata
-- **Adjudicaciones (Awards)**: Proveedores seleccionados
-- **Contratos**: Información de ejecución
-
-### ✅ Auditoría y Trazabilidad
-- Registro automático de created_at, updated_at, modified_by
-- Panel administrativo para auditar cambios
-- Historial completo de importaciones
-
-### ✅ Panel Administrativo
-- Interfaz Django admin optimizada
-- Búsqueda y filtrado avanzado
-- Acciones batch para procesamiento masivo
-- Gestión de usuarios y permisos
-
-### ✅ Multi-entorno
-- Configuración separada para desarrollo y producción
-- Variables de entorno para secretos
-- Soporte PostgreSQL escalable
+1. **Integración DNCP** — importa y sincroniza licitaciones, lotes, adjudicaciones y contratos desde la API v3 del DNCP.
+2. **Procurement** — gestiona órdenes de compra/servicio por objeto de gasto, presupuestos por contrato, cumplimientos (memos) y pagos con control de saldo presupuestario.
 
 ---
 
-## 📋 Requisitos
+## Módulos
 
-| Requisito | Versión |
-|-----------|---------|
-| Python | 3.10+ |
-| PostgreSQL | 12+ |
-| pip | Latest |
+### `apps.dncp_integration`
 
-### Dependencias Python
+Consume la API DNCP y mantiene los datos locales sincronizados.
+
+| Funcionalidad | Descripción |
+|---|---|
+| Importación de OCIDs | Vía formulario web o comando CLI |
+| Contratos y lotes | Detalle completo con items, subitems y adjudicaciones |
+| Entidades | Listado y selección de entidades contratantes |
+| Edición local | Ajuste de datos de contrato (montos, resolución) sin alterar los datos DNCP |
+| ImportRun log | Auditoría de cada importación (estado, fecha, usuario) |
+
+### `apps.procurement`
+
+Capa transaccional sobre los contratos importados.
+
+| Funcionalidad | Descripción |
+|---|---|
+| **Órdenes de compra** | Creación, edición, cancelación. Vinculadas a contrato, lote y proveedor |
+| **Presupuestos** (`ContractBudget`) | Asignación de montos por contrato, objeto de gasto y fuente de financiamiento |
+| **Cumplimientos** (`FulfillmentMemo`) | Memos de recepción parcial o total de órdenes; flujo borrador → aprobado |
+| **Pagos** (`Payment`) | Imputación de pagos con asignaciones multi-orden y multi-presupuesto |
+| **Control de saldo** | El saldo presupuestario solo se afecta al imputar pagos (no al aprobar órdenes) |
+| **APIs internas** | Endpoints JSON para formularios dinámicos (opciones de contratos, líneas, presupuestos) |
+
+---
+
+## Requisitos
+
+| Requisito | Versión mínima |
+|---|---|
+| Python | 3.12 |
+| PostgreSQL | 12 |
+| pip | Última estable |
+
+Dependencias principales (`requirements.txt`):
+
 ```
 Django==6.0.1
 psycopg2-binary==2.9.11
@@ -86,308 +79,232 @@ requests==2.32.5
 
 ---
 
-## 🚀 Instalación
+## Instalación
 
-### 1. Clonar repositorio
+### 1. Clonar el repositorio
+
 ```bash
-git clone https://github.com/tu-usuario/sigecop.git
-cd sigecop
+git clone https://github.com/IDVG46/sigecop.git
+cd sigecop/SIGECOP
 ```
 
 ### 2. Crear entorno virtual
+
 ```bash
 # Windows
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# Linux/Mac
+# Linux / macOS
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
 ### 3. Instalar dependencias
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configurar base de datos
-```bash
-# Crear BD (asegúrate PostgreSQL está corriendo)
-createdb sigecop_db
+### 4. Crear la base de datos
 
-# O con usuario específico
+```bash
+createdb sigecop_db
+# o con usuario específico:
 createdb -U postgres sigecop_db
 ```
 
 ### 5. Configurar variables de entorno
-Crea `.env` en la raíz del proyecto:
+
+Crea un archivo `.env` en `SIGECOP/` (mismo directorio que `manage.py`):
+
 ```env
-SECRET_KEY=tu-clave-secreta-aqui
+SECRET_KEY=cambia-esto-por-una-clave-segura
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 DATABASE_URL=postgresql://usuario:contraseña@localhost:5432/sigecop_db
 
-DNCP_REQUEST_TOKEN=tu-token-dncp-aqui
+DNCP_REQUEST_TOKEN=tu-token-api-dncp
 ```
 
-### 6. Ejecutar migraciones
+### 6. Aplicar migraciones
+
 ```bash
 python manage.py migrate
 ```
 
 ### 7. Crear superusuario
+
 ```bash
 python manage.py createsuperuser
-# Ingresa: usuario, email, contraseña
 ```
 
-### 8. Iniciar servidor
+### 8. Iniciar el servidor
+
 ```bash
 python manage.py runserver
 ```
 
-Accede a **http://localhost:8000** 🎉
-
-Admin: **http://localhost:8000/admin**
+Accede a **http://localhost:8000**  
+Panel de administración: **http://localhost:8000/admin**
 
 ---
 
-## ⚙️ Configuración
+## Configuración
 
-### Entornos
+### Entornos de ejecución
 
 ```
 config/settings/
-├── base.py              # Configuración compartida
-├── dev.py               # Desarrollo
-└── prod.py              # Producción
+├── base.py    # Configuración compartida
+├── dev.py     # Desarrollo (DEBUG=True, BD local)
+└── prod.py    # Producción (HTTPS, SECRET_KEY obligatoria)
 ```
 
-Edita `manage.py` para cambiar de entorno:
-```python
-# Desarrollo:
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+`manage.py` apunta a `config.settings.dev` por defecto.  
+Para producción, exporta la variable antes de ejecutar:
 
-# Producción:
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.prod')
-```
-
-### Variables de Entorno
-
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `SECRET_KEY` | Clave secreta Django | `django-insecure-...` |
-| `DEBUG` | Modo debug | `True` (dev) / `False` (prod) |
-| `ALLOWED_HOSTS` | Hosts permitidos | `localhost,127.0.0.1` |
-| `DATABASE_URL` | URL BD PostgreSQL | `postgresql://user:pass@localhost/db` |
-| `DNCP_REQUEST_TOKEN` | Token API DNCP | `tu-token-aqui` |
-
----
-
-## 💡 Funcionalidades
-
-### Módulo de Importación
-
-#### Importar vía Web
-1. Accede a `/dncp/` → "Importar Licitaciones"
-2. Ingresa OCIDs (uno por línea o separados por comas)
-3. Haz clic en "Importar"
-4. Monitorea el progreso en tiempo real
-
-```
-Ejemplo OCID: ocid-open-2024-001234
-```
-
-#### Importar vía CLI
 ```bash
-python manage.py import_dncp \
-  --ocid "ocid-xxx-123" \
-  --ocid "ocid-xxx-456"
+export DJANGO_SETTINGS_MODULE=config.settings.prod
 ```
 
-### Módulo de Procesos
+### Variables de entorno
 
-#### Listar Licitaciones
-- Accede a `/dncp/list`
-- Filtra por estado, entidad, rango de fechas
-- Exporta datos en tabla
-- Busca por OCID o título
-
-#### Ver Detalles
-- Accede a `/dncp/detail/<OCID>`
-- Información completa del proceso
-- Lotes, items, adjudicaciones asociadas
-- Historial de cambios
-
-### Módulo Admin
-
-#### Administradores pueden:
-- Ver todas las importaciones realizadas
-- Editar licitaciones, lotes, items
-- Gestionar usuarios y permisos
-- Auditar cambios (quién modificó qué)
-- Ver estado de sincronización DNCP
-
-**URL**: `/admin`
+| Variable | Descripción | Requerida |
+|---|---|---|
+| `SECRET_KEY` | Clave secreta Django | Sí |
+| `DEBUG` | Activa modo debug | Solo dev |
+| `ALLOWED_HOSTS` | Hosts permitidos (coma-separados) | Sí |
+| `DATABASE_URL` | URL de conexión PostgreSQL | Sí |
+| `DNCP_REQUEST_TOKEN` | Token para la API DNCP v3 | Sí |
 
 ---
 
-## 📁 Estructura del Proyecto
+## Rutas Principales
+
+### DNCP Integration
+
+| URL | Descripción |
+|---|---|
+| `/` | Inicio / dashboard |
+| `/tenders/` | Listado de licitaciones importadas |
+| `/tenders/<ocid>/` | Detalle de una licitación |
+| `/contratos/` | Listado de contratos |
+| `/contratos/<id>/` | Detalle de contrato |
+| `/contratos/<id>/edit/` | Edición local de contrato |
+| `/entidades/` | Entidades contratantes |
+| `/api/dncp/` | API interna DNCP |
+
+### Procurement
+
+| URL | Descripción |
+|---|---|
+| `/orders/` | Órdenes de compra |
+| `/orders/add/` | Nueva orden |
+| `/budgets/` | Presupuestos por contrato |
+| `/budgets/add/` | Nuevo presupuesto |
+| `/memos/` | Cumplimientos (memos de recepción) |
+| `/memos/add/` | Nuevo memo |
+| `/payments/` | Pagos |
+| `/payments/add/` | Nuevo pago |
+| `/payments/<id>/report/` | Reporte de pago |
+
+### Admin
+
+| URL | Descripción |
+|---|---|
+| `/admin/` | Panel administrativo Django |
+
+---
+
+## Estructura del Proyecto
 
 ```
-sigecop/
+SIGECOP/
 ├── apps/
-│   └── dncp_integration/              ← App principal
-│       ├── models.py                 (Tender, Lot, Item, Award, Contract)
-│       ├── views/
-│       │   ├── api_views.py          (Importación, listado)
-│       │   ├── tender_views.py       (Detalle licitación)
-│       │   └── contract_views.py     (Detalle contrato)
+│   ├── dncp_integration/          # Integración API DNCP
+│   │   ├── models.py              # CompiledRelease, Contract, Tender, Lot, Award, Party...
+│   │   ├── services/
+│   │   │   ├── api_client.py      # Cliente HTTP API DNCP v3
+│   │   │   └── import_mapper.py   # Mapeo de respuesta JSON a modelos Django
+│   │   ├── views/
+│   │   ├── templates/
+│   │   ├── management/commands/   # import_dncp (CLI)
+│   │   └── tests/
+│   │
+│   └── procurement/               # Gestión transaccional
+│       ├── models.py              # PurchaseOrder, ContractBudget, FulfillmentMemo, Payment...
 │       ├── services/
-│       │   ├── api_client.py         (Cliente API DNCP)
-│       │   ├── data_processor.py     (Procesar datos)
-│       │   └── import_mapper.py      (Mapear a modelos)
-│       ├── management/commands/
-│       │   └── import_dncp.py        (Comando CLI)
-│       ├── migrations/               (Cambios BD)
-│       ├── templates/                (HTML)
-│       ├── tests/
-│       └── admin.py                  (Admin customizado)
+│       │   ├── finance_service.py # Reglas de negocio: presupuesto, cumplimiento, pagos
+│       │   ├── fulfillment_metrics.py  # Métricas de cumplimiento centralizadas
+│       │   ├── balance/           # Servicios de saldo presupuestario
+│       │   ├── budget/            # Servicios de presupuesto
+│       │   └── payments/          # Servicios de pago
+│       ├── views/
+│       │   ├── order_views.py     # Vistas de órdenes de compra
+│       │   ├── api_views.py       # Endpoints JSON para formularios dinámicos
+│       │   └── finance/           # Vistas modulares de presupuesto, memos y pagos
+│       │       ├── budget_views.py
+│       │       ├── memo_views.py
+│       │       └── payment_views.py
+│       ├── forms/
+│       ├── utils/
+│       │   ├── decimal_utils.py   # Parsing y validación decimal centralizado
+│       │   └── format_utils.py    # Formateo de montos Gs.
+│       ├── templatetags/
+│       ├── templates/
+│       └── tests/
 │
-├── config/                            ← Configuración Django
+├── config/
 │   ├── settings/
-│   │   ├── base.py                  (Común)
-│   │   ├── dev.py                   (Desarrollo)
-│   │   └── prod.py                  (Producción)
-│   ├── urls.py                      (Rutas)
+│   │   ├── base.py
+│   │   ├── dev.py
+│   │   └── prod.py
+│   ├── urls.py
 │   ├── wsgi.py
 │   └── asgi.py
 │
-├── templates/                         ← Templates globales
-│   ├── base.html
-│   └── home.html
-│
-├── static/                            ← CSS, JS, imágenes
-├── .env                               ← Variables (NO commitar)
-├── .env.example                       ← Plantilla variables
+├── templates/          # Templates globales (base, home)
+├── static/             # JS compartido (numeric-format.js)
+├── .env                # Variables de entorno (NO versionar)
 ├── manage.py
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
 
 ---
 
-## 📖 Uso
+## Tests
 
-### Dashboard/Home
-```
-URL: http://localhost:8000/
-- Descripción del sistema
-- Accesos rápidos a funcionalidades
-```
+Ejecutar suite de las apps instaladas:
 
-### Importar Licitaciones
-```
-URL: http://localhost:8000/dncp/import/
-- Formulario para ingresar OCIDs
-- Monitoreo de importación en progreso
-- Historial de importaciones anteriores
+```bash
+python manage.py test apps.dncp_integration.tests apps.procurement.tests --keepdb --noinput
 ```
 
-### Listar Licitaciones Importadas
-```
-URL: http://localhost:8000/dncp/list/
-- Tabla con todas las licitaciones
-- Filtros por estado, entidad, fecha
-- Links a detalles de cada licitación
-```
-
-### Ver Detalle de Licitación
-```
-URL: http://localhost:8000/dncp/detail/<OCID>/
-- Información completa del proceso
-- Lotes y sus items
-- Adjudicaciones (proveedores ganadores)
-- Presupuestos y montos
-```
-
-### Acceso Administrativo
-```
-URL: http://localhost:8000/admin/
-- Requiere login como superusuario
-- Gestión completa de datos
-- Auditoría de cambios
-- Gestión de usuarios
-```
+La suite cubre:
+- Parsing y validación decimal localizado
+- Reglas de servicio de pagos y consistencia presupuestaria
+- Lógica de cumplimientos parciales y métricas de órdenes
 
 ---
 
-## Modelos de Datos
-
-### Tender (Licitación)
-```python
-- id: Identificador único
-- title: Título del proceso
-- status: Estado (Abierto, Cerrado, Fallido, etc)
-- procuring_entity: Entidad que contrata
-- value_amount: Monto total
-- date_published: Fecha de publicación
-```
-
-### Lot (Lote)
-```python
-- id: Identificador único
-- tender: Relación a Tender
-- title: Nombre del lote
-- value_amount: Monto del lote
-```
-
-### Item (Item del Lote)
-```python
-- id: Identificador único
-- lot: Relación a Lot
-- description: Descripción de lo que se contrata
-- quantity: Cantidad
-- unit_price_amount: Precio unitario
-```
-
-### Award (Adjudicación)
-```python
-- id: Identificador único
-- tender: Relación a Tender
-- suppliers: Proveedores ganadores (relación M2M a Party)
-- value_amount: Monto adjudicado
-- date: Fecha de adjudicación
-```
-
-### Contract (Contrato)
-```python
-- id: Identificador único
-- award: Relación a Award
-- status: Estado del contrato
-- period_start_date: Fecha inicio
-- period_end_date: Fecha fin
-- value_amount: Monto contratado
-```
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 | Problema | Solución |
-|----------|----------|
+|---|---|
 | `ModuleNotFoundError: django` | `pip install -r requirements.txt` |
 | `No such table: ...` | `python manage.py migrate` |
-| Conexión a BD rechazada | Verifica PostgreSQL está corriendo y credenciales en `.env` |
-| `SECRET_KEY not configured` | Agrega `SECRET_KEY` a `.env` |
+| Conexión a BD rechazada | Verifica que PostgreSQL esté corriendo y las credenciales en `.env` |
+| `SECRET_KEY not configured` | Agrega `SECRET_KEY` al archivo `.env` |
 | Puerto 8000 ocupado | `python manage.py runserver 8001` |
-| DNCP API timeout | Aumenta `DNCP_API_TIMEOUT` en `.env` o revisa conexión internet |
-| Static files no cargan | `python manage.py collectstatic` |
+| DNCP API timeout | Verifica conexión a internet y la validez de `DNCP_REQUEST_TOKEN` |
+| Static files no cargan en prod | `python manage.py collectstatic` |
+| Error de test DB existente | Usa `--keepdb --noinput` o elimina la DB de prueba manualmente |
 
 ---
 
-## 📞 Contacto
+## Contacto
 
 - GitHub: [IDVG46](https://github.com/IDVG46)
 - Empresa: **IDVG Solutions**
