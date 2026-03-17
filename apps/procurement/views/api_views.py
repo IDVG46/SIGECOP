@@ -1,11 +1,30 @@
+from decimal import Decimal
+
 from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
 
 from apps.dncp_integration.models import AwardItem, AwardSubItem, Contract
 from apps.procurement.models import ContractLotBalance, ItemQuantityBalance
+from apps.procurement.models import (
+    ContractAmendment,
+    ContractBudget,
+    FulfillmentMemo,
+    FulfillmentMemoLine,
+    Payment,
+    PurchaseOrder,
+    PurchaseOrderLine,
+)
+from apps.procurement.services.fulfillment_metrics import (
+    approved_fulfilled_amount_for_order,
+    approved_fulfilled_quantity_for_order,
+    approved_fulfilled_quantity_for_order_line,
+)
 from apps.procurement.services.rules import should_enforce_quantity_limit_for_lot_and_quantity
+from apps.procurement.utils.decimal_utils import to_decimal
+from apps.procurement.utils.format_utils import format_gs_amount
 
 
 @login_required
@@ -198,5 +217,325 @@ def contract_suppliers(request, contract_id):
             "contract": contract_data,
             "suppliers": supplier_payload,
             "preferred_supplier_id": supplier_payload[0]["id"] if len(supplier_payload) == 1 else None,
+        }
+    )
+
+
+@login_required
+@require_GET
+def contract_financial_codes(request, contract_id):
+    contract = get_object_or_404(Contract, id=contract_id)
+
+    codes = {str(contract.id).strip()}
+
+    amendment_codes = (
+        ContractAmendment.objects.filter(
+            contract=contract,
+            status__in=[
+                ContractAmendment.STATUS_DRAFT,
+                ContractAmendment.STATUS_APPROVED,
+                ContractAmendment.STATUS_ACTIVE,
+            ],
+        )
+        .exclude(financial_code="")
+        .values_list("financial_code", flat=True)
+    )
+    for code in amendment_codes:
+        if code:
+            codes.add(str(code).strip())
+
+    budget_codes = (
+        ContractBudget.objects.filter(contract=contract)
+        .exclude(financial_code="")
+        .values_list("financial_code", flat=True)
+    )
+    for code in budget_codes:
+        if code:
+            codes.add(str(code).strip())
+
+    ordered_codes = sorted(code for code in codes if code)
+    payload = [{"value": code, "label": code} for code in ordered_codes]
+
+    return JsonResponse(
+        {
+            "contract_id": contract.id,
+            "financial_codes": payload,
+        }
+    )
+
+
+@login_required
+@require_GET
+def order_lines_options(request, order_id):
+    memo_id = request.GET.get("memo_id")
+    order = get_object_or_404(
+        PurchaseOrder.objects.select_related("contract", "expense_object", "supplier"),
+        pk=order_id,
+    )
+
+    lines = (
+        PurchaseOrderLine.objects.filter(purchase_order=order)
+        .select_related("lot", "award_item__item", "award_subitem__subitem")
+        .order_by("id")
+    )
+
+    payload = []
+    for line in lines:
+        approved_line_qty = approved_fulfilled_quantity_for_order_line(line, exclude_memo_id=memo_id)
+        pending_quantity = (line.quantity or Decimal("0.000")) - approved_line_qty
+        if pending_quantity < Decimal("0.000"):
+            pending_quantity = Decimal("0.000")
+
+        item_description = ""
+        if line.award_item and line.award_item.item:
+            item_description = line.award_item.item.description
+        elif line.award_subitem and line.award_subitem.subitem:
+            item_description = line.award_subitem.subitem.description
+
+        payload.append(
+            {
+                "id": line.id,
+                "text": f"Linea {line.id} - Lote {line.lot_id} - {item_description} - Pendiente: {pending_quantity}",
+                "ordered_quantity": str(line.quantity),
+                "pending_quantity": str(pending_quantity),
+                "unit_price": str(line.unit_price),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "order": {
+                "id": order.id,
+                "order_number": order.order_number,
+                "contract_id": order.contract_id,
+                "expense_object_id": order.expense_object_id,
+                "supplier": order.supplier.name,
+            },
+            "lines": payload,
+        }
+    )
+
+
+@login_required
+@require_GET
+def contract_lines_options(request, contract_id):
+    memo_id = request.GET.get("memo_id")
+    contract = get_object_or_404(Contract, pk=contract_id)
+
+    lines = (
+        PurchaseOrderLine.objects.filter(purchase_order__contract=contract)
+        .exclude(purchase_order__status=PurchaseOrder.STATUS_CANCELLED)
+        .select_related(
+            "purchase_order",
+            "lot",
+            "award_item__item",
+            "award_subitem__subitem",
+        )
+        .order_by("purchase_order__order_number", "id")
+    )
+
+    payload = []
+    line_approved_cache = {}
+    for line in lines:
+        if line.id not in line_approved_cache:
+            line_approved_cache[line.id] = approved_fulfilled_quantity_for_order_line(line, exclude_memo_id=memo_id)
+
+        pending_quantity = (line.quantity or Decimal("0.000")) - line_approved_cache[line.id]
+        if pending_quantity < Decimal("0.000"):
+            pending_quantity = Decimal("0.000")
+
+        item_description = ""
+        if line.award_item and line.award_item.item:
+            item_description = line.award_item.item.description
+        elif line.award_subitem and line.award_subitem.subitem:
+            item_description = line.award_subitem.subitem.description
+
+        payload.append(
+            {
+                "id": line.id,
+                "text": (
+                    f"OC {line.purchase_order.order_number} - "
+                    f"Linea {line.id} - Lote {line.lot_id} - {item_description} - "
+                    f"Pendiente: {pending_quantity}"
+                ),
+                "order_id": line.purchase_order_id,
+                "order_number": line.purchase_order.order_number,
+                "ordered_quantity": str(line.quantity),
+                "pending_quantity": str(pending_quantity),
+                "unit_price": str(line.unit_price),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "contract": {
+                "id": contract.id,
+            },
+            "lines": payload,
+        }
+    )
+
+
+@login_required
+@require_GET
+def order_budgets_options(request, order_id):
+    order = get_object_or_404(
+        PurchaseOrder.objects.select_related("contract", "expense_object"),
+        pk=order_id,
+    )
+
+    budgets = (
+        ContractBudget.objects.filter(
+            contract=order.contract,
+            expense_object=order.expense_object,
+        )
+        .exclude(status=ContractBudget.STATUS_CANCELLED)
+        .order_by("-fiscal_year", "id")
+    )
+
+    payload = []
+    for budget in budgets:
+        payload.append(
+            {
+                "id": budget.id,
+                "text": (
+                    f"Presupuesto {budget.id} - "
+                    f"Disponible: {format_gs_amount(budget.available_amount)} - "
+                    f"Fuente: {budget.funding_source}"
+                ),
+                "available_amount": str(budget.available_amount),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "order": {
+                "id": order.id,
+                "order_number": order.order_number,
+                "contract_id": order.contract_id,
+                "expense_object_id": order.expense_object_id,
+            },
+            "budgets": payload,
+        }
+    )
+
+
+@login_required
+@require_GET
+def budget_orders_options(request, budget_id):
+    budget = get_object_or_404(
+        ContractBudget.objects.select_related("contract", "expense_object"),
+        pk=budget_id,
+    )
+
+    base_orders = PurchaseOrder.objects.filter(contract=budget.contract).exclude(status=PurchaseOrder.STATUS_CANCELLED)
+    orders = (
+        PurchaseOrder.objects.filter(
+            contract=budget.contract,
+            expense_object=budget.expense_object,
+        )
+        .exclude(status=PurchaseOrder.STATUS_CANCELLED)
+        .order_by("-issue_date", "order_number")
+    )
+
+    payload = []
+    for order in orders:
+        already_paid = (
+            order.payment_allocations.filter(payment__status=Payment.STATUS_POSTED).aggregate(total=models.Sum("amount"))["total"]
+            or 0
+        )
+        approved_fulfilled_amount = approved_fulfilled_amount_for_order(order)
+        order_total = order.total_amount or 0
+        pending_by_order = order_total - already_paid
+        payable_by_fulfillment = approved_fulfilled_amount - already_paid
+
+        payload.append(
+            {
+                "id": order.id,
+                "text": (
+                    f"{order.order_number} - "
+                    f"Pendiente orden: {format_gs_amount(pending_by_order)} - "
+                    f"Aprobado por cumplimiento: {format_gs_amount(payable_by_fulfillment)}"
+                ),
+                "order_total": str(order_total),
+                "already_paid": str(already_paid),
+                "approved_fulfilled_amount": str(approved_fulfilled_amount),
+                "pending_by_order": str(pending_by_order),
+                "payable_by_fulfillment": str(payable_by_fulfillment),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "budget": {
+                "id": budget.id,
+                "contract_id": budget.contract_id,
+                "expense_object_id": budget.expense_object_id,
+                "available_amount": str(budget.available_amount),
+            },
+            "diagnostics": {
+                "orders_in_contract": base_orders.count(),
+                "orders_compatible": len(payload),
+            },
+            "orders": payload,
+        }
+    )
+
+
+@login_required
+@require_GET
+def contract_orders_options(request, contract_id):
+    """
+    Devuelve órdenes de compra filtradas por contrato, excluyendo las canceladas.
+    Optimiza la carga de órdenes en el formulario de pago evitando cargar todas a la vez.
+    """
+    from django.shortcuts import get_object_or_404
+    contract = get_object_or_404(Contract, id=contract_id)
+
+    orders = (
+        PurchaseOrder.objects.filter(contract=contract)
+        .exclude(status=PurchaseOrder.STATUS_CANCELLED)
+        .select_related("supplier", "expense_object")
+        .order_by("-issue_date", "order_number")
+    )
+
+    payload = []
+    for order in orders:
+        already_paid = (
+            order.payment_allocations.filter(payment__status=Payment.STATUS_POSTED).aggregate(total=models.Sum("amount"))["total"]
+            or 0
+        )
+        order_total = order.total_amount or 0
+        pending_by_order = order_total - already_paid
+
+        ordered_qty = (
+            order.lines.aggregate(total=models.Sum("quantity"))["total"]
+            or Decimal("0.000")
+        )
+        approved_qty = approved_fulfilled_quantity_for_order(order)
+        pending_quantity = ordered_qty - approved_qty
+        if pending_quantity < Decimal("0.000"):
+            pending_quantity = Decimal("0.000")
+
+        payload.append(
+            {
+                "id": order.id,
+                "text": f"{order.order_number} - Proveedor: {order.supplier.name} - Pendiente: {format_gs_amount(pending_by_order)}",
+                "order_number": order.order_number,
+                "supplier": order.supplier.name,
+                "expense_object_id": order.expense_object_id,
+                "order_total": str(order_total),
+                "already_paid": str(already_paid),
+                "pending_by_order": str(pending_by_order),
+                    "pending_quantity": str(pending_quantity),
+                "status": order.status,
+            }
+        )
+
+    return JsonResponse(
+        {
+            "contract_id": contract_id,
+            "orders_count": len(payload),
+            "orders": payload,
         }
     )

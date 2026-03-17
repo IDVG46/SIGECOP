@@ -2,20 +2,12 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 
+from apps.procurement.utils.decimal_utils import assert_positive, to_decimal
 
 # Nota: este servicio esta preparado para enchufarse al futuro modelo ContractBudget.
 # Se apoya en atributos convencionales: assigned_amount, committed_amount, executed_amount.
-def _to_decimal(value, default="0.00"):
-    if value is None:
-        return Decimal(default)
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
-def _assert_amount(value, label):
-    if value <= Decimal("0"):
-        raise ValidationError(f"{label} debe ser mayor a cero.")
+_to_decimal = to_decimal
+_assert_amount = assert_positive
 
 
 def apply_budget_commitment(budget, amount):

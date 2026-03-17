@@ -1,27 +1,13 @@
-from decimal import Decimal
-
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from apps.procurement.models import ContractLotBalance, ItemQuantityBalance
+from apps.procurement.utils.decimal_utils import assert_non_negative, assert_positive, to_decimal
 
-
-def _to_decimal(value, default="0"):
-    if value is None:
-        return Decimal(default)
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
-def _validate_non_negative(value, field_label):
-    if value < Decimal("0"):
-        raise ValidationError(f"{field_label} no puede quedar en negativo.")
-
-
-def _validate_positive_delta(delta, field_label):
-    if delta <= Decimal("0"):
-        raise ValidationError(f"{field_label} debe ser mayor a cero.")
+# Alias para compatibilidad con el cuerpo del módulo
+_to_decimal = to_decimal
+_validate_non_negative = assert_non_negative
+_validate_positive_delta = assert_positive
 
 
 @transaction.atomic
