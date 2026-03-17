@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Presupuesto - SIGECOP{% endblock %}
+
+{% block page_title %}
+<i class="ace-icon fa fa-money"></i>
+Presupuesto
+{% endblock %}
+
+{% block breadcrumb %}
+<li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
+<li><a href="{% url 'procurement:budget_list' %}">Presupuestos</a></li>
+<li class="active">Formulario</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'lib/ace-master/css/select2.min.css' %}" />
+<style>
+    #budget-form .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    #budget-form .row > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .select2-container--default .select2-selection--single {
+        border: 1px solid #d5d5d5;
+        min-height: 34px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 32px;
+        color: #393939;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 32px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="budget-form" data-financial-codes-url-template="{{ financial_codes_base_url }}">
+    {% csrf_token %}
+    <div class="widget-box">
+        <div class="widget-header"><h4 class="widget-title">Datos del presupuesto</h4></div>
+        <div class="widget-body">
+            <div class="widget-main">
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="row">
+                    <div class="col-sm-4">{{ form.contract.label_tag }}{{ form.contract }}{{ form.contract.errors }}</div>
+                    <div class="col-sm-4">{{ form.expense_object.label_tag }}{{ form.expense_object }}{{ form.expense_object.errors }}</div>
+                    <div class="col-sm-4">{{ form.fiscal_year.label_tag }}{{ form.fiscal_year }}{{ form.fiscal_year.errors }}</div>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                    <div class="col-sm-4">{{ form.financial_code.label_tag }}{{ form.financial_code }}{{ form.financial_code.errors }}</div>
+                    <div class="col-sm-4">{{ form.funding_source.label_tag }}{{ form.funding_source }}{{ form.funding_source.errors }}</div>
+                    <div class="col-sm-4">{{ form.cdp_number.label_tag }}{{ form.cdp_number }}{{ form.cdp_number.errors }}</div>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                    <div class="col-sm-4">{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}</div>
+                    <div class="col-sm-4">{{ form.assigned_amount.label_tag }}{{ form.assigned_amount }}{{ form.assigned_amount.errors }}</div>
+                    <div class="col-sm-4">{{ form.committed_amount.label_tag }}{{ form.committed_amount }}{{ form.committed_amount.errors }}</div>
+                </div>
+                <div class="row" style="margin-top: 10px;">
+                    <div class="col-sm-4">{{ form.executed_amount.label_tag }}{{ form.executed_amount }}{{ form.executed_amount.errors }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="clearfix" style="margin-top: 12px;">
+        <a href="{% url 'procurement:budget_list' %}" class="btn btn-default">Cancelar</a>
+        <button type="submit" class="btn btn-primary pull-right"><i class="fa fa-save"></i> Guardar</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'lib/ace-master/js/select2.min.js' %}"></script>
+<script>
+    (function () {
+        const form = document.getElementById('budget-form');
+        if (!form) return;
+        const contractSelect = document.getElementById('id_contract');
+        const financialCodeSelect = document.getElementById('id_financial_code');
+        const financialCodesUrlTemplate = form.dataset.financialCodesUrlTemplate || '';
+
+        if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
+            jQuery(form).find('select.select2').select2({
+                width: '100%',
+                placeholder: 'Seleccione una opcion',
+                allowClear: true,
+            });
+        }
+
+        function buildFinancialCodesUrl(contractId) {
+            if (!contractId || !financialCodesUrlTemplate) return '';
+            return financialCodesUrlTemplate.replace('__CONTRACT_ID__', encodeURIComponent(contractId));
+        }
+
+        async function refreshFinancialCodes() {
+            if (!contractSelect || !financialCodeSelect) return;
+
+            const contractId = contractSelect.value;
+            const previousValue = financialCodeSelect.value || '';
+            financialCodeSelect.innerHTML = '';
+
+            const blank = document.createElement('option');
+            blank.value = '';
+            blank.textContent = '---------';
+            financialCodeSelect.appendChild(blank);
+
+            if (!contractId) {
+                if (window.jQuery) jQuery(financialCodeSelect).trigger('change.select2');
+                return;
+            }
+
+            // Fallback visible option even if API call fails.
+            const contractOption = document.createElement('option');
+            contractOption.value = contractId;
+            contractOption.textContent = contractId;
+            financialCodeSelect.appendChild(contractOption);
+
+            try {
+                const url = buildFinancialCodesUrl(contractId);
+                if (!url) return;
+
+                const response = await fetch(url, { credentials: 'same-origin' });
+                if (!response.ok) return;
+
+                const payload = await response.json();
+                const items = payload.financial_codes || [];
+                items.forEach((item) => {
+                    const option = document.createElement('option');
+                    option.value = item.value;
+                    option.textContent = item.label;
+                    financialCodeSelect.appendChild(option);
+                });
+
+                if (previousValue) {
+                    const exists = Array.from(financialCodeSelect.options).some((opt) => opt.value === previousValue);
+                    if (!exists) {
+                        const custom = document.createElement('option');
+                        custom.value = previousValue;
+                        custom.textContent = previousValue;
+                        financialCodeSelect.appendChild(custom);
+                    }
+                    financialCodeSelect.value = previousValue;
+                }
+                if (window.jQuery) jQuery(financialCodeSelect).trigger('change.select2');
+            } catch (error) {
+                if (window.console) console.warn('No se pudieron cargar financial codes', error);
+                if (previousValue) {
+                    const exists = Array.from(financialCodeSelect.options).some((opt) => opt.value === previousValue);
+                    if (!exists) {
+                        const custom = document.createElement('option');
+                        custom.value = previousValue;
+                        custom.textContent = previousValue;
+                        financialCodeSelect.appendChild(custom);
+                    }
+                    financialCodeSelect.value = previousValue;
+                }
+                if (window.jQuery) jQuery(financialCodeSelect).trigger('change.select2');
+            }
+        }
+
+        const numberUtils = window.SIGECOPNumbers || {};
+        const moneyInputs = ['id_assigned_amount', 'id_committed_amount', 'id_executed_amount']
+            .map((id) => document.getElementById(id))
+            .filter(Boolean);
+
+        moneyInputs.forEach((input) => {
+            if (numberUtils.bindInputFormatting) {
+                numberUtils.bindInputFormatting(input, {
+                    kind: 'money',
+                    currency: 'Gs.',
+                    precision: 0,
+                    locale: 'es-PY',
+                });
+            }
+        });
+
+        if (contractSelect) {
+            contractSelect.addEventListener('change', refreshFinancialCodes);
+            if (window.jQuery) {
+                jQuery(contractSelect).on('select2:select', refreshFinancialCodes);
+                jQuery(contractSelect).on('select2:clear', refreshFinancialCodes);
+            }
+        }
+
+        refreshFinancialCodes();
+
+        form.addEventListener('submit', function () {
+            moneyInputs.forEach((input) => {
+                if (numberUtils.normalizeInputForSubmit) {
+                    numberUtils.normalizeInputForSubmit(input, {
+                        kind: 'money',
+                        currency: 'Gs.',
+                        precision: 0,
+                        locale: 'es-PY',
+                    });
+                }
+            });
+        });
+    })();
+</script>
+{% endblock %}
