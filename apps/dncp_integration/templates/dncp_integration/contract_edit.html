@@ -86,6 +86,39 @@
                         </div>
 
                         <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Numero de Contrato</label>
+                                {{ contract_form.contract_number }}
+                                {% if contract_form.contract_number.errors %}
+                                    <small class="text-danger">{{ contract_form.contract_number.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Resolucion de Contrato</label>
+                                {{ contract_form.resolution_number }}
+                                {% if contract_form.resolution_number.errors %}
+                                    <small class="text-danger">{{ contract_form.resolution_number.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Remitente de la Resolucion <small class="text-muted">(ej.: la Rector&iacute;a)</small></label>
+                                {{ contract_form.resolution_sender }}
+                                {% if contract_form.resolution_sender.errors %}
+                                    <small class="text-danger">{{ contract_form.resolution_sender.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Art&iacute;culo de la Resolucion <small class="text-muted">(ej.: 2)</small></label>
+                                {{ contract_form.resolution_article }}
+                                {% if contract_form.resolution_article.errors %}
+                                    <small class="text-danger">{{ contract_form.resolution_article.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
                             <div class="col-md-12">
                                 <label class="form-label">Monto</label>
                                 <div class="input-group">
@@ -468,6 +501,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const numberUtils = window.SIGECOPNumbers || {};
+
     // ===========================
     // Money formatter para inputs de dinero
     // ===========================
@@ -477,34 +512,40 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function normalizeMoney(value) {
+        if (numberUtils.normalizeMoneyValue) {
+            return numberUtils.normalizeMoneyValue(value, {
+                currency: 'Gs.',
+                precision: 2,
+                locale: 'es-PY',
+            });
+        }
+
         // Convierte formato español (1.234,56) a número IEEE (1234.56)
         const raw = (value || '').trim();
         if (!raw) return '';
-        
-        // Regla simple:
-        // Si hay coma → coma es decimal, puntos son miles
-        // Si NO hay coma pero hay puntos → depende de cuántos dígitos después del último punto
-        
+
+        // Regla:
+        // - Si hay coma: coma decimal, puntos miles.
+        // - Si hay solo puntos: cuando coincide con patrón de miles (1.234.567), quitar puntos.
+        // - Si hay un solo punto fuera de patrón de miles, tratar como decimal.
+
         if (raw.includes(',')) {
             // Hay coma → formato español: 1.234,56
             // Quitar todos los puntos y convertir coma a punto
             return raw.replace(/\./g, '').replace(',', '.');
         } else if (raw.includes('.')) {
-            // No hay coma, pero hay puntos
-            // Si el último punto tiene 2-3 dígitos después → es decimal (50.00 o 50.000)
-            const lastDotIndex = raw.lastIndexOf('.');
-            const afterLastDot = raw.substring(lastDotIndex + 1);
-            
-            if (afterLastDot.length === 2 || afterLastDot.length === 3) {
-                // Parece ser decimal: 50.00 o 50.000 → quitar otros puntos y dejar el último
-                const beforeLastDot = raw.substring(0, lastDotIndex).replace(/\./g, '');
-                return beforeLastDot + '.' + afterLastDot;
-            } else {
-                // Todos los puntos son separadores de miles
-                return raw.replace(/\./g, '');
+            const onlyDigitsAndDots = raw.replace(/[^\d.]/g, '');
+            const dotCount = (onlyDigitsAndDots.match(/\./g) || []).length;
+
+            // Ej: 60.000.000 o 1.234.567
+            if (/^\d{1,3}(\.\d{3})+$/.test(onlyDigitsAndDots) || dotCount > 1) {
+                return onlyDigitsAndDots.replace(/\./g, '');
             }
+
+            // Un único punto: se mantiene como decimal (ej. 1234.56)
+            return onlyDigitsAndDots;
         }
-        
+
         // Sin puntos ni comas
         return raw;
     }
@@ -562,6 +603,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     moneyInputs.forEach(input => {
+        if (numberUtils.bindInputFormatting) {
+            numberUtils.bindInputFormatting(input, {
+                kind: 'money',
+                currency: 'Gs.',
+                precision: 2,
+                locale: 'es-PY',
+            });
+            input.dataset.originalValue = input.value;
+            input.addEventListener('input', function() {
+                markDirty(this);
+            });
+            return;
+        }
+
         // Formatear el valor inicial (sin decimales, solo parte entera con puntos de miles)
         if (input.value) {
             let initialValue = input.value.trim();
@@ -611,8 +666,19 @@ document.addEventListener('DOMContentLoaded', function() {
             moneyInputs.forEach(input => {
                 const value = input.value.trim();
                 if (value) {
-                    const normalized = normalizeMoney(value);
-                    input.value = parseFloat(normalized) || value;
+                    if (numberUtils.normalizeInputForSubmit) {
+                        numberUtils.normalizeInputForSubmit(input, {
+                            kind: 'money',
+                            currency: 'Gs.',
+                            precision: 2,
+                            locale: 'es-PY',
+                        });
+                    } else {
+                        const normalized = normalizeMoney(value);
+                        if (normalized) {
+                            input.value = normalized;
+                        }
+                    }
                 }
             });
         });

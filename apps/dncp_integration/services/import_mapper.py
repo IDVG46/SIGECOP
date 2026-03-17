@@ -475,32 +475,34 @@ class ImportMapper:
         )[0]
 
     def _upsert_party(self, party, party_id, role, fallback_name=None):
+        """Crea o actualiza un Party buscando por (party_id, role).
+        Un mismo party_id puede existir con distintos roles (OCDS multi-rol).
+        """
         if not party_id:
             return None
         name = party.get("name") or fallback_name or ""
         identifier = party.get("identifier", {}) if isinstance(party, dict) else {}
         party_obj, created = Party.objects.get_or_create(
             party_id=party_id,
+            role=role,
             defaults={
                 "name": name,
-                "role": role,
                 "identifier_scheme": identifier.get("scheme"),
                 "identifier_id": identifier.get("id"),
                 "legal_name": identifier.get("legalName"),
             },
         )
         if not created and not party_obj.is_user_modified:
-            if party_obj.role == role:
-                party_obj.name = name or party_obj.name
-                party_obj.identifier_scheme = identifier.get("scheme") or party_obj.identifier_scheme
-                party_obj.identifier_id = identifier.get("id") or party_obj.identifier_id
-                party_obj.legal_name = identifier.get("legalName") or party_obj.legal_name
-                party_obj.save(update_fields=[
-                    "name",
-                    "identifier_scheme",
-                    "identifier_id",
-                    "legal_name",
-                ])
+            party_obj.name = name or party_obj.name
+            party_obj.identifier_scheme = identifier.get("scheme") or party_obj.identifier_scheme
+            party_obj.identifier_id = identifier.get("id") or party_obj.identifier_id
+            party_obj.legal_name = identifier.get("legalName") or party_obj.legal_name
+            party_obj.save(update_fields=[
+                "name",
+                "identifier_scheme",
+                "identifier_id",
+                "legal_name",
+            ])
         return party_obj
 
     def _upsert(self, model_cls, lookup, defaults):

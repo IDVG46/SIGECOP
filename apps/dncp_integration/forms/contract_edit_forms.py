@@ -5,6 +5,7 @@ from django.forms import modelformset_factory
 from django.utils import timezone
 from apps.dncp_integration.models import (
     Contract,
+    ContractExtra,
     Award,
     AwardItem,
     AwardSubItem,
@@ -14,6 +15,47 @@ from apps.dncp_integration.models import (
 
 class ContractEditForm(forms.ModelForm):
     """Formulario para editar datos basicos del contrato"""
+
+    contract_number = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "placeholder": "Numero interno/legible del contrato",
+            }
+        ),
+    )
+    resolution_number = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "placeholder": "Numero de resolucion",
+            }
+        ),
+    )
+    resolution_sender = forms.CharField(
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "placeholder": "Ej.: la Rectoría, el Consejo Directivo",
+            }
+        ),
+    )
+    resolution_article = forms.CharField(
+        required=False,
+        max_length=50,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "placeholder": "Ej.: 2",
+            }
+        ),
+    )
 
     period_start_date = forms.DateTimeField(
         required=False,
@@ -61,6 +103,7 @@ class ContractEditForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.extra_instance = kwargs.pop("extra_instance", None)
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.period_start_date:
             start_date = self.instance.period_start_date
@@ -72,6 +115,12 @@ class ContractEditForm(forms.ModelForm):
             if timezone.is_aware(end_date):
                 end_date = timezone.localtime(end_date)
             self.initial["period_end_date"] = end_date.strftime("%Y-%m-%dT%H:%M")
+
+        if self.extra_instance:
+            self.initial["contract_number"] = self.extra_instance.contract_number
+            self.initial["resolution_number"] = self.extra_instance.resolution_number
+            self.initial["resolution_sender"] = self.extra_instance.resolution_sender
+            self.initial["resolution_article"] = self.extra_instance.resolution_article
 
     def clean_value_amount(self):
         raw_value = self.cleaned_data.get("value_amount")
@@ -86,6 +135,25 @@ class ContractEditForm(forms.ModelForm):
             except InvalidOperation:
                 raise forms.ValidationError("Monto invalido.")
         return raw_value
+
+    def save_extra(self, user=None):
+        if self.instance is None or self.instance.pk is None:
+            return None
+
+        extra = self.extra_instance
+        if extra is None:
+            extra, _ = ContractExtra.objects.get_or_create(contract=self.instance)
+
+        extra.contract_number = self.cleaned_data.get("contract_number", "") or ""
+        extra.resolution_number = self.cleaned_data.get("resolution_number", "") or ""
+        extra.resolution_sender = self.cleaned_data.get("resolution_sender", "") or ""
+        extra.resolution_article = self.cleaned_data.get("resolution_article", "") or ""
+        if user is not None:
+            extra.is_user_modified = True
+            extra.modified_by = user
+        extra.save()
+        self.extra_instance = extra
+        return extra
 
 
 class AwardEditForm(forms.ModelForm):

@@ -12,6 +12,7 @@ from datetime import datetime
 
 from apps.dncp_integration.models import (
     Contract,
+    ContractExtra,
     Award,
     AwardItem,
     AwardSubItem,
@@ -52,9 +53,10 @@ def contract_edit(request, contract_id):
     
     award = contract.award
     tender = award.tender if award else None
+    contract_extra = ContractExtra.objects.filter(contract=contract).first()
     
     if request.method == "POST":
-        contract_form = ContractEditForm(request.POST, instance=contract)
+        contract_form = ContractEditForm(request.POST, instance=contract, extra_instance=contract_extra)
         award_form = AwardEditForm(request.POST, instance=award) if award else None
         
         if contract_form.is_valid():
@@ -64,6 +66,7 @@ def contract_edit(request, contract_id):
             from django.utils import timezone
             contract.modified_at = timezone.now()
             contract.save()
+            contract_form.save_extra(user=request.user)
             
             if award_form and award_form.is_valid():
                 award = award_form.save(commit=False)
@@ -77,7 +80,7 @@ def contract_edit(request, contract_id):
             messages.success(request, "Contrato actualizado correctamente")
             return redirect('dncp_integration:contract_detail', contract_id=contract.id)
     else:
-        contract_form = ContractEditForm(instance=contract)
+        contract_form = ContractEditForm(instance=contract, extra_instance=contract_extra)
         award_form = AwardEditForm(instance=award) if award else None
     
     # Obtener items y subitems
@@ -247,6 +250,7 @@ def contract_edit(request, contract_id):
             'period_end': _format_date(contract.period_end_date),
             'suppliers': ", ".join([s['name'] for s in suppliers]) or "-",
         },
+        'contract_extra': contract_extra,
     }
     
     return render(request, 'dncp_integration/contract_edit.html', context)
