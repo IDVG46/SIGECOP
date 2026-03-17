@@ -18,15 +18,17 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 
 from apps.dncp_integration.views import api_views
 
 urlpatterns = [
     path("", api_views.home, name="home"),
+    path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}favicon.svg", permanent=False)),
     path('admin/', admin.site.urls),
     path("", include("apps.dncp_integration.urls")),
     path("api/dncp/", include(("apps.dncp_integration.api_urls", "dncp_api"), namespace="dncp_api")),
-    path("procurement/", include(("apps.procurement.urls", "procurement"), namespace="procurement")),
+    path("", include("apps.procurement.urls", namespace="procurement")),
 ]
 
 # Servir archivos estáticos en desarrollo

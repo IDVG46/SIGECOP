@@ -8,6 +8,7 @@
     
     <meta name="description" content="{% block meta_description %}SIGECOP - Sistema de Gestión de Contrataciones Públicas{% endblock %}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}" />
     
     <!-- bootstrap & fontawesome -->
     <link rel="stylesheet" href="{% static 'lib/ace-master/css/bootstrap.min.css' %}" />
@@ -144,6 +145,7 @@
         </script>
         
         <ul class="nav nav-list">
+          <li class="menu-text" style="padding: 8px 14px 4px; font-size: 11px; text-transform: uppercase; color: #7b8a8b; letter-spacing: .5px;">Gestion de Procesos</li>
           <li class="{% if request.resolver_match.namespace == 'dncp_api' %}active{% endif %}">
             <a href="{% url 'dncp_api:dncp_list' %}">
               <i class="menu-icon fa fa-cloud-download"></i>
@@ -171,12 +173,33 @@
             </a>
             <b class="arrow"></b>
           </li>
-          <li class="{% if request.resolver_match.namespace == 'procurement' %}active{% endif %}">
+
+          <li class="menu-text" style="padding: 10px 14px 4px; font-size: 11px; text-transform: uppercase; color: #7b8a8b; letter-spacing: .5px;">Ejecución Contractual</li>
+          <li class="{% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_create' or request.resolver_match.url_name == 'order_update' or request.resolver_match.url_name == 'order_delete' or request.resolver_match.url_name == 'order_cancel' %}active{% endif %}">
             <a href="{% url 'procurement:order_list' %}">
-              <i class="menu-icon fa fa-shopping-cart"></i>
-              <span class="menu-text">
-                Órdenes de compra
-              </span>
+              <i class="menu-icon fa fa-shopping-basket"></i>
+              <span class="menu-text">Órdenes de compra</span>
+            </a>
+            <b class="arrow"></b>
+          </li>
+          <li class="{% if request.resolver_match.url_name == 'memo_list' or request.resolver_match.url_name == 'memo_create' or request.resolver_match.url_name == 'memo_approve' %}active{% endif %}">
+            <a href="{% url 'procurement:memo_list' %}">
+              <i class="menu-icon fa fa-check-square-o"></i>
+              <span class="menu-text">Cumplimiento</span>
+            </a>
+            <b class="arrow"></b>
+          </li>
+          <li class="{% if request.resolver_match.url_name == 'payment_list' or request.resolver_match.url_name == 'payment_create' or request.resolver_match.url_name == 'payment_post' or request.resolver_match.url_name == 'payment_cancel' %}active{% endif %}">
+            <a href="{% url 'procurement:payment_list' %}">
+              <i class="menu-icon fa fa-credit-card"></i>
+              <span class="menu-text">Pagos</span>
+            </a>
+            <b class="arrow"></b>
+          </li>
+          <li class="{% if request.resolver_match.url_name == 'budget_list' or request.resolver_match.url_name == 'budget_create' or request.resolver_match.url_name == 'budget_update' or request.resolver_match.url_name == 'budget_approve' %}active{% endif %}">
+            <a href="{% url 'procurement:budget_list' %}">
+              <i class="menu-icon fa fa-money"></i>
+              <span class="menu-text">Presupuestos</span>
             </a>
             <b class="arrow"></b>
           </li>
@@ -348,6 +371,8 @@
         });
       });
     </script>
+
+    <script src="{% static 'js/numeric-format.js' %}"></script>
     
     {% block extra_js %}{% endblock %}
   </body>

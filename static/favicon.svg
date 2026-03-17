@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SIGECOP">
+  <rect width="64" height="64" rx="12" fill="#2f4f8f" />
+  <path d="M14 42h36v8H14z" fill="#f5f7fb" />
+  <path d="M20 16h24v20H20z" fill="#7fa1e6" />
+  <path d="M24 22h16v2H24zm0 6h16v2H24zm0 6h10v2H24z" fill="#f5f7fb" />
+</svg>
