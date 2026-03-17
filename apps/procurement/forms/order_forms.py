@@ -1,8 +1,10 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
-from apps.dncp_integration.models import AwardItem, AwardSubItem, Contract, Lot, Party
-from apps.procurement.models import PurchaseOrder, PurchaseOrderLine
+from apps.dncp_integration.models import AwardItem, AwardSubItem, Lot, Party
+from apps.procurement.forms.mixins import LocalizedDecimalMixin
+from apps.procurement.models import ExpenseObject, PurchaseOrder, PurchaseOrderLine
 
 
 class PurchaseOrderForm(forms.ModelForm):
@@ -11,6 +13,11 @@ class PurchaseOrderForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["supplier"].queryset = Party.objects.filter(role=Party.ROLE_SUPPLIER)
+        self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+        self.fields["expense_object"].queryset = ExpenseObject.objects.filter(is_active=True).order_by("code")
+
+        if self.instance and self.instance.pk and self.instance.expense_object_id and not self.instance.expense_object.is_active:
+            self.fields["expense_object"].queryset = ExpenseObject.objects.filter(pk=self.instance.expense_object_id)
 
         contract_obj = contract
         if contract_obj is None and self.instance and self.instance.pk:
@@ -27,16 +34,18 @@ class PurchaseOrderForm(forms.ModelForm):
             "contract",
             "supplier",
             "issue_date",
+            "expense_object",
             "delivery_term",
             "delivery_place",
             "status",
             "notes",
         ]
         widgets = {
-            "issue_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "issue_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date", "class": "form-control"}),
             "order_number": forms.TextInput(attrs={"class": "form-control"}),
             "contract": forms.Select(attrs={"class": "form-control select2"}),
             "supplier": forms.Select(attrs={"class": "form-control select2"}),
+            "expense_object": forms.Select(attrs={"class": "form-control select2"}),
             "delivery_term": forms.TextInput(attrs={"class": "form-control"}),
             "delivery_place": forms.TextInput(attrs={"class": "form-control"}),
             "status": forms.Select(attrs={"class": "form-control select2"}),
@@ -44,7 +53,7 @@ class PurchaseOrderForm(forms.ModelForm):
         }
 
 
-class PurchaseOrderLineForm(forms.ModelForm):
+class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         contract = kwargs.pop("contract", None)
         super().__init__(*args, **kwargs)
@@ -69,7 +78,14 @@ class PurchaseOrderLineForm(forms.ModelForm):
             "lot": forms.Select(attrs={"class": "form-control select2"}),
             "award_item": forms.Select(attrs={"class": "form-control select2"}),
             "award_subitem": forms.Select(attrs={"class": "form-control select2"}),
-            "quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.001"}),
+            "quantity": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "inputmode": "decimal",
+                    "autocomplete": "off",
+                    "placeholder": "0",
+                }
+            ),
             "unit_price": forms.TextInput(
                 attrs={
                     "class": "form-control",
@@ -80,6 +96,16 @@ class PurchaseOrderLineForm(forms.ModelForm):
             ),
         }
 
+    def clean_quantity(self):
+        value = self._clean_localized_decimal_field("quantity")
+        if value is None:
+            return value
+        if value != value.to_integral_value():
+            raise ValidationError("La cantidad debe ser un numero entero.")
+        return value
+
+    def clean_unit_price(self):
+        return self._clean_localized_decimal_field("unit_price")
 
 PurchaseOrderLineFormSet = inlineformset_factory(
     PurchaseOrder,

@@ -9,6 +9,7 @@ from django.views import View
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from apps.dncp_integration.models import Contract
+from apps.dncp_integration.views.local_views import _format_amount
 from apps.procurement.forms import PurchaseOrderForm, PurchaseOrderLineFormSet
 from apps.procurement.models import PurchaseOrder
 from apps.procurement.selectors import get_purchase_orders_queryset
@@ -26,6 +27,13 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
         if search:
             queryset = queryset.filter(order_number__icontains=search)
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        for order in context.get("orders", []):
+            currency = getattr(order.contract, "value_currency", None)
+            order.formatted_total_amount = _format_amount(order.total_amount, currency)
+        return context
 
 
 class PurchaseOrderBaseView(LoginRequiredMixin, PermissionRequiredMixin):
