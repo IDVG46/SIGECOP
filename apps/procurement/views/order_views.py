@@ -10,7 +10,7 @@ from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from apps.dncp_integration.models import Contract
 from apps.dncp_integration.views.local_views import _format_amount
-from apps.procurement.forms import PurchaseOrderForm, PurchaseOrderLineFormSet
+from apps.procurement.forms import PurchaseOrderForm, PurchaseOrderLineEditFormSet, PurchaseOrderLineFormSet
 from apps.procurement.models import PurchaseOrder
 from apps.procurement.selectors import get_purchase_orders_queryset
 from apps.procurement.services import recalculate_contract_balances, recalculate_order_totals_and_balances
@@ -76,17 +76,36 @@ class PurchaseOrderBaseView(LoginRequiredMixin, PermissionRequiredMixin):
         if form_obj is not None:
             parent_instance = form_obj.instance
 
+        formset_class = PurchaseOrderLineEditFormSet if parent_instance and parent_instance.pk else PurchaseOrderLineFormSet
+
         if self.request.method == "POST":
-            context["line_formset"] = PurchaseOrderLineFormSet(
+            context["line_formset"] = formset_class(
                 self.request.POST,
                 instance=parent_instance,
                 form_kwargs=form_kwargs,
             )
         else:
-            context["line_formset"] = PurchaseOrderLineFormSet(
+            context["line_formset"] = formset_class(
                 instance=parent_instance,
                 form_kwargs=form_kwargs,
             )
+
+        context["is_edit_mode"] = bool(parent_instance and parent_instance.pk)
+        context["initial_contract_summary"] = None
+        if contract is not None:
+            currency = ""
+            if contract.value_currency:
+                currency = contract.value_currency.symbol or contract.value_currency.code
+
+            context["initial_contract_summary"] = {
+                "id": contract.id,
+                "status": contract.status_details or "-",
+                "amount": str(contract.value_amount or 0),
+                "currency": currency,
+                "tender": contract.award.tender.title if contract.award and contract.award.tender else "-",
+                "tender_id": contract.award.tender.tenderID if contract.award and contract.award.tender else "-",
+            }
+
         context["line_options_base_url"] = reverse_lazy("procurement:contract_line_options", kwargs={"contract_id": "__CONTRACT_ID__"})
         context["supplier_options_base_url"] = reverse_lazy("procurement:contract_suppliers", kwargs={"contract_id": "__CONTRACT_ID__"})
         return context

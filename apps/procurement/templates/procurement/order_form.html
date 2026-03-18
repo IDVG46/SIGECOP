@@ -13,150 +13,27 @@ Orden de compra
     <i class="ace-icon fa fa-home home-icon"></i>
     <a href="{% url 'home' %}">Inicio</a>
 </li>
-<li><a href="{% url 'procurement:order_list' %}">Órdenes de compra</a></li>
+<li><a href="{% url 'procurement:order_list' %}">Ordenes de compra</a></li>
 <li class="active">Formulario</li>
 {% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'lib/ace-master/css/select2.min.css' %}" />
-<style>
-    html,
-    body,
-    #main-container,
-    .main-content,
-    .main-content-inner,
-    .page-content {
-        overflow-x: hidden;
-    }
-
-    #order-form {
-        max-width: 100%;
-        overflow-x: hidden;
-    }
-
-    #order-form .row {
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    #order-form .row > [class*="col-"] {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
-    .select2-container--default .select2-selection--single {
-        border: 1px solid #d5d5d5;
-        min-height: 34px;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 32px;
-        color: #393939;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 32px;
-    }
-
-    .contract-summary .label-title {
-        font-size: 12px;
-        color: #777;
-        display: block;
-        margin-bottom: 3px;
-    }
-
-    .contract-summary .value {
-        font-weight: 600;
-        color: #333;
-    }
-
-    #line-items-body td {
-        vertical-align: top;
-    }
-
-    #line-items-body select.form-control,
-    #line-items-body .select2-container {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    #line-items-body .select2-container .select2-selection__rendered {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .line-row .select-step-disabled {
-        opacity: 0.75;
-    }
-
-    .order-lines-wrap {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .order-lines-table {
-        table-layout: fixed;
-        width: 100%;
-        min-width: 980px;
-        margin-bottom: 0;
-    }
-
-    .order-lines-table th,
-    .order-lines-table td {
-        box-sizing: border-box;
-        overflow: hidden;
-    }
-
-    .order-lines-table select.form-control,
-    .order-lines-table input.form-control,
-    .order-lines-table .select2-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-    }
-
-    .order-lines-table .select2-selection__rendered {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* Evita que un dropdown de Select2 con opciones extensas estire el body */
-    .select2-container--open .select2-dropdown {
-        max-width: calc(100vw - 24px);
-    }
-
-    .select2-results__option {
-        white-space: normal;
-        word-break: break-word;
-    }
-
-    .order-lines-table th:nth-child(1), .order-lines-table td:nth-child(1) { width: 19%; }
-    .order-lines-table th:nth-child(2), .order-lines-table td:nth-child(2) { width: 19%; }
-    .order-lines-table th:nth-child(3), .order-lines-table td:nth-child(3) { width: 19%; }
-    .order-lines-table th:nth-child(4), .order-lines-table td:nth-child(4) { width: 11%; }
-    .order-lines-table th:nth-child(5), .order-lines-table td:nth-child(5) { width: 12%; }
-    .order-lines-table th:nth-child(6), .order-lines-table td:nth-child(6) { width: 12%; }
-    .order-lines-table th:nth-child(7), .order-lines-table td:nth-child(7) { width: 8%; }
-
-    .line-total-cell {
-        text-align: right;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-</style>
+<link rel="stylesheet" href="{% static 'procurement/css/order_form.css' %}" />
 {% endblock %}
 
 {% block content %}
-<form method="post" id="order-form" data-line-options-url-template="{{ line_options_base_url }}" data-supplier-options-url-template="{{ supplier_options_base_url }}">
+<form method="post" id="order-form" data-line-options-url-template="{{ line_options_base_url }}" data-supplier-options-url-template="{{ supplier_options_base_url }}" data-edit-mode="{% if is_edit_mode %}1{% else %}0{% endif %}">
     {% csrf_token %}
+    <div class="alert form-intro">
+        <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
+        seleccione primero el contrato para autocompletar proveedor y habilitar lotes, items y subitems.
+    </div>
+    <div id="form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
+
     <div class="widget-box">
-        <div class="widget-header">
-            <h4 class="widget-title">Cabecera</h4>
+        <div class="widget-header friendly-header">
+            <h4 class="widget-title">Datos de la orden</h4>
         </div>
         <div class="widget-body">
             <div class="widget-main">
@@ -167,44 +44,55 @@ Orden de compra
                     <div class="col-sm-4">{{ form.order_number.label_tag }}{{ form.order_number }}{{ form.order_number.errors }}</div>
                     <div class="col-sm-4">
                         {{ form.contract.label_tag }}{{ form.contract }}{{ form.contract.errors }}
-                        <small class="help-block">Seleccione contrato para cargar proveedor y detalle adjudicado.</small>
                     </div>
                     <div class="col-sm-4">
                         {{ form.supplier.label_tag }}{{ form.supplier }}{{ form.supplier.errors }}
-                        <small class="help-block">Proveedor autocompletado desde adjudicación (editable).</small>
                     </div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
                     <div class="col-sm-3">{{ form.issue_date.label_tag }}{{ form.issue_date }}{{ form.issue_date.errors }}</div>
                     <div class="col-sm-3">{{ form.expense_object.label_tag }}{{ form.expense_object }}{{ form.expense_object.errors }}</div>
-                    <div class="col-sm-3">{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}<small class="help-block">Estado operativo de la orden.</small></div>
+                    <div class="col-sm-3">{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}</div>
                     <div class="col-sm-3">{{ form.delivery_term.label_tag }}{{ form.delivery_term }}{{ form.delivery_term.errors }}</div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
                     <div class="col-sm-6">{{ form.delivery_place.label_tag }}{{ form.delivery_place }}{{ form.delivery_place.errors }}</div>
-                    <div class="col-sm-6">{{ form.notes.label_tag }}{{ form.notes }}{{ form.notes.errors }}</div>
+                    <div class="col-sm-6">
+                        {{ form.notes.label_tag }}
+                        <input
+                            type="text"
+                            name="{{ form.notes.html_name }}"
+                            id="{{ form.notes.id_for_label }}"
+                            value="{{ form.notes.value|default_if_none:'' }}"
+                            class="form-control"
+                        >
+                        {{ form.notes.errors }}
+                    </div>
                 </div>
 
-                <div class="row contract-summary" style="margin-top: 12px;">
-                    <div class="col-sm-3">
+                <div id="contract-summary-placeholder" class="contract-summary-placeholder">
+                    Seleccione un contrato para visualizar su resumen.
+                </div>
+                <div id="contract-summary" class="row contract-summary is-empty" style="margin-top: 12px;">
+                    <div class="col-sm-3 summary-col">
                         <span class="label-title">Contrato seleccionado</span>
-                        <span class="value" id="contract-info-id">-</span>
+                        <span class="value value-strong" id="contract-info-id">-</span>
                     </div>
-                    <div class="col-sm-3">
-                        <span class="label-title">Licitación</span>
+                    <div class="col-sm-4 summary-col">
+                        <span class="label-title">Licitacion</span>
                         <span class="value" id="contract-info-tender">-</span>
                     </div>
-                    <div class="col-sm-2">
-                        <span class="label-title">Adjudicación</span>
-                        <span class="value" id="contract-info-award">-</span>
+                    <div class="col-sm-2 summary-col">
+                        <span class="label-title">Tender ID</span>
+                        <span class="value value-strong" id="contract-info-tender-id">-</span>
                     </div>
-                    <div class="col-sm-2">
+                    <div class="col-sm-1 summary-col">
                         <span class="label-title">Estado</span>
                         <span class="value" id="contract-info-status">-</span>
                     </div>
-                    <div class="col-sm-2">
+                    <div class="col-sm-2 summary-col">
                         <span class="label-title">Monto contrato</span>
-                        <span class="value" id="contract-info-amount">-</span>
+                        <span class="value value-strong" id="contract-info-amount">-</span>
                     </div>
                 </div>
             </div>
@@ -212,28 +100,34 @@ Orden de compra
     </div>
 
     <div class="widget-box" style="margin-top: 12px;">
-        <div class="widget-header">
-            <h4 class="widget-title">Líneas</h4>
+        <div class="widget-header friendly-header">
+            <h4 class="widget-title">Detalles de la orden</h4>
             <div class="widget-toolbar">
                 <button type="button" class="btn btn-xs btn-success" id="add-line-button">
-                    <i class="fa fa-plus"></i> Agregar línea
+                    <i class="fa fa-plus"></i> Agregar detalle
                 </button>
             </div>
         </div>
         <div class="widget-body">
             <div class="widget-main no-padding">
                 {{ line_formset.management_form }}
+                {% if line_formset.non_form_errors %}
+                    <div class="alert alert-danger" style="margin: 10px;">
+                        {{ line_formset.non_form_errors }}
+                    </div>
+                {% endif %}
                 <div class="order-lines-wrap">
                 <table class="table table-bordered table-striped order-lines-table">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>Lote</th>
                             <th>Item</th>
                             <th>Subitem</th>
                             <th>Cantidad</th>
                             <th>Precio Unit.</th>
-                            <th>Total línea</th>
-                            <th>Eliminar</th>
+                            <th>Total linea</th>
+                            <th>Accion</th>
                         </tr>
                     </thead>
                     <tbody id="line-items-body">
@@ -242,20 +136,26 @@ Orden de compra
                             {% for hidden in line_form.hidden_fields %}
                                 {{ hidden }}
                             {% endfor %}
-                            <td>{{ line_form.lot }}{{ line_form.lot.errors }}<small class="help-block js-lot-hint">Seleccione lote.</small></td>
-                            <td>{{ line_form.award_item }}{{ line_form.award_item.errors }}<small class="help-block js-item-hint">Seleccione lote para habilitar ítems.</small></td>
-                            <td>{{ line_form.award_subitem }}{{ line_form.award_subitem.errors }}<small class="help-block js-subitem-hint">Seleccione un ítem con subitems.</small></td>
+                            <td class="line-index-cell js-line-index">{{ forloop.counter }}</td>
+                            <td>{{ line_form.lot }}{{ line_form.lot.errors }}</td>
+                            <td>{{ line_form.award_item }}{{ line_form.award_item.errors }}</td>
+                            <td>{{ line_form.award_subitem }}{{ line_form.award_subitem.errors }}</td>
                             <td>
                                 {{ line_form.quantity }}{{ line_form.quantity.errors }}
-                                <small class="help-block js-control-mode-hint">Modo: -</small>
                             </td>
                             <td>{{ line_form.unit_price }}{{ line_form.unit_price.errors }}</td>
                             <td class="line-total-cell js-line-total">-</td>
-                            <td class="text-center">{{ line_form.DELETE }}</td>
+                            <td class="text-center">
+                                {{ line_form.DELETE }}
+                                <button type="button" class="line-delete-btn js-delete-line-btn">
+                                    <i class="ace-icon fa fa-trash-o bigger-130"></i>
+                                    <span class="delete-text js-delete-line-label">Eliminar detalle</span>
+                                </button>
+                            </td>
                         </tr>
                         {% if line_form.non_field_errors %}
                         <tr>
-                            <td colspan="7" class="text-danger">{{ line_form.non_field_errors }}</td>
+                            <td colspan="8" class="text-danger">{{ line_form.non_field_errors }}</td>
                         </tr>
                         {% endif %}
                         {% endfor %}
@@ -264,8 +164,11 @@ Orden de compra
                 </div>
                 <div class="row" style="margin: 10px 0 0 0;">
                     <div class="col-sm-12 text-right">
-                        <span style="font-weight: 600; margin-right: 10px;">Total general:</span>
-                        <span id="order-grand-total" class="label label-info" style="font-size: 14px;">-</span>
+                        <div class="grand-total-wrap">
+                            <i class="fa fa-calculator" style="color: #1f6fb2; margin-right: 8px;"></i>
+                            <span class="grand-total-label">Total general</span>
+                            <span id="order-grand-total" class="grand-total-value">-</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -277,989 +180,36 @@ Orden de compra
             {% for hidden in line_formset.empty_form.hidden_fields %}
                 {{ hidden }}
             {% endfor %}
-            <td>{{ line_formset.empty_form.lot }}<small class="help-block js-lot-hint">Seleccione lote.</small></td>
-            <td>{{ line_formset.empty_form.award_item }}<small class="help-block js-item-hint">Seleccione lote para habilitar ítems.</small></td>
-            <td>{{ line_formset.empty_form.award_subitem }}<small class="help-block js-subitem-hint">Seleccione un ítem con subitems.</small></td>
+            <td class="line-index-cell js-line-index">#</td>
+            <td>{{ line_formset.empty_form.lot }}</td>
+            <td>{{ line_formset.empty_form.award_item }}</td>
+            <td>{{ line_formset.empty_form.award_subitem }}</td>
             <td>
                 {{ line_formset.empty_form.quantity }}
-                <small class="help-block js-control-mode-hint">Modo: -</small>
             </td>
             <td>{{ line_formset.empty_form.unit_price }}</td>
             <td class="line-total-cell js-line-total">-</td>
-            <td class="text-center">{{ line_formset.empty_form.DELETE }}</td>
+            <td class="text-center">
+                {{ line_formset.empty_form.DELETE }}
+                <button type="button" class="line-delete-btn js-delete-line-btn">
+                    <i class="ace-icon fa fa-trash-o bigger-130"></i>
+                    <span class="delete-text js-delete-line-label">Eliminar detalle</span>
+                </button>
+            </td>
         </tr>
     </template>
 
-    <div style="margin-top: 12px;">
-        <button type="submit" class="btn btn-success">
-            <i class="fa fa-save"></i> Guardar
+    <div class="sticky-actions text-right">
+        <button type="submit" class="btn btn-success" id="save-order-button">
+            <i class="fa fa-save"></i> Guardar orden
         </button>
-        <a href="{% url 'procurement:order_list' %}" class="btn btn-default">Cancelar</a>
+        <a href="{% url 'procurement:order_list' %}" class="btn btn-default"><i class="fa fa-times"></i> Cancelar</a>
     </div>
 </form>
+{{ initial_contract_summary|json_script:"initial-contract-summary" }}
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'lib/ace-master/js/select2.min.js' %}"></script>
-<script>
-    (function() {
-        const form = document.getElementById('order-form');
-        if (!form) return;
-
-        const contractSelect = document.getElementById('id_contract');
-        const supplierSelect = document.getElementById('id_supplier');
-        const addLineButton = document.getElementById('add-line-button');
-        const linesBody = document.getElementById('line-items-body');
-        const lineTemplate = document.getElementById('line-row-template');
-        const totalFormsInput = document.getElementById('id_lines-TOTAL_FORMS') || document.getElementById('id_purchaseorderline_set-TOTAL_FORMS');
-        const urlTemplate = form.dataset.lineOptionsUrlTemplate || '';
-        const supplierUrlTemplate = form.dataset.supplierOptionsUrlTemplate || '';
-        let lineOptions = { lots: [], items: [], subitems: [] };
-        let supplierPayload = null;
-        let currentCurrency = 'Gs.';
-        const grandTotalElement = document.getElementById('order-grand-total');
-        const numberUtils = window.SIGECOPNumbers || {};
-        function computeRowTotal(row) {
-            const els = rowElements(row);
-            if (!els || (els.del && els.del.checked)) return 0;
-            const qty = parseQuantity(els.quantity?.value || '0');
-            const price = parseNumber(els.unitPrice?.dataset?.normalizedValue || els.unitPrice?.value || '0');
-            if (!Number.isFinite(qty) || !Number.isFinite(price) || qty <= 0 || price <= 0) return 0;
-            return qty * price;
-        }
-
-        function renderRowTotal(row) {
-            const els = rowElements(row);
-            if (!els.lineTotal) return;
-            const total = computeRowTotal(row);
-            els.lineTotal.textContent = total > 0 ? formatCurrencyDisplay(total, currentCurrency, getMoneyPrecision() > 0) : '-';
-        }
-
-        function renderGrandTotal() {
-            if (!grandTotalElement) return;
-            const total = getRows().reduce(function(sum, row) {
-                return sum + computeRowTotal(row);
-            }, 0);
-            grandTotalElement.textContent = total > 0 ? formatCurrencyDisplay(total, currentCurrency, getMoneyPrecision() > 0) : '-';
-        }
-
-        function refreshTotals() {
-            getRows().forEach(renderRowTotal);
-            renderGrandTotal();
-        }
-
-        const contractInfo = {
-            id: document.getElementById('contract-info-id'),
-            tender: document.getElementById('contract-info-tender'),
-            award: document.getElementById('contract-info-award'),
-            status: document.getElementById('contract-info-status'),
-            amount: document.getElementById('contract-info-amount')
-        };
-
-        function initSelect2In(container) {
-            if (!window.jQuery || !jQuery.fn || !jQuery.fn.select2) return;
-            const $container = jQuery(container || form);
-            $container.find('select.select2').each(function() {
-                const $el = jQuery(this);
-                if ($el.hasClass('select2-hidden-accessible')) {
-                    $el.select2('destroy');
-                }
-                $el.select2({
-                    width: '100%',
-                    placeholder: 'Seleccione una opción',
-                    allowClear: true
-                });
-            });
-        }
-
-        function buildContractUrl(template, contractId, fallbackSuffix) {
-            if (!contractId) return '';
-            if (template && template.length > 0) {
-                return template
-                    .replace('__CONTRACT_ID__', encodeURIComponent(contractId))
-                    .replace('%5F%5FCONTRACT_ID%5F%5F', encodeURIComponent(contractId))
-                    .replace('%5f%5fCONTRACT_ID%5f%5f', encodeURIComponent(contractId));
-            }
-
-            const origin = window.location.origin;
-            return `${origin}/api/contracts/${encodeURIComponent(contractId)}/${fallbackSuffix}/`;
-        }
-
-        function showLoadError(message) {
-            if (!message) return;
-            console.warn(message);
-        }
-
-        function setOptions(select, options, selectedValue) {
-            if (!select) return;
-            const first = document.createElement('option');
-            first.value = '';
-            first.textContent = '---------';
-            select.innerHTML = '';
-            select.appendChild(first);
-
-            options.forEach(function(opt) {
-                const option = document.createElement('option');
-                option.value = String(opt.id);
-                option.textContent = opt.text;
-                if (opt.item_definition_id !== undefined) {
-                    option.dataset.itemDefinitionId = String(opt.item_definition_id);
-                }
-                if (opt.unit_price !== undefined) {
-                    option.dataset.unitPrice = String(opt.unit_price);
-                }
-                if (opt.available_quantity !== undefined) {
-                    option.dataset.availableQuantity = String(opt.available_quantity);
-                }
-                if (opt.enforce_quantity_limit !== undefined) {
-                    option.dataset.enforceQuantityLimit = String(opt.enforce_quantity_limit);
-                }
-                if (opt.quantity_control_mode !== undefined) {
-                    option.dataset.quantityControlMode = String(opt.quantity_control_mode);
-                }
-                if (opt.available_amount !== undefined) {
-                    option.dataset.availableAmount = String(opt.available_amount);
-                }
-                select.appendChild(option);
-            });
-
-            if (selectedValue) {
-                select.value = String(selectedValue);
-            }
-
-            if (window.jQuery) {
-                jQuery(select).trigger('change.select2');
-            }
-        }
-
-        function parseNumber(value) {
-            if (numberUtils.parseNumber) {
-                return numberUtils.parseNumber(value);
-            }
-            return Number(value);
-        }
-
-        function parseQuantity(value) {
-            if (numberUtils.parseQuantity) {
-                return numberUtils.parseQuantity(value);
-            }
-            if (value === null || value === undefined) return NaN;
-            if (typeof value === 'number') return value;
-
-            const raw = String(value).trim().replace(/\s+/g, '');
-            if (!raw) return NaN;
-
-            const hasComma = raw.includes(',');
-            const hasDot = raw.includes('.');
-            let normalized = raw;
-
-            if (hasComma && hasDot) {
-                const lastComma = raw.lastIndexOf(',');
-                const lastDot = raw.lastIndexOf('.');
-                const decimalSep = lastComma > lastDot ? ',' : '.';
-                const thousandSep = decimalSep === ',' ? '.' : ',';
-                normalized = raw.split(thousandSep).join('');
-                normalized = normalized.replace(decimalSep, '.');
-            } else if (hasDot) {
-                if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
-                    normalized = raw.replace(/\./g, '');
-                } else {
-                    const dotParts = raw.split('.');
-                    const intPart = dotParts[0] || '';
-                    const fracPart = dotParts.length === 2 ? (dotParts[1] || '') : '';
-
-                    if (
-                        dotParts.length === 2 &&
-                        /^\d+$/.test(intPart) &&
-                        /^\d+$/.test(fracPart) &&
-                        intPart.length <= 3 &&
-                        fracPart.length > 3
-                    ) {
-                        normalized = raw.replace(/\./g, '');
-                    }
-                }
-            } else if (hasComma) {
-                if (/^\d{1,3}(,\d{3})+$/.test(raw)) {
-                    normalized = raw.replace(/,/g, '');
-                } else {
-                    normalized = raw.replace(',', '.');
-                }
-            }
-
-            return Number(normalized);
-        }
-
-        function normalizeQuantityValue(value) {
-            if (numberUtils.normalizeQuantityValue) {
-                return numberUtils.normalizeQuantityValue(value, 0);
-            }
-            const parsed = parseQuantity(value);
-            if (!Number.isFinite(parsed)) return '';
-            return parsed.toFixed(0);
-        }
-
-        function formatQuantityDisplay(value) {
-            const parsed = parseQuantity(value);
-            if (!Number.isFinite(parsed)) return '';
-
-            const rounded = Math.round(parsed * 1000) / 1000;
-            return new Intl.NumberFormat('es-PY', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-                useGrouping: true
-            }).format(rounded);
-        }
-
-        function normalizeQuantityInputDisplay(input) {
-            if (!input) return;
-            const parsed = parseQuantity(input.value);
-            const displayed = Number.isFinite(parsed) ? formatQuantityDisplay(parsed) : '';
-            if (displayed !== '') {
-                input.dataset.normalizedValue = String(parsed);
-                input.value = displayed;
-            }
-        }
-
-        function countDigitsFromPosition(value, startPosition) {
-            if (!value) return 0;
-            const text = String(value);
-            const safeStart = Number.isInteger(startPosition) ? startPosition : text.length;
-            const rightSlice = text.slice(safeStart);
-            const onlyDigits = rightSlice.match(/\d/g);
-            return onlyDigits ? onlyDigits.length : 0;
-        }
-
-        function cursorFromDigitsRight(value, digitsRight) {
-            const text = String(value || '');
-            const targetDigits = Math.max(0, digitsRight || 0);
-            if (targetDigits === 0) return text.length;
-
-            let seen = 0;
-            for (let i = text.length - 1; i >= 0; i -= 1) {
-                if (/\d/.test(text[i])) {
-                    seen += 1;
-                    if (seen === targetDigits) {
-                        return i;
-                    }
-                }
-            }
-
-            return 0;
-        }
-
-        function formatQuantityInputKeepingCaret(input) {
-            if (numberUtils.formatQuantityInputKeepingCaret) {
-                numberUtils.formatQuantityInputKeepingCaret(input, { locale: 'es-PY', precision: 0 });
-                return;
-            }
-            if (!input) return;
-
-            const originalValue = input.value || '';
-            const caretStart = typeof input.selectionStart === 'number' ? input.selectionStart : originalValue.length;
-            const digitsRight = countDigitsFromPosition(originalValue, caretStart);
-
-            const parsed = parseQuantity(originalValue);
-            if (!Number.isFinite(parsed)) {
-                input.dataset.normalizedValue = '';
-                return;
-            }
-
-            const formatted = formatQuantityDisplay(parsed);
-            if (!formatted) return;
-
-            input.dataset.normalizedValue = String(parsed);
-            input.value = formatted;
-
-            const nextCursor = cursorFromDigitsRight(formatted, digitsRight);
-            try {
-                input.setSelectionRange(nextCursor, nextCursor);
-            } catch (error) {
-            }
-        }
-
-        function getMoneyPrecision() {
-            if (numberUtils.getMoneyPrecision) {
-                return numberUtils.getMoneyPrecision(currentCurrency);
-            }
-            return 2;
-        }
-
-        function formatAmountDisplay(value, withDecimals) {
-            if (numberUtils.formatAmountDisplay) {
-                return numberUtils.formatAmountDisplay(value, {
-                    locale: 'es-PY',
-                    withDecimals: !!withDecimals,
-                    precision: withDecimals ? 2 : 0,
-                });
-            }
-            const numberValue = parseNumber(value);
-            if (!Number.isFinite(numberValue)) return '-';
-            return String(numberValue);
-        }
-
-        function formatCurrencyDisplay(value, currency, withDecimals) {
-            if (numberUtils.formatCurrencyDisplay) {
-                return numberUtils.formatCurrencyDisplay(value, {
-                    currency: currency,
-                    locale: 'es-PY',
-                    withDecimals: !!withDecimals,
-                    precision: withDecimals ? 2 : 0,
-                });
-            }
-            const amount = formatAmountDisplay(value, withDecimals);
-            if (amount === '-') return '-';
-            return `${currency || ''} ${amount}`.trim();
-        }
-
-        function normalizeMoneyValue(value) {
-            if (numberUtils.normalizeMoneyValue) {
-                return numberUtils.normalizeMoneyValue(value, {
-                    currency: currentCurrency,
-                    precision: getMoneyPrecision(),
-                });
-            }
-            const parsed = parseNumber(value);
-            if (!Number.isFinite(parsed)) return '';
-            return parsed.toFixed(getMoneyPrecision());
-        }
-
-        function moneyFormatOptions() {
-            return {
-                currency: currentCurrency,
-                locale: 'es-PY',
-                precision: getMoneyPrecision(),
-            };
-        }
-
-        function formatMoneyInputDisplay(input) {
-            if (numberUtils.formatMoneyInputDisplay) {
-                numberUtils.formatMoneyInputDisplay(input, moneyFormatOptions());
-                return;
-            }
-        }
-
-        function formatMoneyInputKeepingCaret(input) {
-            if (numberUtils.formatMoneyInputKeepingCaret) {
-                numberUtils.formatMoneyInputKeepingCaret(input, moneyFormatOptions());
-                return;
-            }
-        }
-
-        function setMoneyInputValue(input, value) {
-            if (numberUtils.setMoneyInputValue) {
-                numberUtils.setMoneyInputValue(input, value, moneyFormatOptions());
-                return;
-            }
-        }
-
-        function getItemHasSubitemsForRow(row) {
-            const els = rowElements(row);
-            if (!els.lot || !els.lot.value || !els.item || !els.item.value) return false;
-
-            const selectedItemOption = els.item.options[els.item.selectedIndex];
-            const selectedItemDefinitionId = selectedItemOption ? selectedItemOption.dataset.itemDefinitionId : null;
-            if (!selectedItemDefinitionId) return false;
-
-            return lineOptions.subitems.some(function(sub) {
-                return String(sub.lot_id) === String(els.lot.value) && String(sub.item_definition_id) === String(selectedItemDefinitionId);
-            });
-        }
-
-        function renderContractInfo(contract) {
-            if (!contract) {
-                currentCurrency = 'Gs.';
-                contractInfo.id.textContent = '-';
-                contractInfo.tender.textContent = '-';
-                contractInfo.award.textContent = '-';
-                contractInfo.status.textContent = '-';
-                contractInfo.amount.textContent = '-';
-                return;
-            }
-
-            contractInfo.id.textContent = contract.id || '-';
-            contractInfo.tender.textContent = contract.tender || '-';
-            contractInfo.award.textContent = contract.award_id || '-';
-            contractInfo.status.textContent = contract.status || '-';
-            currentCurrency = contract.currency || 'Gs.';
-            const amountText = formatCurrencyDisplay(contract.amount || 0, contract.currency || '', false);
-            contractInfo.amount.textContent = amountText || '-';
-        }
-
-        function getRows() {
-            return Array.from(form.querySelectorAll('tr.line-row'));
-        }
-
-        function rowElements(row) {
-            return {
-                lot: row.querySelector('select[name$="-lot"]'),
-                item: row.querySelector('select[name$="-award_item"]'),
-                subitem: row.querySelector('select[name$="-award_subitem"]'),
-                quantity: row.querySelector('input[name$="-quantity"]'),
-                unitPrice: row.querySelector('input[name$="-unit_price"]'),
-                del: row.querySelector('input[name$="-DELETE"]'),
-                lineTotal: row.querySelector('.js-line-total'),
-                lotHint: row.querySelector('.js-lot-hint'),
-                itemHint: row.querySelector('.js-item-hint'),
-                subitemHint: row.querySelector('.js-subitem-hint'),
-                controlModeHint: row.querySelector('.js-control-mode-hint')
-            };
-        }
-
-        function updateControlModeHint(row) {
-            const els = rowElements(row);
-            if (!els.controlModeHint) return;
-
-            const itemOption = els.item && els.item.selectedIndex >= 0 ? els.item.options[els.item.selectedIndex] : null;
-            const subitemOption = els.subitem && els.subitem.selectedIndex >= 0 ? els.subitem.options[els.subitem.selectedIndex] : null;
-            const selectedOption = subitemOption && els.subitem?.value ? subitemOption : itemOption;
-
-            if (!selectedOption || !selectedOption.value) {
-                els.controlModeHint.textContent = 'Modo: -';
-                return;
-            }
-
-            const mode = String(selectedOption.dataset.quantityControlMode || '').toLowerCase();
-            if (mode === 'quantity') {
-                els.controlModeHint.textContent = 'Modo: Control por cantidad';
-            } else {
-                els.controlModeHint.textContent = 'Modo: Control por monto';
-            }
-        }
-
-        function updateRowHints(row) {
-            const els = rowElements(row);
-
-            if (els.lotHint) {
-                const opt = els.lot && els.lot.selectedIndex >= 0 ? els.lot.options[els.lot.selectedIndex] : null;
-                const available = opt ? opt.dataset.availableAmount : null;
-                els.lotHint.textContent = available ? `Saldo lote: ${formatCurrencyDisplay(available, currentCurrency, false)}` : 'Seleccione lote.';
-            }
-
-            if (els.itemHint) {
-                const opt = els.item && els.item.selectedIndex >= 0 ? els.item.options[els.item.selectedIndex] : null;
-                const available = opt ? opt.dataset.availableQuantity : null;
-                const enforceQuantityLimit = opt ? String(opt.dataset.enforceQuantityLimit || '').toLowerCase() === 'true' : false;
-                if (els.item && els.item.disabled) {
-                    els.itemHint.textContent = 'Seleccione lote para habilitar ítems.';
-                } else {
-                    if (enforceQuantityLimit && available) {
-                        els.itemHint.textContent = `Saldo item: ${available}`;
-                    } else if (opt) {
-                        els.itemHint.textContent = 'Control por monto (sin tope de cantidad).';
-                    } else {
-                        els.itemHint.textContent = 'Seleccione item.';
-                    }
-                }
-            }
-
-            if (els.subitemHint) {
-                const opt = els.subitem && els.subitem.selectedIndex >= 0 ? els.subitem.options[els.subitem.selectedIndex] : null;
-                const available = opt ? opt.dataset.availableQuantity : null;
-                const enforceQuantityLimit = opt ? String(opt.dataset.enforceQuantityLimit || '').toLowerCase() === 'true' : false;
-                if (els.subitem && els.subitem.disabled) {
-                    els.subitemHint.textContent = 'Seleccione un ítem con subitems.';
-                } else {
-                    if (enforceQuantityLimit && available) {
-                        els.subitemHint.textContent = `Saldo subitem: ${available}`;
-                    } else if (opt) {
-                        els.subitemHint.textContent = 'Control por monto (sin tope de cantidad).';
-                    } else {
-                        els.subitemHint.textContent = 'Seleccione subitem si aplica.';
-                    }
-                }
-            }
-
-            updateControlModeHint(row);
-
-        }
-
-        function setDefaultUnitPriceFromSelection(row) {
-            const els = rowElements(row);
-            if (!els.unitPrice) return;
-
-            const selectedItemOpt = (els.item && els.item.value && els.item.selectedIndex >= 0) ? els.item.options[els.item.selectedIndex] : null;
-            const selectedSubitemOpt = (els.subitem && els.subitem.value && els.subitem.selectedIndex >= 0) ? els.subitem.options[els.subitem.selectedIndex] : null;
-            const itemHasSubitems = getItemHasSubitemsForRow(row);
-
-            if (selectedSubitemOpt?.dataset?.unitPrice) {
-                setMoneyInputValue(els.unitPrice, selectedSubitemOpt.dataset.unitPrice);
-            } else if (selectedItemOpt?.dataset?.unitPrice && !itemHasSubitems) {
-                setMoneyInputValue(els.unitPrice, selectedItemOpt.dataset.unitPrice);
-            } else if (itemHasSubitems && !selectedSubitemOpt) {
-                els.unitPrice.value = '';
-                els.unitPrice.dataset.normalizedValue = '';
-            }
-
-            updateRowHints(row);
-            renderRowTotal(row);
-            renderGrandTotal();
-        }
-
-        function filterRowOptions(row) {
-            const els = rowElements(row);
-            const lotId = els.lot ? els.lot.value : '';
-            const selectedItem = els.item ? els.item.value : '';
-            const selectedSubitem = els.subitem ? els.subitem.value : '';
-            const selectedItemOption = (els.item && els.item.selectedIndex >= 0) ? els.item.options[els.item.selectedIndex] : null;
-            const selectedItemDefinitionId = selectedItemOption ? selectedItemOption.dataset.itemDefinitionId : null;
-            const selectedSubitemOption = (els.subitem && els.subitem.selectedIndex >= 0) ? els.subitem.options[els.subitem.selectedIndex] : null;
-            const selectedSubitemDefinitionId = selectedSubitemOption ? selectedSubitemOption.dataset.itemDefinitionId : null;
-
-            const items = lineOptions.items.filter(function(it) {
-                return !lotId || String(it.lot_id) === String(lotId);
-            });
-            const subitems = lineOptions.subitems.filter(function(it) {
-                if (lotId && String(it.lot_id) !== String(lotId)) {
-                    return false;
-                }
-                if (selectedItemDefinitionId && String(it.item_definition_id) !== String(selectedItemDefinitionId)) {
-                    return false;
-                }
-                if (!selectedItemDefinitionId && selectedSubitemDefinitionId && String(it.item_definition_id) !== String(selectedSubitemDefinitionId)) {
-                    return false;
-                }
-                return true;
-            });
-
-            setOptions(els.item, items, selectedItem);
-            setOptions(els.subitem, subitems, selectedSubitem);
-            updateRowSelectionFlow(row);
-            setDefaultUnitPriceFromSelection(row);
-            updateRowHints(row);
-            renderRowTotal(row);
-            renderGrandTotal();
-        }
-
-        function setFieldEnabled(field, enabled) {
-            if (!field) return;
-            field.disabled = !enabled;
-            if (window.jQuery) {
-                jQuery(field).prop('disabled', !enabled);
-            }
-
-            const wrapper = field.closest('td');
-            if (wrapper) {
-                if (enabled) {
-                    wrapper.classList.remove('select-step-disabled');
-                } else {
-                    wrapper.classList.add('select-step-disabled');
-                }
-            }
-
-            if (window.jQuery) {
-                jQuery(field).trigger('change.select2');
-            }
-        }
-
-        function updateRowSelectionFlow(row) {
-            const els = rowElements(row);
-            const hasLot = !!(els.lot && els.lot.value);
-            const hasSelectedSubitem = !!(els.subitem && els.subitem.value);
-
-            const selectedItemOption = (els.item && els.item.selectedIndex >= 0) ? els.item.options[els.item.selectedIndex] : null;
-            const selectedItemDefinitionId = selectedItemOption ? selectedItemOption.dataset.itemDefinitionId : null;
-            const itemHasSubitems = !!(
-                hasLot &&
-                selectedItemDefinitionId &&
-                lineOptions.subitems.some(function(sub) {
-                    return String(sub.lot_id) === String(els.lot.value) && String(sub.item_definition_id) === String(selectedItemDefinitionId);
-                })
-            );
-
-            setFieldEnabled(els.item, hasLot);
-            setFieldEnabled(els.subitem, hasLot && (itemHasSubitems || hasSelectedSubitem));
-
-            if (!hasLot) {
-                if (els.item) {
-                    els.item.value = '';
-                    if (window.jQuery) jQuery(els.item).trigger('change.select2');
-                }
-                if (els.subitem) {
-                    els.subitem.value = '';
-                    if (window.jQuery) jQuery(els.subitem).trigger('change.select2');
-                }
-                if (els.unitPrice) {
-                    els.unitPrice.value = '';
-                    els.unitPrice.dataset.normalizedValue = '';
-                }
-            } else if (!itemHasSubitems && !hasSelectedSubitem) {
-                if (els.subitem) {
-                    els.subitem.value = '';
-                    if (window.jQuery) jQuery(els.subitem).trigger('change.select2');
-                }
-            }
-
-            updateRowHints(row);
-        }
-
-        function clearInvalidState(row) {
-            row.classList.remove('danger');
-            const next = row.nextElementSibling;
-            if (next && next.classList.contains('js-line-error-row')) {
-                next.remove();
-            }
-        }
-
-        function markInvalid(row, message) {
-            row.classList.add('danger');
-            clearInvalidState(row);
-            const td = document.createElement('td');
-            td.colSpan = 6;
-            td.colSpan = 7;
-            td.className = 'text-danger js-line-error';
-            td.textContent = message;
-            const tr = document.createElement('tr');
-            tr.className = 'js-line-error-row';
-            tr.appendChild(td);
-            row.insertAdjacentElement('afterend', tr);
-        }
-
-        function validateRow(row) {
-            const els = rowElements(row);
-            if (els.del && els.del.checked) {
-                clearInvalidState(row);
-                return true;
-            }
-
-            const hasAny = [els.lot?.value, els.item?.value, els.subitem?.value, els.quantity?.value, els.unitPrice?.value].some(Boolean);
-            if (!hasAny) {
-                clearInvalidState(row);
-                return true;
-            }
-
-            const qty = parseQuantity(els.quantity?.value || '0');
-            const price = parseNumber(els.unitPrice?.dataset?.normalizedValue || els.unitPrice?.value || '0');
-            const hasItem = !!(els.item && els.item.value);
-            const hasSubitem = !!(els.subitem && els.subitem.value);
-
-            if (!els.lot?.value) return markInvalid(row, 'Debe seleccionar lote.'), false;
-            if (hasItem === hasSubitem) return markInvalid(row, 'Debe seleccionar solo item o solo subitem.'), false;
-            if (!(qty > 0)) return markInvalid(row, 'La cantidad debe ser mayor a cero.'), false;
-            if (!(price > 0)) return markInvalid(row, 'El precio unitario debe ser mayor a cero.'), false;
-
-            if (hasItem) {
-                const opt = els.item.options[els.item.selectedIndex];
-                const enforceQuantityLimit = String(opt?.dataset?.enforceQuantityLimit || '').toLowerCase() === 'true';
-                if (enforceQuantityLimit) {
-                    const max = parseFloat(opt?.dataset?.availableQuantity || '0');
-                    if (max > 0 && qty > max) return markInvalid(row, `La cantidad excede el saldo disponible (${max}).`), false;
-                }
-            }
-
-            if (hasSubitem) {
-                const opt = els.subitem.options[els.subitem.selectedIndex];
-                const enforceQuantityLimit = String(opt?.dataset?.enforceQuantityLimit || '').toLowerCase() === 'true';
-                if (enforceQuantityLimit) {
-                    const max = parseFloat(opt?.dataset?.availableQuantity || '0');
-                    if (max > 0 && qty > max) return markInvalid(row, `La cantidad excede el saldo disponible (${max}).`), false;
-                }
-            }
-
-            clearInvalidState(row);
-            return true;
-        }
-
-        function validateAllRows() {
-            return getRows().every(validateRow);
-        }
-
-        async function loadContractOptions(contractId) {
-            if (!contractId) {
-                lineOptions = { lots: [], items: [], subitems: [] };
-                getRows().forEach(function(row) {
-                    const els = rowElements(row);
-                    setOptions(els.lot, []);
-                    setOptions(els.item, []);
-                    setOptions(els.subitem, []);
-                    initSelect2In(row);
-                });
-                refreshTotals();
-                return;
-            }
-
-            const url = buildContractUrl(urlTemplate, contractId, 'line-options');
-            try {
-                const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-                if (!response.ok) {
-                    showLoadError(`No se pudo cargar lotes/items/subitems del contrato (${response.status}).`);
-                    return;
-                }
-
-                lineOptions = await response.json();
-                if (lineOptions.contract) {
-                    renderContractInfo(lineOptions.contract);
-                }
-            } catch (error) {
-                showLoadError('Error de conexión al cargar opciones del contrato.');
-                return;
-            }
-
-            getRows().forEach(function(row) {
-                const els = rowElements(row);
-                const selectedLot = els.lot ? els.lot.value : '';
-                setOptions(els.lot, lineOptions.lots, selectedLot);
-                filterRowOptions(row);
-                updateRowSelectionFlow(row);
-                initSelect2In(row);
-            });
-            refreshTotals();
-        }
-
-        async function loadContractSuppliers(contractId) {
-            if (!supplierSelect) return;
-            if (!contractId) {
-                supplierPayload = null;
-                setOptions(supplierSelect, []);
-                renderContractInfo(null);
-                return;
-            }
-
-            const url = buildContractUrl(supplierUrlTemplate, contractId, 'suppliers');
-            let payload;
-            try {
-                const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-                if (!response.ok) {
-                    showLoadError(`No se pudo cargar proveedores del contrato (${response.status}).`);
-                    return;
-                }
-
-                payload = await response.json();
-            } catch (error) {
-                showLoadError('Error de conexión al cargar proveedores del contrato.');
-                return;
-            }
-
-            supplierPayload = payload;
-            const selected = supplierSelect.value;
-            setOptions(supplierSelect, payload.suppliers || [], selected);
-
-            if ((!supplierSelect.value || supplierSelect.value === '') && payload.preferred_supplier_id) {
-                supplierSelect.value = String(payload.preferred_supplier_id);
-                if (window.jQuery) {
-                    jQuery(supplierSelect).trigger('change.select2');
-                }
-            }
-
-            renderContractInfo(payload.contract || null);
-            initSelect2In(form);
-            refreshTotals();
-        }
-
-        async function handleContractChange() {
-            const contractId = contractSelect ? contractSelect.value : '';
-            await loadContractOptions(contractId);
-            await loadContractSuppliers(contractId);
-        }
-
-        function bindRowEventsForRow(row) {
-            const els = rowElements(row);
-            if (!els.lot || row.dataset.bound === '1') return;
-            row.dataset.bound = '1';
-
-            els.lot.addEventListener('change', function() {
-                filterRowOptions(row);
-                updateRowSelectionFlow(row);
-                validateRow(row);
-            });
-
-            if (window.jQuery) {
-                jQuery(els.lot).on('select2:select select2:clear', function() {
-                    filterRowOptions(row);
-                    updateRowSelectionFlow(row);
-                    validateRow(row);
-                });
-            }
-
-            if (els.item) {
-                els.item.addEventListener('change', function() {
-                    if (els.item.value && els.subitem) {
-                        els.subitem.value = '';
-                        if (window.jQuery) jQuery(els.subitem).trigger('change.select2');
-                    }
-                    filterRowOptions(row);
-                    updateRowSelectionFlow(row);
-                    setDefaultUnitPriceFromSelection(row);
-                    validateRow(row);
-                });
-
-                if (window.jQuery) {
-                    jQuery(els.item).on('select2:select select2:clear', function() {
-                        if (els.item.value && els.subitem) {
-                            els.subitem.value = '';
-                            jQuery(els.subitem).trigger('change.select2');
-                        }
-                        filterRowOptions(row);
-                        updateRowSelectionFlow(row);
-                        setDefaultUnitPriceFromSelection(row);
-                        validateRow(row);
-                    });
-                }
-            }
-
-            if (els.subitem) {
-                els.subitem.addEventListener('change', function() {
-                    if (els.subitem.value && els.item) els.item.value = '';
-                    filterRowOptions(row);
-                    updateRowSelectionFlow(row);
-                    setDefaultUnitPriceFromSelection(row);
-                    validateRow(row);
-                });
-
-                if (window.jQuery) {
-                    jQuery(els.subitem).on('select2:select select2:clear', function() {
-                        if (els.subitem.value && els.item) {
-                            els.item.value = '';
-                            jQuery(els.item).trigger('change.select2');
-                        }
-                        filterRowOptions(row);
-                        updateRowSelectionFlow(row);
-                        setDefaultUnitPriceFromSelection(row);
-                        validateRow(row);
-                    });
-                }
-            }
-
-            if (els.quantity) {
-                if (numberUtils.bindInputFormatting) {
-                    numberUtils.bindInputFormatting(els.quantity, {
-                        kind: 'quantity',
-                        locale: 'es-PY',
-                        precision: 0,
-                    });
-                } else {
-                    normalizeQuantityInputDisplay(els.quantity);
-                }
-
-                els.quantity.addEventListener('input', function() {
-                    validateRow(row);
-                    renderRowTotal(row);
-                    renderGrandTotal();
-                });
-
-                els.quantity.addEventListener('blur', function() {
-                    validateRow(row);
-                    renderRowTotal(row);
-                    renderGrandTotal();
-                });
-            }
-            if (els.unitPrice) {
-                if (numberUtils.bindInputFormatting) {
-                    numberUtils.bindInputFormatting(els.unitPrice, {
-                        kind: 'money',
-                        locale: 'es-PY',
-                        currency: currentCurrency,
-                        precision: getMoneyPrecision(),
-                    });
-                } else {
-                    formatMoneyInputDisplay(els.unitPrice);
-                }
-
-                els.unitPrice.addEventListener('input', function() {
-                    updateRowHints(row);
-                    renderRowTotal(row);
-                    renderGrandTotal();
-                    validateRow(row);
-                });
-
-                els.unitPrice.addEventListener('blur', function() {
-                    updateRowHints(row);
-                    renderRowTotal(row);
-                    renderGrandTotal();
-                });
-            }
-            if (els.del) {
-                els.del.addEventListener('change', function() {
-                    validateRow(row);
-                    renderRowTotal(row);
-                    renderGrandTotal();
-                });
-            }
-
-            updateRowHints(row);
-            renderRowTotal(row);
-        }
-
-        function addLineRow() {
-            if (!lineTemplate || !linesBody || !totalFormsInput) return;
-            const total = parseInt(totalFormsInput.value, 10) || 0;
-            const html = lineTemplate.innerHTML.replace(/__prefix__/g, String(total));
-            linesBody.insertAdjacentHTML('beforeend', html);
-            totalFormsInput.value = String(total + 1);
-
-            const rows = getRows();
-            const newRow = rows[rows.length - 1];
-            if (!newRow) return;
-
-            const els = rowElements(newRow);
-            setOptions(els.lot, lineOptions.lots);
-            filterRowOptions(newRow);
-            updateRowSelectionFlow(newRow);
-            bindRowEventsForRow(newRow);
-            initSelect2In(newRow);
-            refreshTotals();
-        }
-
-        function bindRowEvents() {
-            getRows().forEach(function(row) {
-                bindRowEventsForRow(row);
-                updateRowSelectionFlow(row);
-            });
-            refreshTotals();
-        }
-
-        form.addEventListener('submit', function(event) {
-            if (!validateAllRows()) {
-                event.preventDefault();
-                alert('Hay líneas con errores. Revise lote/item/subitem, cantidad y precio.');
-                return;
-            }
-
-            getRows().forEach(function(row) {
-                const els = rowElements(row);
-                if (els.quantity) {
-                    if (numberUtils.normalizeInputForSubmit) {
-                        numberUtils.normalizeInputForSubmit(els.quantity, {
-                            kind: 'quantity',
-                            precision: 0,
-                        });
-                    } else {
-                        const normalizedQty = normalizeQuantityValue(els.quantity.value);
-                        if (normalizedQty) {
-                            els.quantity.value = normalizedQty;
-                        }
-                    }
-                }
-                if (els.unitPrice) {
-                    if (numberUtils.normalizeInputForSubmit) {
-                        numberUtils.normalizeInputForSubmit(els.unitPrice, {
-                            kind: 'money',
-                            currency: currentCurrency,
-                            precision: getMoneyPrecision(),
-                        });
-                    } else {
-                        const normalized = normalizeMoneyValue(els.unitPrice.dataset.normalizedValue || els.unitPrice.value);
-                        if (normalized) {
-                            els.unitPrice.value = normalized;
-                        }
-                    }
-                }
-            });
-        });
-
-        if (contractSelect) {
-            contractSelect.addEventListener('change', handleContractChange);
-            if (window.jQuery) {
-                jQuery(contractSelect).on('select2:select select2:clear', handleContractChange);
-            }
-        }
-
-        if (addLineButton) {
-            addLineButton.addEventListener('click', addLineRow);
-        }
-
-        initSelect2In(form);
-        bindRowEvents();
-        handleContractChange();
-    })();
-</script>
+<script src="{% static 'procurement/js/order_form.js' %}"></script>
 {% endblock %}

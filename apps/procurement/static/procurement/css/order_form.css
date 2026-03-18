@@ -1,0 +1,341 @@
+html,
+    body,
+    #main-container,
+    .main-content,
+    .main-content-inner,
+    .page-content {
+        overflow-x: hidden;
+    }
+
+    #order-form {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    #order-form .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    #order-form .row > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .select2-container--default .select2-selection--single {
+        border: 1px solid #d5d5d5;
+        min-height: 34px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 32px;
+        color: #393939;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 32px;
+    }
+
+    .contract-summary .label-title {
+        font-size: 12px;
+        color: #777;
+        display: block;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .contract-summary .value {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .contract-summary {
+        background: #f8fbff;
+        border: 1px solid #dbe8f7;
+        border-radius: 6px;
+        padding: 10px 6px;
+    }
+
+    .contract-summary .summary-col {
+        margin-bottom: 8px;
+    }
+
+    .contract-summary .value-strong {
+        color: #1e4f7a;
+        font-size: 14px;
+    }
+
+    #line-items-body td {
+        vertical-align: top;
+    }
+
+    #line-items-body select.form-control,
+    #line-items-body .select2-container {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #line-items-body .select2-container .select2-selection__rendered {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .line-row .select-step-disabled {
+        opacity: 0.75;
+    }
+
+    .order-lines-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: min(48vh, 560px);
+        overscroll-behavior-y: contain;
+        border-top: 1px solid #e5edf7;
+    }
+
+    .order-lines-table {
+        table-layout: fixed;
+        width: 100%;
+        min-width: 980px;
+        margin-bottom: 0;
+    }
+
+    .order-lines-table th,
+    .order-lines-table td {
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .order-lines-table tbody td {
+        overflow: visible;
+    }
+
+    .order-lines-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background: #f7fafc;
+        box-shadow: inset 0 -1px 0 #d9e3ef;
+    }
+
+    .order-lines-table select.form-control,
+    .order-lines-table input.form-control,
+    .order-lines-table .select2-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .order-lines-table .select2-selection__rendered {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Evita que un dropdown de Select2 con opciones extensas estire el body */
+    .select2-container--open .select2-dropdown {
+        max-width: calc(100vw - 24px);
+    }
+
+    .select2-results__option {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* En filas de detalle de orden, forzar dropdown hacia abajo aunque Select2 lo marque como above */
+    #order-form .order-lines-table .select2-container--open.select2-container--above .select2-dropdown--above {
+        top: 100%;
+        bottom: auto;
+        margin-top: 2px;
+    }
+
+    .order-lines-table th:nth-child(1), .order-lines-table td:nth-child(1) { width: 4%; }
+    .order-lines-table th:nth-child(2), .order-lines-table td:nth-child(2) { width: 18%; }
+    .order-lines-table th:nth-child(3), .order-lines-table td:nth-child(3) { width: 18%; }
+    .order-lines-table th:nth-child(4), .order-lines-table td:nth-child(4) { width: 18%; }
+    .order-lines-table th:nth-child(5), .order-lines-table td:nth-child(5) { width: 11%; }
+    .order-lines-table th:nth-child(6), .order-lines-table td:nth-child(6) { width: 12%; }
+    .order-lines-table th:nth-child(7), .order-lines-table td:nth-child(7) { width: 11%; }
+    .order-lines-table th:nth-child(8), .order-lines-table td:nth-child(8) { width: 8%; }
+
+    .line-total-cell {
+        text-align: right;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .form-intro {
+        border-left: 4px solid #2a9fd6;
+        background: #f4fbff;
+        color: #2c3e50;
+        margin-bottom: 12px;
+    }
+
+    .form-feedback {
+        margin-bottom: 12px;
+    }
+
+    .line-index-cell {
+        text-align: center;
+        font-weight: 700;
+        color: #3b4f65;
+        white-space: nowrap;
+    }
+
+    .field-error-icon-wrap {
+        position: relative;
+        display: block;
+    }
+
+    .field-error-icon-wrap .form-control {
+        padding-right: 28px;
+        border-color: #d16e6c;
+    }
+
+    .field-error-icon-wrap .error-icon {
+        position: absolute;
+        right: 9px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #d15b47;
+        pointer-events: none;
+    }
+
+    .order-lines-table .form-control.js-client-invalid {
+        border-color: #d15b47 !important;
+    }
+
+    .order-lines-table select.js-client-invalid + .select2 .select2-selection {
+        border-color: #d15b47 !important;
+    }
+
+    .js-inline-field-error {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        line-height: 1.25;
+    }
+
+    .order-lines-table input[type="checkbox"][name$="-DELETE"] {
+        display: none;
+    }
+
+    .line-delete-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        background: transparent;
+        color: #d15b47;
+        padding: 0;
+        font-size: 14px;
+        line-height: 1;
+        margin-left: 6px;
+    }
+
+    .line-delete-btn:hover,
+    .line-delete-btn:focus {
+        color: #b74635;
+        text-decoration: none;
+        outline: none;
+    }
+
+    .line-delete-btn .delete-text {
+        display: none;
+    }
+
+    .line-row.line-row-deleted {
+        opacity: 0.6;
+    }
+
+    .line-row.line-row-deleted .line-delete-btn {
+        color: #2f7c3f;
+    }
+
+    .grand-total-wrap {
+        margin: 12px 0 0;
+        padding: 12px 14px;
+        border: 1px solid #d7e5f6;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #f6fbff 0%, #eef6ff 100%);
+    }
+
+    .grand-total-label {
+        font-size: 12px;
+        color: #55708d;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: 600;
+        margin-right: 10px;
+    }
+
+    .grand-total-value {
+        display: inline-block;
+        background: #1f6fb2;
+        color: #fff;
+        border-radius: 16px;
+        padding: 4px 12px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+
+    .friendly-header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 44px;
+    }
+
+    .friendly-header .widget-title {
+        margin: 0;
+        line-height: 1.2;
+        text-align: left;
+    }
+
+    .friendly-header .widget-toolbar {
+        float: none;
+        margin-left: auto;
+        margin-top: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .contract-summary-placeholder {
+        margin-top: 10px;
+        color: #7b8a98;
+        font-size: 12px;
+        font-style: italic;
+    }
+
+    .contract-summary.is-empty {
+        display: none;
+    }
+
+    .sticky-actions {
+        position: relative;
+        background: #fff;
+        border: 1px solid #e5e5e5;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 12px;
+        box-shadow: 0 -1px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .sticky-actions .btn {
+        min-width: 120px;
+    }
+
+    @media (max-width: 767px) {
+        .sticky-actions {
+            padding: 8px;
+        }
+
+        .sticky-actions .btn {
+            width: 100%;
+            margin-bottom: 6px;
+        }
+    }

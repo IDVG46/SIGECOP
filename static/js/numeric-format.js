@@ -53,6 +53,11 @@
             normalized = raw.split(otherSep).join('');
             normalized = normalized.replace(decimalSep, '.');
         } else if (hasDot) {
+            // Values coming from backend DecimalField for integer quantities can be like 5.000.
+            // Treat those as decimal zero-padding (5), not as thousands (5000).
+            if (/^\d+\.0+$/.test(raw)) {
+                normalized = raw.replace(/\.0+$/, '');
+            } else 
             if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
                 normalized = raw.replace(/\./g, '');
             } else {
@@ -84,6 +89,16 @@
     }
 
     function normalizeQuantityValue(value, precision) {
+        var raw = String(value === null || value === undefined ? '' : value).trim().replace(/\s+/g, '');
+        if (/^\d+\.0+$/.test(raw)) {
+            var integerFromDecimalPadding = raw.replace(/\.0+$/, '');
+            var decimalsFromOptions = Number.isInteger(precision) ? precision : 0;
+            var parsedFromPadding = Number(integerFromDecimalPadding);
+            if (Number.isFinite(parsedFromPadding)) {
+                return parsedFromPadding.toFixed(decimalsFromOptions);
+            }
+        }
+
         var parsed = parseQuantity(value);
         if (!Number.isFinite(parsed)) return '';
         var decimals = Number.isInteger(precision) ? precision : 0;

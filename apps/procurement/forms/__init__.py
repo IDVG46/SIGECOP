@@ -1,4 +1,4 @@
-from .order_forms import PurchaseOrderForm, PurchaseOrderLineFormSet
+from .order_forms import PurchaseOrderForm, PurchaseOrderLineEditFormSet, PurchaseOrderLineFormSet
 from .finance_forms import (
 	ContractBudgetForm,
 	FulfillmentMemoForm,
@@ -11,6 +11,7 @@ from .finance_forms import (
 
 __all__ = [
 	"PurchaseOrderForm",
+	"PurchaseOrderLineEditFormSet",
 	"PurchaseOrderLineFormSet",
 	"ContractBudgetForm",
 	"FulfillmentMemoForm",

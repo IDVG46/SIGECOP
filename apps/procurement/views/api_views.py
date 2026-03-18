@@ -123,7 +123,7 @@ def contract_line_options(request, contract_id):
                 "id": award_item.id,
                 "lot_id": award_item.item.lot_id,
                 "item_definition_id": award_item.item.id,
-                "text": f"Orden {order_value}: {award_item.item.description}",
+                "text": f"{order_value} - {award_item.item.description}",
                 "unit_price": str(award_item.unit_price_amount or 0),
                 "enforce_quantity_limit": enforce_quantity_limit,
                 "quantity_control_mode": "quantity" if enforce_quantity_limit else "amount",
@@ -154,7 +154,7 @@ def contract_line_options(request, contract_id):
                 "id": award_subitem.id,
                 "lot_id": lot_id,
                 "item_definition_id": award_subitem.subitem.item_id,
-                "text": f"Orden {order_value}: {award_subitem.subitem.description}",
+                "text": f"{order_value} - {award_subitem.subitem.description}",
                 "unit_price": str(award_subitem.unit_price_amount or 0),
                 "enforce_quantity_limit": enforce_quantity_limit,
                 "quantity_control_mode": "quantity" if enforce_quantity_limit else "amount",
@@ -172,6 +172,7 @@ def contract_line_options(request, contract_id):
                 "amount": str(contract.value_amount or 0),
                 "currency": (contract.value_currency.symbol or contract.value_currency.code) if contract.value_currency else "",
                 "tender": contract.award.tender.title if contract.award and contract.award.tender else "-",
+                "tender_id": contract.award.tender.tenderID if contract.award and contract.award.tender else "-",
                 "award_id": contract.award.id if contract.award else "-",
             },
             "lots": list(lots_data.values()),
@@ -208,6 +209,7 @@ def contract_suppliers(request, contract_id):
         "amount": str(contract.value_amount or 0),
         "currency": (contract.value_currency.symbol or contract.value_currency.code) if contract.value_currency else "",
         "tender": contract.award.tender.title if contract.award and contract.award.tender else "-",
+        "tender_id": contract.award.tender.tenderID if contract.award and contract.award.tender else "-",
         "award_id": contract.award.id if contract.award else "-",
     }
 

@@ -7,6 +7,18 @@ from apps.procurement.forms.mixins import LocalizedDecimalMixin
 from apps.procurement.models import ExpenseObject, PurchaseOrder, PurchaseOrderLine
 
 
+def _award_item_label(instance):
+    order_value = instance.orden_licitado if instance.orden_licitado is not None else "-"
+    description = instance.item.description if instance.item else "Sin descripción"
+    return f"{order_value} - {description}"
+
+
+def _award_subitem_label(instance):
+    order_value = instance.orden_licitado if instance.orden_licitado is not None else "-"
+    description = instance.subitem.description if instance.subitem else "Sin descripción"
+    return f"{order_value} - {description}"
+
+
 class PurchaseOrderForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         contract = kwargs.pop("contract", None)
@@ -71,6 +83,9 @@ class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
             self.fields["award_item"].queryset = AwardItem.objects.filter(award=contract_obj.award).select_related("item")
             self.fields["award_subitem"].queryset = AwardSubItem.objects.filter(award=contract_obj.award).select_related("subitem")
 
+        self.fields["award_item"].label_from_instance = _award_item_label
+        self.fields["award_subitem"].label_from_instance = _award_subitem_label
+
     class Meta:
         model = PurchaseOrderLine
         fields = ["lot", "award_item", "award_subitem", "quantity", "unit_price"]
@@ -107,10 +122,45 @@ class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
     def clean_unit_price(self):
         return self._clean_localized_decimal_field("unit_price")
 
+
+class BasePurchaseOrderLineFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        if any(self.errors):
+            return
+
+        has_detail_line = False
+        for form in self.forms:
+            cleaned = getattr(form, "cleaned_data", None) or {}
+            if not cleaned or cleaned.get("DELETE"):
+                continue
+
+            has_values = any(
+                cleaned.get(field) not in (None, "")
+                for field in ("lot", "award_item", "award_subitem", "quantity", "unit_price")
+            )
+            if has_values:
+                has_detail_line = True
+                break
+
+        if not has_detail_line:
+            raise ValidationError("Debe agregar al menos una línea de detalle para guardar la orden.")
+
 PurchaseOrderLineFormSet = inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderLine,
     form=PurchaseOrderLineForm,
+    formset=BasePurchaseOrderLineFormSet,
     extra=1,
+    can_delete=True,
+)
+
+PurchaseOrderLineEditFormSet = inlineformset_factory(
+    PurchaseOrder,
+    PurchaseOrderLine,
+    form=PurchaseOrderLineForm,
+    formset=BasePurchaseOrderLineFormSet,
+    extra=0,
     can_delete=True,
 )
