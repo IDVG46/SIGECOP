@@ -32,8 +32,8 @@ from apps.procurement.services.finance_service import get_unapproved_memos_for_o
 class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_payment"
     model = Payment
-    template_name = "procurement/payment_list.html"
-    partial_template_name = "procurement/_payment_table.html"
+    template_name = "procurement/finance/payments/list.html"
+    partial_template_name = "procurement/finance/payments/_table.html"
     context_object_name = "payments"
 
     def get_template_names(self):
@@ -62,7 +62,7 @@ class PaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
     permission_required = "procurement.add_payment"
     model = Payment
     form_class = PaymentForm
-    template_name = "procurement/payment_form.html"
+    template_name = "procurement/finance/payments/form.html"
     success_url = reverse_lazy("procurement:payment_list")
 
     def get_context_data(self, **kwargs):
@@ -224,7 +224,7 @@ class PaymentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView)
     permission_required = "procurement.change_payment"
     model = Payment
     form_class = PaymentForm
-    template_name = "procurement/payment_form.html"
+    template_name = "procurement/finance/payments/form.html"
     success_url = reverse_lazy("procurement:payment_list")
 
     def dispatch(self, request, *args, **kwargs):
@@ -279,7 +279,7 @@ class PaymentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView)
 class PaymentReportView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     permission_required = "procurement.view_payment"
     model = Payment
-    template_name = "procurement/payment_report.html"
+    template_name = "procurement/finance/payments/report.html"
     context_object_name = "payment"
 
     def get_queryset(self):

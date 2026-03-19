@@ -16,8 +16,8 @@ from apps.procurement.services import approve_budget
 class ContractBudgetListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_contractbudget"
     model = ContractBudget
-    template_name = "procurement/budget_list.html"
-    partial_template_name = "procurement/_budget_table.html"
+    template_name = "procurement/finance/budgets/list.html"
+    partial_template_name = "procurement/finance/budgets/_table.html"
     context_object_name = "budgets"
 
     def get_template_names(self):
@@ -42,7 +42,7 @@ class ContractBudgetCreateView(LoginRequiredMixin, PermissionRequiredMixin, Crea
     permission_required = "procurement.add_contractbudget"
     model = ContractBudget
     form_class = ContractBudgetForm
-    template_name = "procurement/budget_form.html"
+    template_name = "procurement/finance/budgets/form.html"
     success_url = reverse_lazy("procurement:budget_list")
 
     def get_context_data(self, **kwargs):
@@ -68,7 +68,7 @@ class ContractBudgetUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upda
     permission_required = "procurement.change_contractbudget"
     model = ContractBudget
     form_class = ContractBudgetForm
-    template_name = "procurement/budget_form.html"
+    template_name = "procurement/finance/budgets/form.html"
     success_url = reverse_lazy("procurement:budget_list")
 
     def get_context_data(self, **kwargs):

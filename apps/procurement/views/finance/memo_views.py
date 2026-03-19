@@ -24,8 +24,8 @@ from apps.procurement.services import (
 class FulfillmentMemoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_fulfillmentmemo"
     model = FulfillmentMemo
-    template_name = "procurement/memo_list.html"
-    partial_template_name = "procurement/_memo_table.html"
+    template_name = "procurement/finance/memos/list.html"
+    partial_template_name = "procurement/finance/memos/_table.html"
     context_object_name = "memos"
 
     def get_template_names(self):
@@ -41,7 +41,7 @@ class FulfillmentMemoCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cre
     permission_required = "procurement.add_fulfillmentmemo"
     model = FulfillmentMemo
     form_class = FulfillmentMemoForm
-    template_name = "procurement/memo_form.html"
+    template_name = "procurement/finance/memos/form.html"
     success_url = reverse_lazy("procurement:memo_list")
 
     def _resolve_contract(self):
@@ -162,7 +162,7 @@ class FulfillmentMemoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
     permission_required = "procurement.change_fulfillmentmemo"
     model = FulfillmentMemo
     form_class = FulfillmentMemoForm
-    template_name = "procurement/memo_form.html"
+    template_name = "procurement/finance/memos/form.html"
     success_url = reverse_lazy("procurement:memo_list")
 
     def dispatch(self, request, *args, **kwargs):
