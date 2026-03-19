@@ -18,8 +18,8 @@ from apps.procurement.services import recalculate_contract_balances, recalculate
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_purchaseorder"
-    template_name = "procurement/order_list.html"
-    partial_template_name = "procurement/_order_table.html"
+    template_name = "procurement/orders/list.html"
+    partial_template_name = "procurement/orders/_table.html"
     context_object_name = "orders"
 
     def get_template_names(self):
@@ -42,7 +42,7 @@ class PurchaseOrderBaseView(LoginRequiredMixin, PermissionRequiredMixin):
     model = PurchaseOrder
     form_class = PurchaseOrderForm
     success_url = reverse_lazy("procurement:order_list")
-    template_name = "procurement/order_form.html"
+    template_name = "procurement/orders/form.html"
 
     def _resolve_contract(self):
         contract_id = None
@@ -142,7 +142,7 @@ class PurchaseOrderDeleteView(LoginRequiredMixin, PermissionRequiredMixin, Delet
     permission_required = "procurement.delete_purchaseorder"
     model = PurchaseOrder
     success_url = reverse_lazy("procurement:order_list")
-    template_name = "procurement/order_confirm_delete.html"
+    template_name = "procurement/orders/confirm_delete.html"
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
