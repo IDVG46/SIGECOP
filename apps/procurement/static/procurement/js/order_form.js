@@ -24,11 +24,18 @@
         }
         let lineOptions = { lots: [], items: [], subitems: [] };
         let supplierPayload = null;
+        let contractChangeRequestToken = 0;
+        let lastHandledContractId = null;
         let currentCurrency = 'Gs.';
         const grandTotalElement = document.getElementById('order-grand-total');
         const feedbackBox = document.getElementById('form-feedback');
         const saveOrderButton = document.getElementById('save-order-button');
         const numberUtils = window.SIGECOPNumbers || {};
+        const detailPlaceholders = {
+            lot: 'Buscar lote...',
+            item: 'Buscar item...',
+            subitem: 'Buscar subitem...'
+        };
 
         function showFormFeedback(message, level) {
             if (!feedbackBox) return;
@@ -44,22 +51,50 @@
         }
 
         function triggerSelect2Change(field) {
-            if (!field || !window.jQuery) return;
-            jQuery(field).trigger('change.select2');
+            if (!field) return;
+            // NO disparar change aquí - causaría cascada infinita de eventos
+        }
+
+        function setSelectPlaceholder(select, placeholderText) {
+            if (!select || !placeholderText) return;
+
+            select.setAttribute('placeholder', placeholderText);
+            select.dataset.placeholder = placeholderText;
+
+            if (!select.tomselect) return;
+
+            const ts = select.tomselect;
+            ts.settings.placeholder = placeholderText;
+            if (ts.control_input) {
+                ts.control_input.setAttribute('placeholder', placeholderText);
+            }
+            if (!select.value) {
+                ts.clear(true);
+            }
+        }
+
+        function applyDetailPlaceholders(row) {
+            const els = rowElements(row);
+            setSelectPlaceholder(els.lot, detailPlaceholders.lot);
+            setSelectPlaceholder(els.item, detailPlaceholders.item);
+            setSelectPlaceholder(els.subitem, detailPlaceholders.subitem);
         }
 
         function bindSelectChangeEvents(field, handler) {
             if (!field || typeof handler !== 'function') return;
             field.addEventListener('change', handler);
-            if (window.jQuery) {
-                jQuery(field).on('select2:select select2:clear', handler);
+            
+            // También registrar listener para Tom Select si está disponible
+            if (field.tomselect && typeof field.tomselect.on === 'function') {
+                field.tomselect.off('change');
+                field.tomselect.on('change', handler);
             }
         }
 
         function resetSelectValue(field) {
             if (!field) return;
             field.value = '';
-            triggerSelect2Change(field);
+            // No disparar change: el reset es interno, no debe cascadear
         }
 
         function refreshRowAmounts(row, options) {
@@ -120,19 +155,9 @@
         };
 
         function initSelect2In(container) {
-            if (!window.jQuery || !jQuery.fn || !jQuery.fn.select2) return;
-            const $container = jQuery(container || form);
-            $container.find('select.select2').each(function() {
-                const $el = jQuery(this);
-                if ($el.hasClass('select2-hidden-accessible')) {
-                    $el.select2('destroy');
-                }
-                $el.select2({
-                    width: '100%',
-                    placeholder: 'Seleccione una opcion',
-                    allowClear: true
-                });
-            });
+            if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
+                window.SIGECOPUI.enhanceSelects(container || form);
+            }
         }
 
         function decorateFieldsWithErrors(container) {
@@ -173,46 +198,109 @@
             showFormFeedback(message, 'warning');
         }
 
+        function setSupplierReadonlyState(isReadonly) {
+            if (!supplierSelect) return;
+
+            if (supplierSelect.tomselect) {
+                if (isReadonly) {
+                    supplierSelect.tomselect.lock();
+                } else {
+                    supplierSelect.tomselect.unlock();
+                }
+            }
+
+            if (isReadonly) {
+                supplierSelect.dataset.readonly = '1';
+            } else {
+                delete supplierSelect.dataset.readonly;
+            }
+        }
+
         function setOptions(select, options, selectedValue) {
             if (!select) return;
+
+            const normalizedSelected = selectedValue ? String(selectedValue) : '';
+            const normalizedOptions = (options || []).map(function(opt) {
+                const optionValue = String(opt.id);
+                const optionData = {
+                    value: optionValue,
+                    text: opt.text,
+                };
+
+                if (opt.item_definition_id !== undefined) {
+                    optionData.itemDefinitionId = String(opt.item_definition_id);
+                }
+                if (opt.unit_price !== undefined) {
+                    optionData.unitPrice = String(opt.unit_price);
+                }
+                if (opt.available_quantity !== undefined) {
+                    optionData.availableQuantity = String(opt.available_quantity);
+                }
+                if (opt.enforce_quantity_limit !== undefined) {
+                    optionData.enforceQuantityLimit = String(opt.enforce_quantity_limit);
+                }
+                if (opt.quantity_control_mode !== undefined) {
+                    optionData.quantityControlMode = String(opt.quantity_control_mode);
+                }
+                if (opt.available_amount !== undefined) {
+                    optionData.availableAmount = String(opt.available_amount);
+                }
+
+                return optionData;
+            });
+
+            if (select.tomselect) {
+                const ts = select.tomselect;
+                ts.clearOptions();
+                ts.addOption({ value: '', text: '' });
+                normalizedOptions.forEach(function(opt) {
+                    ts.addOption(opt);
+                });
+                ts.refreshOptions(false);
+
+                if (normalizedSelected) {
+                    ts.setValue(normalizedSelected, true);
+                } else {
+                    ts.clear(true);
+                }
+
+                return;
+            }
+
             const first = document.createElement('option');
             first.value = '';
-            first.textContent = '---------';
+            first.textContent = '';
             select.innerHTML = '';
             select.appendChild(first);
 
-            options.forEach(function(opt) {
+            normalizedOptions.forEach(function(opt) {
                 const option = document.createElement('option');
-                option.value = String(opt.id);
+                option.value = opt.value;
                 option.textContent = opt.text;
-                if (opt.item_definition_id !== undefined) {
-                    option.dataset.itemDefinitionId = String(opt.item_definition_id);
+
+                if (opt.itemDefinitionId !== undefined) {
+                    option.dataset.itemDefinitionId = opt.itemDefinitionId;
                 }
-                if (opt.unit_price !== undefined) {
-                    option.dataset.unitPrice = String(opt.unit_price);
+                if (opt.unitPrice !== undefined) {
+                    option.dataset.unitPrice = opt.unitPrice;
                 }
-                if (opt.available_quantity !== undefined) {
-                    option.dataset.availableQuantity = String(opt.available_quantity);
+                if (opt.availableQuantity !== undefined) {
+                    option.dataset.availableQuantity = opt.availableQuantity;
                 }
-                if (opt.enforce_quantity_limit !== undefined) {
-                    option.dataset.enforceQuantityLimit = String(opt.enforce_quantity_limit);
+                if (opt.enforceQuantityLimit !== undefined) {
+                    option.dataset.enforceQuantityLimit = opt.enforceQuantityLimit;
                 }
-                if (opt.quantity_control_mode !== undefined) {
-                    option.dataset.quantityControlMode = String(opt.quantity_control_mode);
+                if (opt.quantityControlMode !== undefined) {
+                    option.dataset.quantityControlMode = opt.quantityControlMode;
                 }
-                if (opt.available_amount !== undefined) {
-                    option.dataset.availableAmount = String(opt.available_amount);
+                if (opt.availableAmount !== undefined) {
+                    option.dataset.availableAmount = opt.availableAmount;
                 }
+
                 select.appendChild(option);
             });
 
-            if (selectedValue) {
-                select.value = String(selectedValue);
-            }
-
-            if (window.jQuery) {
-                jQuery(select).trigger('change.select2');
-            }
+            select.value = normalizedSelected;
         }
 
         function parseNumber(value) {
@@ -429,15 +517,34 @@
             const els = rowElements(row);
             if (!els.unitPrice) return;
 
-            const selectedItemOpt = (els.item && els.item.value && els.item.selectedIndex >= 0) ? els.item.options[els.item.selectedIndex] : null;
-            const selectedSubitemOpt = (els.subitem && els.subitem.value && els.subitem.selectedIndex >= 0) ? els.subitem.options[els.subitem.selectedIndex] : null;
+            // Obtener el dataset de la opción seleccionada (funciona con Tom Select y select normal)
+            function getSelectedOptionDataset(select) {
+                if (!select || !select.value) return null;
+                
+                // Para Tom Select
+                if (select.tomselect) {
+                    const value = select.value;
+                    const option = select.tomselect.options[value];
+                    if (option) return option;
+                    return null;
+                }
+                
+                // Para select HTML normal
+                if (select.selectedIndex >= 0 && select.options) {
+                    return select.options[select.selectedIndex].dataset;
+                }
+                return null;
+            }
+
+            const selectedItemData = getSelectedOptionDataset(els.item);
+            const selectedSubitemData = getSelectedOptionDataset(els.subitem);
             const itemHasSubitems = getItemHasSubitemsForRow(row);
 
-            if (selectedSubitemOpt?.dataset?.unitPrice) {
-                setMoneyInputValue(els.unitPrice, selectedSubitemOpt.dataset.unitPrice);
-            } else if (selectedItemOpt?.dataset?.unitPrice && !itemHasSubitems) {
-                setMoneyInputValue(els.unitPrice, selectedItemOpt.dataset.unitPrice);
-            } else if (itemHasSubitems && !selectedSubitemOpt) {
+            if (selectedSubitemData?.unitPrice) {
+                setMoneyInputValue(els.unitPrice, selectedSubitemData.unitPrice);
+            } else if (selectedItemData?.unitPrice && !itemHasSubitems) {
+                setMoneyInputValue(els.unitPrice, selectedItemData.unitPrice);
+            } else if (itemHasSubitems && !selectedSubitemData) {
                 els.unitPrice.value = '';
                 els.unitPrice.dataset.normalizedValue = '';
             }
@@ -484,9 +591,22 @@
 
         function setFieldEnabled(field, enabled) {
             if (!field) return;
-            field.disabled = !enabled;
+            const isDisabled = !enabled;
+            if (field.disabled === isDisabled) {
+                return;
+            }
+
+            field.disabled = isDisabled;
             if (window.jQuery) {
-                jQuery(field).prop('disabled', !enabled);
+                jQuery(field).prop('disabled', isDisabled);
+            }
+
+            if (field.tomselect) {
+                if (isDisabled) {
+                    field.tomselect.disable();
+                } else {
+                    field.tomselect.enable();
+                }
             }
 
             const wrapper = field.closest('td');
@@ -498,7 +618,6 @@
                 }
             }
 
-            triggerSelect2Change(field);
         }
 
         function updateRowSelectionFlow(row) {
@@ -734,6 +853,7 @@
             if (!contractId) {
                 supplierPayload = null;
                 setOptions(supplierSelect, []);
+                setSupplierReadonlyState(false);
                 renderContractInfo(null);
                 return;
             }
@@ -754,36 +874,70 @@
             }
 
             supplierPayload = payload;
-            const selected = supplierSelect.value;
+            const preferredSupplierId = payload.preferred_supplier_id ? String(payload.preferred_supplier_id) : '';
+            const selected = preferredSupplierId || supplierSelect.value;
             setOptions(supplierSelect, payload.suppliers || [], selected);
 
-            if ((!supplierSelect.value || supplierSelect.value === '') && payload.preferred_supplier_id) {
-                supplierSelect.value = String(payload.preferred_supplier_id);
-                if (window.jQuery) {
-                    jQuery(supplierSelect).trigger('change.select2');
+            if (preferredSupplierId) {
+                if (supplierSelect.tomselect) {
+                    supplierSelect.tomselect.setValue(preferredSupplierId, true);
+                } else {
+                    supplierSelect.value = preferredSupplierId;
                 }
             }
 
+            setSupplierReadonlyState(!!preferredSupplierId);
+
             renderContractInfo(payload.contract || null);
-            initSelect2In(form);
             refreshTotals();
         }
 
-        async function handleContractChange() {
-            const contractId = contractSelect ? contractSelect.value : '';
+        async function handleContractChange(options) {
+            const force = !!(options && options.force);
+            const contractId = contractSelect ? String(contractSelect.value || '') : '';
+            if (!force && contractId === lastHandledContractId) {
+                return;
+            }
+
+            lastHandledContractId = contractId;
+            const requestToken = ++contractChangeRequestToken;
             showFormFeedback('', 'danger');
             if (saveOrderButton) {
                 saveOrderButton.disabled = true;
             }
             await loadContractOptions(contractId);
+            if (requestToken !== contractChangeRequestToken) {
+                return;
+            }
             await loadContractSuppliers(contractId);
+            if (requestToken !== contractChangeRequestToken) {
+                return;
+            }
             if (saveOrderButton) {
                 saveOrderButton.disabled = false;
             }
         }
 
+        function bindContractChangeSources() {
+            if (!contractSelect) {
+                return;
+            }
+
+            contractSelect.addEventListener('change', function() {
+                handleContractChange();
+            });
+
+            if (contractSelect.tomselect) {
+                contractSelect.tomselect.off('change');
+                contractSelect.tomselect.on('change', function() {
+                    handleContractChange();
+                });
+            }
+        }
+
         function bindRowEventsForRow(row) {
             const els = rowElements(row);
+            applyDetailPlaceholders(row);
             if (!els.lot || row.dataset.bound === '1') return;
             row.dataset.bound = '1';
 
@@ -891,6 +1045,7 @@
             if (!newRow) return;
 
             const els = rowElements(newRow);
+            applyDetailPlaceholders(newRow);
             initSelect2In(newRow);
             setOptions(els.lot, lineOptions.lots);
             filterRowOptions(newRow);
@@ -962,19 +1117,13 @@
             });
         });
 
-        if (contractSelect) {
-            contractSelect.addEventListener('change', handleContractChange);
-            if (window.jQuery) {
-                jQuery(contractSelect).on('select2:select select2:clear', handleContractChange);
-            }
-        }
+        bindContractChangeSources();
 
         if (addLineButton) {
             addLineButton.addEventListener('click', addLineRow);
         }
 
         decorateFieldsWithErrors(form);
-        initSelect2In(form);
         bindRowEvents();
 
         if (contractSelect && contractSelect.value && isEditMode) {
@@ -983,6 +1132,6 @@
         }
 
         if (contractSelect) {
-            handleContractChange();
+            handleContractChange({ force: true });
         }
     })();

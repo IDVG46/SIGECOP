@@ -18,7 +18,6 @@ Orden de compra
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'lib/ace-master/css/select2.min.css' %}" />
 <link rel="stylesheet" href="{% static 'procurement/css/order_form.css' %}" />
 {% endblock %}
 
@@ -162,13 +161,13 @@ Orden de compra
                     </tbody>
                 </table>
                 </div>
-                <div class="row" style="margin: 10px 0 0 0;">
-                    <div class="col-sm-12 text-right">
-                        <div class="grand-total-wrap">
-                            <i class="fa fa-calculator" style="color: #1f6fb2; margin-right: 8px;"></i>
-                            <span class="grand-total-label">Total general</span>
-                            <span id="order-grand-total" class="grand-total-value">-</span>
-                        </div>
+            </div>
+            <div class="widget-toolbox clearfix order-total-footer">
+                <div class="text-right">
+                    <div class="grand-total-wrap">
+                        <i class="fa fa-calculator" style="color: #1f6fb2; margin-right: 8px;"></i>
+                        <span class="grand-total-label">Total general</span>
+                        <span id="order-grand-total" class="grand-total-value">-</span>
                     </div>
                 </div>
             </div>
@@ -210,6 +209,5 @@ Orden de compra
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'lib/ace-master/js/select2.min.js' %}"></script>
 <script src="{% static 'procurement/js/order_form.js' %}"></script>
 {% endblock %}

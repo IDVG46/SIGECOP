@@ -7,9 +7,59 @@ html,
         overflow-x: hidden;
     }
 
+    :root {
+        --focus-blue: #5b9bd5;
+        --focus-blue-shadow: rgba(91, 155, 213, 0.18);
+    }
+
+    /* Ocultar completamente select original cuando Tom Select lo está enhanceando */
+    select.tomselected.ts-hidden-accessible {
+        display: none !important;
+        position: absolute !important;
+        left: -9999px !important;
+        width: 0 !important;
+        height: 0 !important;
+        visibility: hidden !important;
+    }
+
     #order-form {
         max-width: 100%;
         overflow-x: hidden;
+    }
+
+    /* Unificacion de foco: reemplaza el naranja de Ace por azul en este formulario */
+    #order-form .form-control:focus,
+    #order-form input[type="text"]:focus,
+    #order-form input[type="date"]:focus,
+    #order-form input[type="number"]:focus,
+    #order-form textarea:focus,
+    #order-form select:focus {
+        border-color: var(--focus-blue) !important;
+        box-shadow: 0 0 0 3px var(--focus-blue-shadow) !important;
+        outline: 0;
+    }
+
+    #order-form .btn:focus,
+    #order-form .btn:active:focus,
+    #order-form .btn.active:focus,
+    #order-form .line-delete-btn:focus,
+    #order-form a:focus {
+        outline: none !important;
+        box-shadow: 0 0 0 3px var(--focus-blue-shadow) !important;
+    }
+
+    #order-form input[type="checkbox"]:focus {
+        outline: 2px solid var(--focus-blue);
+        outline-offset: 2px;
+    }
+
+    /* El input interno de Tom Select no debe pintarse como input normal */
+    #order-form .ts-wrapper .ts-control > input,
+    #order-form .ts-wrapper .ts-control > input:focus {
+        border: 0 !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+        background: transparent !important;
     }
 
     #order-form .row {
@@ -22,18 +72,87 @@ html,
         padding-right: 8px;
     }
 
-    .select2-container--default .select2-selection--single {
-        border: 1px solid #d5d5d5;
-        min-height: 34px;
+    /* Tom Select: estilo cercano al demo oficial */
+    .ts-wrapper.form-control {
+        padding: 0;
+        height: auto;
+        border: 0;
+        box-shadow: none;
+        background: transparent;
     }
 
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 32px;
+    .ts-control {
+        border: 1px solid #d5d5d5;
+        border-radius: 4px;
+        background: #fff;
+        min-height: 34px;
+        padding: 6px 10px;
+        box-shadow: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .ts-wrapper.focus .ts-control,
+    .ts-control.focus,
+    .ts-control.input-active {
+        border-color: var(--focus-blue);
+        box-shadow: 0 0 0 3px var(--focus-blue-shadow);
+    }
+
+    .ts-control > input {
+        color: #393939;
+        line-height: 20px;
+        min-width: 2ch;
+    }
+
+    .ts-wrapper.single .ts-control > input {
+        min-width: 1ch;
+        width: auto !important;
+    }
+
+    .ts-wrapper.single.focus .ts-control > input,
+    .ts-wrapper.single.input-active .ts-control > input {
+        min-width: 8ch;
+    }
+
+    /* En single select, mostrar valor como texto normal (sin chip) */
+    .ts-wrapper.single .ts-control > .item {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+        margin: 0 6px 0 0;
         color: #393939;
     }
 
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 32px;
+    /* Mantener chips solo para multi-select */
+    .ts-wrapper.multi .ts-control > .item {
+        background-color: #eef4ff;
+        border: 1px solid #d4e2ff;
+        border-radius: 3px;
+        color: #2d4b73;
+        padding: 2px 6px;
+        margin: 2px 4px 2px 0;
+    }
+
+    .ts-dropdown {
+        border: 1px solid #d5d5d5;
+        border-radius: 4px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        margin-top: 4px;
+    }
+
+    .ts-dropdown .option,
+    .ts-dropdown .ts-option {
+        padding: 8px 10px;
+        color: #393939;
+    }
+
+    .ts-dropdown .option.active,
+    .ts-dropdown .option:hover,
+    .ts-dropdown .ts-option.active,
+    .ts-dropdown .ts-option:hover {
+        background: #f2f7ff;
+        color: #1f3b63;
     }
 
     .contract-summary .label-title {
@@ -71,12 +190,13 @@ html,
     }
 
     #line-items-body select.form-control,
-    #line-items-body .select2-container {
+    #line-items-body .ts-wrapper {
         width: 100% !important;
         max-width: 100% !important;
     }
 
-    #line-items-body .select2-container .select2-selection__rendered {
+    #line-items-body .ts-control .item,
+    #line-items-body .ts-control > input {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -123,33 +243,47 @@ html,
 
     .order-lines-table select.form-control,
     .order-lines-table input.form-control,
-    .order-lines-table .select2-container {
+    .order-lines-table .ts-wrapper {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
     }
 
-    .order-lines-table .select2-selection__rendered {
+    .order-lines-table .ts-control .item,
+    .order-lines-table .ts-control > input {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    /* Evita que un dropdown de Select2 con opciones extensas estire el body */
-    .select2-container--open .select2-dropdown {
+    /* Evita que un dropdown de Tom Select con opciones extensas estire el body */
+    .ts-dropdown {
         max-width: calc(100vw - 24px);
+        max-height: 300px;
+        overflow-y: auto;
     }
 
-    .select2-results__option {
+    .ts-dropdown-content .ts-option {
         white-space: normal;
         word-break: break-word;
+        padding: 6px 8px;
     }
 
-    /* En filas de detalle de orden, forzar dropdown hacia abajo aunque Select2 lo marque como above */
-    #order-form .order-lines-table .select2-container--open.select2-container--above .select2-dropdown--above {
-        top: 100%;
-        bottom: auto;
+    /* Asegurar que dropdown Tom Select se posiciona correctamente */
+    #order-form .order-lines-table .ts-dropdown {
+        z-index: 3000;
         margin-top: 2px;
+    }
+
+    .order-total-footer {
+        position: relative;
+        z-index: 1;
+    }
+
+    #id_supplier[data-readonly="1"] + .ts-wrapper .ts-control {
+        background: #f7f9fc;
+        cursor: not-allowed;
+        opacity: 0.9;
     }
 
     .order-lines-table th:nth-child(1), .order-lines-table td:nth-child(1) { width: 4%; }
@@ -208,7 +342,7 @@ html,
         border-color: #d15b47 !important;
     }
 
-    .order-lines-table select.js-client-invalid + .select2 .select2-selection {
+    .order-lines-table select.js-client-invalid + .ts-wrapper .ts-control {
         border-color: #d15b47 !important;
     }
 
@@ -256,11 +390,19 @@ html,
     }
 
     .grand-total-wrap {
-        margin: 12px 0 0;
+        margin: 0;
         padding: 12px 14px;
         border: 1px solid #d7e5f6;
         border-radius: 6px;
         background: linear-gradient(135deg, #f6fbff 0%, #eef6ff 100%);
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .order-total-footer {
+        padding: 10px 12px;
+        border-top: 1px solid #d7e5f6;
+        background: #fbfdff;
     }
 
     .grand-total-label {
