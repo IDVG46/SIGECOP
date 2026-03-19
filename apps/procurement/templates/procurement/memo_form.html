@@ -15,13 +15,10 @@ Memorándum de Cumplimiento
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'lib/ace-master/css/select2.min.css' %}" />
 <style>
     #memo-form .row { margin-left: 0; margin-right: 0; }
     #memo-form .row > [class*="col-"] { padding-left: 8px; padding-right: 8px; }
-    .select2-container--default .select2-selection--single { border: 1px solid #d5d5d5; min-height: 34px; }
-    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 32px; color: #393939; }
-    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 32px; }
+    #memo-form .ts-control { min-height: 34px; border-color: #d5d5d5; }
 </style>
 {% endblock %}
 
@@ -166,7 +163,6 @@ Memorándum de Cumplimiento
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'lib/ace-master/js/select2.min.js' %}"></script>
 <script>
 (function () {
     const form = document.getElementById('memo-form');
@@ -193,12 +189,9 @@ Memorándum de Cumplimiento
     const currentOrderLineOptions = {};
 
     function initSelect2In(container) {
-        if (!window.jQuery || !jQuery.fn || !jQuery.fn.select2) return;
-        jQuery(container || form).find('select.select2').each(function () {
-            const $el = jQuery(this);
-            if ($el.hasClass('select2-hidden-accessible')) $el.select2('destroy');
-            $el.select2({ width: '100%', placeholder: 'Seleccione una opción', allowClear: true });
-        });
+        if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
+            window.SIGECOPUI.enhanceSelects(container || form);
+        }
     }
 
     function buildUrl(template, key, value) {
@@ -279,7 +272,6 @@ Memorándum de Cumplimiento
             setOptions(orderSelect, currentOrderOptions, orderSelect.value);
             const onChange = function () { refreshPartialOrderLines(row); };
             orderSelect.addEventListener('change', onChange);
-            if (window.jQuery) jQuery(orderSelect).on('select2:select select2:clear', onChange);
         }
         refreshPartialOrderLines(row);
     }
@@ -368,7 +360,6 @@ Memorándum de Cumplimiento
         partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
     }
 
-    initSelect2In(form);
     orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(setupOrderRow);
     partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
 
@@ -386,7 +377,6 @@ Memorándum de Cumplimiento
 
     if (contractSelect) {
         contractSelect.addEventListener('change', refreshContractData);
-        if (window.jQuery) jQuery(contractSelect).on('select2:select select2:clear', refreshContractData);
     }
     if (addOrderBtn) addOrderBtn.addEventListener('click', function () { addRow(orderTemplate, orderBody, orderTotalForms, setupOrderRow); });
     if (addPartialBtn) addPartialBtn.addEventListener('click', function () { addRow(partialTemplate, partialBody, partialTotalForms, setupPartialRow); });

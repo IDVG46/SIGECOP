@@ -10,6 +10,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}" />
     
+    <!-- Preconnect para optimización de carga remota -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    
     <!-- bootstrap & fontawesome -->
     <link rel="stylesheet" href="{% static 'lib/ace-master/css/bootstrap.min.css' %}" />
     <link rel="stylesheet" href="{% static 'lib/ace-master/font-awesome/4.5.0/css/font-awesome.min.css' %}" />
@@ -17,8 +22,11 @@
     <!-- page specific plugin styles -->
     <link rel="stylesheet" href="{% static 'lib/ace-master/css/ui.jqgrid.min.css' %}" />
 
-    <!-- text fonts -->
+    <!-- text fonts (con font-display: swap para evitar bloqueos de renderizado) -->
     <link rel="stylesheet" href="{% static 'lib/ace-master/css/fonts.googleapis.com.css' %}" />
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+    </style>
 
     <!-- ace styles -->
     <link rel="stylesheet" href="{% static 'lib/ace-master/css/ace.min.css' %}" class="ace-main-stylesheet" id="main-ace-style" />
@@ -42,6 +50,20 @@
     <script src="{% static 'lib/ace-master/js/respond.min.js' %}"></script>
     <![endif]-->
     
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/css/tom-select.css" />
+
+    <style>
+      .htmx-indicator {
+        opacity: 0;
+        transition: opacity 200ms ease-in;
+      }
+
+      .htmx-request .htmx-indicator,
+      .htmx-request.htmx-indicator {
+        opacity: 1;
+      }
+    </style>
+
     {% block extra_css %}{% endblock %}
   </head>
   <body class="skin-1">
@@ -323,57 +345,11 @@
     <script src="{% static 'lib/ace-master/js/jquery.dataTables.min.js' %}"></script>
     <script src="{% static 'lib/ace-master/js/jquery.dataTables.bootstrap.min.js' %}"></script>
     
-    <script>
-      // Inicializar DataTables en tablas marcadas
-      jQuery(function($) {
-        $('.datatable').each(function() {
-          if (!$.fn.DataTable.isDataTable(this)) {
-            var orderColumn = $(this).data('order-column');
-            var orderDir = $(this).data('order-dir');
-            var defaultOrder = [[0, 'desc']];
-            if (orderColumn !== undefined && orderColumn !== null && orderColumn !== '') {
-              var parsedColumn = Number(orderColumn);
-              if (!Number.isNaN(parsedColumn)) {
-                defaultOrder = [[parsedColumn, orderDir || 'asc']];
-              }
-            }
-            $(this).DataTable({
-              language: {
-                "sProcessing":     "Procesando...",
-                "sLengthMenu":     "Mostrar _MENU_ registros",
-                "sZeroRecords":    "No se encontraron resultados",
-                "sEmptyTable":     "Ningún dato disponible en esta tabla",
-                "sInfo":           "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
-                "sInfoEmpty":      "Mostrando registros del 0 al 0 de un total de 0 registros",
-                "sInfoFiltered":   "(filtrado de un total de _MAX_ registros)",
-                "sInfoPostFix":    "",
-                "sSearch":         "Buscar:",
-                "sUrl":            "",
-                "sInfoThousands":  ",",
-                "sLoadingRecords": "Cargando...",
-                "oPaginate": {
-                  "sFirst":    "Primero",
-                  "sLast":     "Último",
-                  "sNext":     "Siguiente",
-                  "sPrevious": "Anterior"
-                },
-                "oAria": {
-                  "sSortAscending":  ": Activar para ordenar la columna de manera ascendente",
-                  "sSortDescending": ": Activar para ordenar la columna de manera descendente"
-                }
-              },
-              pageLength: 10,
-              bAutoWidth: false,
-              order: defaultOrder,
-              buttons: [ 'copy', 'csv', 'excel', 'pdf', 'print' ]
-            });
-          }
-        });
-      });
-    </script>
-
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.5.2/dist/js/tom-select.complete.min.js"></script>
     <script src="{% static 'js/numeric-format.js' %}"></script>
-    
+    <script src="{% static 'procurement/js/ui_init.js' %}"></script>
+
     {% block extra_js %}{% endblock %}
   </body>
 </html>

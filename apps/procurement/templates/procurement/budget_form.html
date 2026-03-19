@@ -15,7 +15,6 @@ Presupuesto
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'lib/ace-master/css/select2.min.css' %}" />
 <style>
     #budget-form .row {
         margin-left: 0;
@@ -27,18 +26,9 @@ Presupuesto
         padding-right: 8px;
     }
 
-    .select2-container--default .select2-selection--single {
-        border: 1px solid #d5d5d5;
+    #budget-form .ts-control {
         min-height: 34px;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 32px;
-        color: #393939;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 32px;
+        border-color: #d5d5d5;
     }
 </style>
 {% endblock %}
@@ -81,7 +71,6 @@ Presupuesto
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'lib/ace-master/js/select2.min.js' %}"></script>
 <script>
     (function () {
         const form = document.getElementById('budget-form');
@@ -90,12 +79,8 @@ Presupuesto
         const financialCodeSelect = document.getElementById('id_financial_code');
         const financialCodesUrlTemplate = form.dataset.financialCodesUrlTemplate || '';
 
-        if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
-            jQuery(form).find('select.select2').select2({
-                width: '100%',
-                placeholder: 'Seleccione una opcion',
-                allowClear: true,
-            });
+        if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
+            window.SIGECOPUI.enhanceSelects(form);
         }
 
         function buildFinancialCodesUrl(contractId) {
@@ -116,7 +101,7 @@ Presupuesto
             financialCodeSelect.appendChild(blank);
 
             if (!contractId) {
-                if (window.jQuery) jQuery(financialCodeSelect).trigger('change.select2');
+                financialCodeSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 return;
             }
 
@@ -152,7 +137,7 @@ Presupuesto
                     }
                     financialCodeSelect.value = previousValue;
                 }
-                if (window.jQuery) jQuery(financialCodeSelect).trigger('change.select2');
+                financialCodeSelect.dispatchEvent(new Event('change', { bubbles: true }));
             } catch (error) {
                 if (window.console) console.warn('No se pudieron cargar financial codes', error);
                 if (previousValue) {
@@ -165,7 +150,7 @@ Presupuesto
                     }
                     financialCodeSelect.value = previousValue;
                 }
-                if (window.jQuery) jQuery(financialCodeSelect).trigger('change.select2');
+                financialCodeSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
 
@@ -187,10 +172,6 @@ Presupuesto
 
         if (contractSelect) {
             contractSelect.addEventListener('change', refreshFinancialCodes);
-            if (window.jQuery) {
-                jQuery(contractSelect).on('select2:select', refreshFinancialCodes);
-                jQuery(contractSelect).on('select2:clear', refreshFinancialCodes);
-            }
         }
 
         refreshFinancialCodes();

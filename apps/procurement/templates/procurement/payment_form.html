@@ -15,7 +15,6 @@ Pago
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'lib/ace-master/css/select2.min.css' %}" />
 <style>
     #payment-form .row {
         margin-left: 0;
@@ -27,18 +26,9 @@ Pago
         padding-right: 8px;
     }
 
-    .select2-container--default .select2-selection--single {
-        border: 1px solid #d5d5d5;
+    #payment-form .ts-control {
         min-height: 34px;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 32px;
-        color: #393939;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 32px;
+        border-color: #d5d5d5;
     }
 </style>
 {% endblock %}
@@ -150,7 +140,6 @@ Pago
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'lib/ace-master/js/select2.min.js' %}"></script>
 <script>
     (function () {
         const form = document.getElementById('payment-form');
@@ -165,12 +154,9 @@ Pago
         let currentContractOrderOptions = [];
 
         function initSelect2In(container) {
-            if (!window.jQuery || !jQuery.fn || !jQuery.fn.select2) return;
-            jQuery(container || form).find('select.select2').each(function () {
-                const $el = jQuery(this);
-                if ($el.hasClass('select2-hidden-accessible')) $el.select2('destroy');
-                $el.select2({ width: '100%', placeholder: 'Seleccione una opción', allowClear: true });
-            });
+            if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
+                window.SIGECOPUI.enhanceSelects(container || form);
+            }
         }
 
         function buildUrl(template, orderId) {
@@ -196,7 +182,7 @@ Pago
                 select.appendChild(option);
             });
             if (prev) select.value = prev;
-            if (window.jQuery) jQuery(select).val(select.value || null).trigger('change.select2');
+            select.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         async function refreshBudgetsForRow(row) {
@@ -270,24 +256,6 @@ Pago
                 const row = this.closest('tr');
                 if (row) refreshBudgetsForRow(row);
             });
-            
-            // Listener Select2 (si Select2 está activo)
-            if (window.jQuery && jQuery(orderSelect).hasClass('select2-hidden-accessible')) {
-                jQuery(orderSelect).on('select2:select', function () {
-                    console.log('🔄 Order changed (Select2 select event):', this.value);
-                    const row = this.closest('tr');
-                    if (row) refreshBudgetsForRow(row);
-                });
-                
-                jQuery(orderSelect).on('select2:unselect', function () {
-                    console.log('🔄 Order cleared (Select2 unselect event)');
-                    const row = this.closest('tr');
-                    if (row) {
-                        const budgetSelect = row.querySelector('select[name$="-contract_budget"]');
-                        if (budgetSelect) setOptions(budgetSelect, []);
-                    }
-                });
-            }
         }
 
         function addRow() {
@@ -364,8 +332,6 @@ Pago
                 numberUtils.setMoneyInputValue(totalInput, sum, { currency: 'Gs.', precision: 0, locale: 'es-PY' });
             }
         }
-
-        initSelect2In(form);
 
         form.querySelectorAll('input[name$="-amount"]').forEach(function (input) {
             if (numberUtils.bindInputFormatting) {
@@ -450,10 +416,6 @@ Pago
             contractField.style.backgroundColor = '#f5f5f5';
             contractField.style.color = '#777';
             contractField.tabIndex = -1;
-            // También bloquear el contenedor de Select2 si está inicializado
-            if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
-                jQuery(contractField).on('select2:opening', function(e) { e.preventDefault(); });
-            }
             console.log('✓ Protected mode (UPDATE) - Contract locked (readonly style)');
         }
 
@@ -536,15 +498,6 @@ Pago
                 console.log('🔄 Contract changed (HTML) to:', this.value);
                 loadOrdersForContract(this.value);
             });
-            
-            // Listener Select2 (si Select2 está inicializado)
-            if (window.jQuery && jQuery(contractField)) {
-                jQuery(contractField).on('change.select2', function () {
-                    const newValue = jQuery(this).val();
-                    console.log('🔄 Contract changed (Select2) to:', newValue);
-                    loadOrdersForContract(newValue);
-                });
-            }
         }
     })();
 </script>
