@@ -13,6 +13,7 @@ from apps.procurement.forms import (
     FulfillmentMemoPartialLineFormSet,
 )
 from apps.procurement.models import FulfillmentMemo, FulfillmentMemoLine, FulfillmentMemoPartialLine
+from apps.procurement.selectors import get_fulfillment_memos_queryset
 from apps.procurement.services import (
     approve_fulfillment_memo,
     create_fulfillment_memo,
@@ -27,7 +28,7 @@ class FulfillmentMemoListView(LoginRequiredMixin, PermissionRequiredMixin, ListV
     context_object_name = "memos"
 
     def get_queryset(self):
-        queryset = FulfillmentMemo.objects.select_related("contract", "purchase_order", "purchase_order__contract").order_by("-memo_date", "-id")
+        queryset = get_fulfillment_memos_queryset()
         search = self.request.GET.get("q", "").strip()
         if search:
             queryset = queryset.filter(memo_number__icontains=search)

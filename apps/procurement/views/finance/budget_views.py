@@ -9,6 +9,7 @@ from django.views.generic import CreateView, ListView, UpdateView
 from apps.dncp_integration.views.local_views import _format_amount
 from apps.procurement.forms import ContractBudgetForm
 from apps.procurement.models import ContractBudget
+from apps.procurement.selectors import get_contract_budgets_queryset
 from apps.procurement.services import approve_budget
 
 
@@ -19,7 +20,7 @@ class ContractBudgetListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     context_object_name = "budgets"
 
     def get_queryset(self):
-        queryset = ContractBudget.objects.select_related("contract", "expense_object").order_by("-fiscal_year", "contract_id")
+        queryset = get_contract_budgets_queryset()
         search = self.request.GET.get("q", "").strip()
         if search:
             queryset = queryset.filter(contract_id__icontains=search)

@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.safestring import mark_safe
@@ -25,6 +25,7 @@ from apps.procurement.models import (
     Payment,
     PurchaseOrder,
 )
+from apps.procurement.selectors import get_payments_queryset
 from apps.procurement.services import cancel_payment, post_payment
 from apps.procurement.services.finance_service import get_unapproved_memos_for_orders
 
@@ -36,13 +37,7 @@ class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     context_object_name = "payments"
 
     def get_queryset(self):
-        queryset = Payment.objects.select_related("contract").prefetch_related(
-            "allocations__contract_budget__contract",
-            "allocations__contract_budget__expense_object",
-        ).annotate(
-            allocation_count=Count("allocations", distinct=True),
-            budget_count=Count("allocations__contract_budget", distinct=True),
-        )
+        queryset = get_payments_queryset()
 
         status = self.request.GET.get("status")
         contract = self.request.GET.get("contract")
@@ -58,7 +53,7 @@ class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                 | Q(document_number__icontains=search)
             )
 
-        return queryset.order_by("-payment_date", "-created_at")
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
