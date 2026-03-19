@@ -5,14 +5,13 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.safestring import mark_safe
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from apps.dncp_integration.models import ContractExtra
+from apps.dncp_integration.models import Contract, ContractExtra
 from apps.dncp_integration.views.local_views import _format_amount
 from apps.procurement.forms import (
     PaymentAllocationFormSet,
@@ -34,26 +33,16 @@ class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_payment"
     model = Payment
     template_name = "procurement/payment_list.html"
+    partial_template_name = "procurement/_payment_table.html"
     context_object_name = "payments"
 
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return [self.partial_template_name]
+        return [self.template_name]
+
     def get_queryset(self):
-        queryset = get_payments_queryset()
-
-        status = self.request.GET.get("status")
-        contract = self.request.GET.get("contract")
-        search = self.request.GET.get("search")
-
-        if status:
-            queryset = queryset.filter(status=status)
-        if contract:
-            queryset = queryset.filter(contract=contract)
-        if search:
-            queryset = queryset.filter(
-                Q(payment_number__icontains=search)
-                | Q(document_number__icontains=search)
-            )
-
-        return queryset
+        return get_payments_queryset()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -65,6 +54,7 @@ class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                     contract = first_alloc.contract_budget.contract
             currency = getattr(contract, "value_currency", None) if contract else None
             payment.formatted_amount_total = _format_amount(payment.amount_total, currency)
+
         return context
 
 

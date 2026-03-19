@@ -17,14 +17,16 @@ class ContractBudgetListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     permission_required = "procurement.view_contractbudget"
     model = ContractBudget
     template_name = "procurement/budget_list.html"
+    partial_template_name = "procurement/_budget_table.html"
     context_object_name = "budgets"
 
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return [self.partial_template_name]
+        return [self.template_name]
+
     def get_queryset(self):
-        queryset = get_contract_budgets_queryset()
-        search = self.request.GET.get("q", "").strip()
-        if search:
-            queryset = queryset.filter(contract_id__icontains=search)
-        return queryset
+        return get_contract_budgets_queryset()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

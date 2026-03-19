@@ -1,0 +1,52 @@
+<table class="table table-striped table-bordered table-hover datatable" data-order-column="3" data-order-dir="desc">
+    <thead>
+        <tr>
+            <th class="center" style="width: 16%;">N° Orden</th>
+            <th class="center" style="width: 16%;">Contrato</th>
+            <th>Proveedor</th>
+            <th class="center" style="width: 12%;">Fecha</th>
+            <th class="center" style="width: 12%;">Estado</th>
+            <th class="text-right" style="width: 14%;">Total</th>
+            <th class="center" style="width: 10%;"></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td class="center"><span style="font-family: monospace; font-weight: 600; color: #4D90FE;">{{ order.order_number }}</span></td>
+            <td class="center"><span style="font-family: monospace;">{{ order.contract.id }}</span></td>
+            <td><div class="text-overflow" title="{{ order.supplier.name }}">{{ order.supplier.name }}</div></td>
+            <td class="center">{{ order.issue_date|date:"d/m/Y" }}</td>
+            <td class="center"><span class="label label-sm label-default arrowed">{{ order.get_status_display }}</span></td>
+            <td class="text-right"><strong>{{ order.formatted_total_amount }}</strong></td>
+            <td class="center">
+                <div class="action-buttons">
+                    <a href="{% url 'procurement:order_update' order.id %}" class="green" title="Editar">
+                        <i class="ace-icon fa fa-pencil bigger-130"></i>
+                    </a>
+                    {% if order.status != 'cancelled' %}
+                    <form method="post" action="{% url 'procurement:order_cancel' order.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-link orange" title="Anular" onclick="return confirm('¿Anular esta orden?')" style="padding:0; margin-left: 6px;">
+                            <i class="ace-icon fa fa-ban bigger-130"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'procurement:order_delete' order.id %}" class="red" title="Eliminar" style="margin-left: 6px;">
+                        <i class="ace-icon fa fa-trash-o bigger-130"></i>
+                    </a>
+                </div>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" class="center">
+                <div class="empty-state" style="padding: 40px 0;">
+                    <i class="ace-icon fa fa-inbox fa-3x grey"></i>
+                    <p class="grey" style="margin-top: 15px; font-size: 16px;">Sin ordenes registradas.</p>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

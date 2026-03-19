@@ -19,14 +19,16 @@ from apps.procurement.services import recalculate_contract_balances, recalculate
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_purchaseorder"
     template_name = "procurement/order_list.html"
+    partial_template_name = "procurement/_order_table.html"
     context_object_name = "orders"
 
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return [self.partial_template_name]
+        return [self.template_name]
+
     def get_queryset(self):
-        queryset = get_purchase_orders_queryset().order_by("-issue_date")
-        search = self.request.GET.get("q", "").strip()
-        if search:
-            queryset = queryset.filter(order_number__icontains=search)
-        return queryset
+        return get_purchase_orders_queryset().order_by("-issue_date")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

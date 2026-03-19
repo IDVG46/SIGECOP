@@ -25,14 +25,16 @@ class FulfillmentMemoListView(LoginRequiredMixin, PermissionRequiredMixin, ListV
     permission_required = "procurement.view_fulfillmentmemo"
     model = FulfillmentMemo
     template_name = "procurement/memo_list.html"
+    partial_template_name = "procurement/_memo_table.html"
     context_object_name = "memos"
 
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request") == "true":
+            return [self.partial_template_name]
+        return [self.template_name]
+
     def get_queryset(self):
-        queryset = get_fulfillment_memos_queryset()
-        search = self.request.GET.get("q", "").strip()
-        if search:
-            queryset = queryset.filter(memo_number__icontains=search)
-        return queryset
+        return get_fulfillment_memos_queryset()
 
 
 class FulfillmentMemoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
