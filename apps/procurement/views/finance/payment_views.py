@@ -280,7 +280,7 @@ class PaymentReportView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
     context_object_name = "payment"
 
     def get_queryset(self):
-        return Payment.objects.select_related("contract").prefetch_related(
+        return Payment.objects.select_related("contract__award__tender").prefetch_related(
             "allocations__purchase_order__supplier",
             "allocations__contract_budget__expense_object",
             "allocations__contract_budget__contract",
@@ -462,8 +462,24 @@ class PaymentReportView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
             elif end:
                 validity_range = f"Hasta {end:%d/%m/%Y}"
 
+        tender = contract.award.tender if contract and hasattr(contract, 'award') and contract.award_id else None
+
+        funding_sources = [section["funding_source"] for section in sections]
+
+        seen_exp_codes = set()
+        expense_objects = []
+        for section in sections:
+            for row in section["rows"]:
+                exp = row["budget"].expense_object
+                if exp and exp.code not in seen_exp_codes:
+                    seen_exp_codes.add(exp.code)
+                    expense_objects.append(f"{exp.code} - {exp.description}")
+
         context["contract"] = contract
         context["contract_extra"] = contract_extra
+        context["tender"] = tender
+        context["funding_sources"] = funding_sources
+        context["expense_objects"] = expense_objects
         context["contract_number"] = (contract_extra.contract_number if contract_extra and contract_extra.contract_number else getattr(contract, "id", "-"))
         context["contract_resolution"] = contract_extra.resolution_number if contract_extra and contract_extra.resolution_number else "-"
         context["contract_resolution_sender"] = contract_extra.resolution_sender if contract_extra and contract_extra.resolution_sender else ""
