@@ -49,10 +49,24 @@ class ContractEditForm(forms.ModelForm):
     resolution_article = forms.CharField(
         required=False,
         max_length=50,
+        label="N° Artículo (designa al Administrador/a)",
+        help_text="Artículo de la resolución que designa al administrador/a del contrato. Ej.: 2",
         widget=forms.TextInput(
             attrs={
                 "class": "form-control form-control-sm",
                 "placeholder": "Ej.: 2",
+            }
+        ),
+    )
+    contract_administrator = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Administrador/a del Contrato",
+        help_text="Nombre del/la responsable de la administración del contrato (Jefa/e División de Control de Contratos)",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "placeholder": "Ej.: Ing. María García",
             }
         ),
     )
@@ -121,6 +135,7 @@ class ContractEditForm(forms.ModelForm):
             self.initial["resolution_number"] = self.extra_instance.resolution_number
             self.initial["resolution_sender"] = self.extra_instance.resolution_sender
             self.initial["resolution_article"] = self.extra_instance.resolution_article
+            self.initial["contract_administrator"] = self.extra_instance.contract_administrator
 
     def clean_value_amount(self):
         raw_value = self.cleaned_data.get("value_amount")
@@ -148,6 +163,7 @@ class ContractEditForm(forms.ModelForm):
         extra.resolution_number = self.cleaned_data.get("resolution_number", "") or ""
         extra.resolution_sender = self.cleaned_data.get("resolution_sender", "") or ""
         extra.resolution_article = self.cleaned_data.get("resolution_article", "") or ""
+        extra.contract_administrator = self.cleaned_data.get("contract_administrator", "") or ""
         if user is not None:
             extra.is_user_modified = True
             extra.modified_by = user

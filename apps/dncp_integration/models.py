@@ -340,7 +340,8 @@ class ContractExtra(AuditedModel):
 	contract_number = models.CharField(max_length=100, blank=True, default="")
 	resolution_number = models.CharField(max_length=100, blank=True, default="")
 	resolution_sender = models.CharField(max_length=255, blank=True, default="", verbose_name="Remitente de la resolución")
-	resolution_article = models.CharField(max_length=50, blank=True, default="", verbose_name="Artículo de la resolución")
+	resolution_article = models.CharField(max_length=50, blank=True, default="", verbose_name="N° Artículo (designa al Administrador/a)")
+	contract_administrator = models.CharField(max_length=255, blank=True, default="", verbose_name="Administrador/a del Contrato")
 
 	class Meta:
 		indexes = [

@@ -94,32 +94,6 @@
                                 {% endif %}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Resolucion de Contrato</label>
-                                {{ contract_form.resolution_number }}
-                                {% if contract_form.resolution_number.errors %}
-                                    <small class="text-danger">{{ contract_form.resolution_number.errors.0 }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-8">
-                                <label class="form-label">Remitente de la Resolucion <small class="text-muted">(ej.: la Rector&iacute;a)</small></label>
-                                {{ contract_form.resolution_sender }}
-                                {% if contract_form.resolution_sender.errors %}
-                                    <small class="text-danger">{{ contract_form.resolution_sender.errors.0 }}</small>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Art&iacute;culo de la Resolucion <small class="text-muted">(ej.: 2)</small></label>
-                                {{ contract_form.resolution_article }}
-                                {% if contract_form.resolution_article.errors %}
-                                    <small class="text-danger">{{ contract_form.resolution_article.errors.0 }}</small>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-12">
                                 <label class="form-label">Monto</label>
                                 <div class="input-group">
                                     {{ contract_form.value_amount }}
@@ -127,6 +101,68 @@
                                 </div>
                                 {% if contract_form.value_amount.errors %}
                                     <small class="text-danger">{{ contract_form.value_amount.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RESOLUCIÓN DE ADJUDICACIÓN Y ADMINISTRACIÓN DEL CONTRATO -->
+                <div class="widget-box">
+                    <div class="widget-header widget-header-green widget-header-flat">
+                        <h4 class="widget-title lighter">
+                            <i class="ace-icon fa fa-file-signature"></i>
+                            Resoluci&oacute;n de Adjudicaci&oacute;n y Administraci&oacute;n del Contrato
+                        </h4>
+                        <div class="widget-toolbar">
+                            <a href="#" data-action="collapse">
+                                <i class="ace-icon fa fa-chevron-up"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="widget-body">
+                        <div class="widget-main">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">N&deg; Resoluci&oacute;n</label>
+                                {{ contract_form.resolution_number }}
+                                {% if contract_form.resolution_number.errors %}
+                                    <small class="text-danger">{{ contract_form.resolution_number.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">N&deg; Art&iacute;culo <small class="text-muted">(designa al Adm.)</small></label>
+                                {{ contract_form.resolution_article }}
+                                {% if contract_form.resolution_article.errors %}
+                                    <small class="text-danger">{{ contract_form.resolution_article.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Remitente de la Resoluci&oacute;n <small class="text-muted">(ej.: la Rector&iacute;a)</small></label>
+                                {{ contract_form.resolution_sender }}
+                                {% if contract_form.resolution_sender.errors %}
+                                    <small class="text-danger">{{ contract_form.resolution_sender.errors.0 }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                        <div class="row mb-2">
+                            <div class="col-md-12">
+                                <p class="text-muted mb-2" style="font-size:0.85rem;">
+                                    <i class="ace-icon fa fa-info-circle"></i>
+                                    El art&iacute;culo de la resoluci&oacute;n designa al/la responsable de la administraci&oacute;n del contrato (Jefa/e de la Divisi&oacute;n de Control de Contratos).
+                                </p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Administrador/a del Contrato</label>
+                                {{ contract_form.contract_administrator }}
+                                {% if contract_form.contract_administrator.errors %}
+                                    <small class="text-danger">{{ contract_form.contract_administrator.errors.0 }}</small>
                                 {% endif %}
                             </div>
                         </div>
