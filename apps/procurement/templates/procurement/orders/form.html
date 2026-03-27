@@ -8,6 +8,8 @@
 Orden de compra
 {% endblock %}
 
+{% block page_subtitle %}{% if object and object.pk %}Editar{% else %}Agregar{% endif %}{% endblock %}
+
 {% block breadcrumb %}
 <li>
     <i class="ace-icon fa fa-home home-icon"></i>
@@ -18,11 +20,12 @@ Orden de compra
 {% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
 <link rel="stylesheet" href="{% static 'procurement/css/order_form.css' %}" />
 {% endblock %}
 
 {% block content %}
-<form method="post" id="order-form" data-line-options-url-template="{{ line_options_base_url }}" data-supplier-options-url-template="{{ supplier_options_base_url }}" data-edit-mode="{% if is_edit_mode %}1{% else %}0{% endif %}">
+<form method="post" id="order-form" class="proc-form" novalidate data-line-options-url-template="{{ line_options_base_url }}" data-supplier-options-url-template="{{ supplier_options_base_url }}" data-edit-mode="{% if is_edit_mode %}1{% else %}0{% endif %}">
     {% csrf_token %}
     <div class="alert form-intro">
         <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
@@ -31,26 +34,35 @@ Orden de compra
     <div id="form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
 
     <div class="widget-box">
-        <div class="widget-header friendly-header">
-            <h4 class="widget-title">Datos de la orden</h4>
-        </div>
+        {% include "procurement/components/card_header.html" with title="Datos de la orden" %}
         <div class="widget-body">
             <div class="widget-main">
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                 {% endif %}
                 <div class="row">
-                    <div class="col-sm-4">{{ form.order_number.label_tag }}{{ form.order_number }}{{ form.order_number.errors }}</div>
                     <div class="col-sm-4">
-                        {{ form.contract.label_tag }}{{ form.contract }}{{ form.contract.errors }}
+                        <label for="{{ form.order_number.id_for_label }}">{{ form.order_number.label }}<span class="required-marker">*</span></label>
+                        {{ form.order_number }}{{ form.order_number.errors }}
                     </div>
                     <div class="col-sm-4">
-                        {{ form.supplier.label_tag }}{{ form.supplier }}{{ form.supplier.errors }}
+                        <label for="{{ form.contract.id_for_label }}">{{ form.contract.label }}<span class="required-marker">*</span></label>
+                        {{ form.contract }}{{ form.contract.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.supplier.id_for_label }}">{{ form.supplier.label }}<span class="required-marker">*</span></label>
+                        {{ form.supplier }}{{ form.supplier.errors }}
                     </div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
-                    <div class="col-sm-3">{{ form.issue_date.label_tag }}{{ form.issue_date }}{{ form.issue_date.errors }}</div>
-                    <div class="col-sm-3">{{ form.expense_object.label_tag }}{{ form.expense_object }}{{ form.expense_object.errors }}</div>
+                    <div class="col-sm-3">
+                        <label for="{{ form.issue_date.id_for_label }}">{{ form.issue_date.label }}<span class="required-marker">*</span></label>
+                        {{ form.issue_date }}{{ form.issue_date.errors }}
+                    </div>
+                    <div class="col-sm-3">
+                        <label for="{{ form.expense_object.id_for_label }}">{{ form.expense_object.label }}<span class="required-marker">*</span></label>
+                        {{ form.expense_object }}{{ form.expense_object.errors }}
+                    </div>
                     <div class="col-sm-3">{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}</div>
                     <div class="col-sm-3">{{ form.delivery_term.label_tag }}{{ form.delivery_term }}{{ form.delivery_term.errors }}</div>
                 </div>
@@ -99,14 +111,7 @@ Orden de compra
     </div>
 
     <div class="widget-box" style="margin-top: 12px;">
-        <div class="widget-header friendly-header">
-            <h4 class="widget-title">Detalles de la orden</h4>
-            <div class="widget-toolbar">
-                <button type="button" class="btn btn-xs btn-success" id="add-line-button">
-                    <i class="fa fa-plus"></i> Agregar detalle
-                </button>
-            </div>
-        </div>
+        {% include "procurement/components/card_header.html" with title="Detalles de la orden" add_button_id="add-line-button" add_button_label="Agregar" %}
         <div class="widget-body">
             <div class="widget-main no-padding">
                 {{ line_formset.management_form }}
@@ -115,18 +120,18 @@ Orden de compra
                         {{ line_formset.non_form_errors }}
                     </div>
                 {% endif %}
-                <div class="order-lines-wrap">
-                <table class="table table-bordered table-striped order-lines-table">
+                <div class="order-lines-wrap proc-lines-wrap">
+                <table class="table table-bordered table-striped order-lines-table proc-lines-table">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            {% include "procurement/components/line_index_header.html" %}
                             <th>Lote</th>
                             <th>Item</th>
                             <th>Subitem</th>
                             <th>Cantidad</th>
                             <th>Precio Unit.</th>
-                            <th>Total linea</th>
-                            <th>Accion</th>
+                            <th>Total</th>
+                               {% include "procurement/components/line_actions_header.html" %}
                         </tr>
                     </thead>
                     <tbody id="line-items-body">
@@ -135,7 +140,7 @@ Orden de compra
                             {% for hidden in line_form.hidden_fields %}
                                 {{ hidden }}
                             {% endfor %}
-                            <td class="line-index-cell js-line-index">{{ forloop.counter }}</td>
+                            {% include "procurement/components/line_index_cell.html" with value=forloop.counter %}
                             <td>{{ line_form.lot }}{{ line_form.lot.errors }}</td>
                             <td>{{ line_form.award_item }}{{ line_form.award_item.errors }}</td>
                             <td>{{ line_form.award_subitem }}{{ line_form.award_subitem.errors }}</td>
@@ -144,12 +149,9 @@ Orden de compra
                             </td>
                             <td>{{ line_form.unit_price }}{{ line_form.unit_price.errors }}</td>
                             <td class="line-total-cell js-line-total">-</td>
-                            <td class="text-center">
+                               <td class="text-center proc-col-actions">
                                 {{ line_form.DELETE }}
-                                <button type="button" class="line-delete-btn js-delete-line-btn">
-                                    <i class="ace-icon fa fa-trash-o bigger-130"></i>
-                                    <span class="delete-text js-delete-line-label">Eliminar detalle</span>
-                                </button>
+                                {% include "procurement/components/line_delete_button.html" with show_label=True %}
                             </td>
                         </tr>
                         {% if line_form.non_field_errors %}
@@ -179,7 +181,7 @@ Orden de compra
             {% for hidden in line_formset.empty_form.hidden_fields %}
                 {{ hidden }}
             {% endfor %}
-            <td class="line-index-cell js-line-index">#</td>
+            {% include "procurement/components/line_index_cell.html" %}
             <td>{{ line_formset.empty_form.lot }}</td>
             <td>{{ line_formset.empty_form.award_item }}</td>
             <td>{{ line_formset.empty_form.award_subitem }}</td>
@@ -188,26 +190,21 @@ Orden de compra
             </td>
             <td>{{ line_formset.empty_form.unit_price }}</td>
             <td class="line-total-cell js-line-total">-</td>
-            <td class="text-center">
+               <td class="text-center proc-col-actions">
                 {{ line_formset.empty_form.DELETE }}
-                <button type="button" class="line-delete-btn js-delete-line-btn">
-                    <i class="ace-icon fa fa-trash-o bigger-130"></i>
-                    <span class="delete-text js-delete-line-label">Eliminar detalle</span>
-                </button>
+                {% include "procurement/components/line_delete_button.html" with show_label=True %}
             </td>
         </tr>
     </template>
 
-    <div class="sticky-actions text-right">
-        <button type="submit" class="btn btn-success" id="save-order-button">
-            <i class="fa fa-save"></i> Guardar orden
-        </button>
-        <a href="{% url 'procurement:order_list' %}" class="btn btn-default"><i class="fa fa-times"></i> Cancelar</a>
-    </div>
+    {% url 'procurement:order_list' as order_cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="save-order-button" cancel_url=order_cancel_url %}
 </form>
 {{ initial_contract_summary|json_script:"initial-contract-summary" }}
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'procurement/js/line_delete.js' %}"></script>
+<script src="{% static 'procurement/js/form_errors.js' %}"></script>
 <script src="{% static 'procurement/js/order_form.js' %}"></script>
 {% endblock %}

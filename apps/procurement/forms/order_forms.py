@@ -27,6 +27,7 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields["supplier"].queryset = Party.objects.filter(role=Party.ROLE_SUPPLIER)
         self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
         self.fields["expense_object"].queryset = ExpenseObject.objects.filter(is_active=True).order_by("code")
+        self.fields["expense_object"].required = True
 
         if self.instance and self.instance.pk and self.instance.expense_object_id and not self.instance.expense_object.is_active:
             self.fields["expense_object"].queryset = ExpenseObject.objects.filter(pk=self.instance.expense_object_id)
@@ -90,9 +91,21 @@ class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
         model = PurchaseOrderLine
         fields = ["lot", "award_item", "award_subitem", "quantity", "unit_price"]
         widgets = {
-            "lot": forms.Select(attrs={"class": "form-control select2"}),
-            "award_item": forms.Select(attrs={"class": "form-control select2"}),
-            "award_subitem": forms.Select(attrs={"class": "form-control select2"}),
+            "lot": forms.Select(attrs={
+                "class": "form-control select2",
+                "placeholder": "Buscar lote...",
+                "data-placeholder": "Buscar lote...",
+            }),
+            "award_item": forms.Select(attrs={
+                "class": "form-control select2",
+                "placeholder": "Buscar item...",
+                "data-placeholder": "Buscar item...",
+            }),
+            "award_subitem": forms.Select(attrs={
+                "class": "form-control select2",
+                "placeholder": "Buscar subitem...",
+                "data-placeholder": "Buscar subitem...",
+            }),
             "quantity": forms.TextInput(
                 attrs={
                     "class": "form-control",

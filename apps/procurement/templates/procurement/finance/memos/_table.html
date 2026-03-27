@@ -20,7 +20,7 @@
             <td class="text-center">
                 <div class="action-buttons">
                     {% if memo.status != 'approved' and memo.status != 'cancelled' and memo.status != 'rejected' %}
-                    <a href="{% url 'procurement:memo_update' memo.id %}" class="btn btn-link blue" title="Editar" style="padding:0 6px 0 0;">
+                    <a href="{% url 'procurement:memo_update' memo.id %}" class="green" title="Editar" style="padding:0 6px 0 0;">
                         <i class="ace-icon fa fa-pencil bigger-130"></i>
                     </a>
                     {% endif %}

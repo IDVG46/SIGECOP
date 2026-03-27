@@ -1,0 +1,146 @@
+.proc-form .payment-amount-error {
+    display: block;
+    min-height: 0.8em;
+}
+
+.proc-form .required-marker {
+    color: #d9534f;
+    margin-left: 2px;
+}
+
+.proc-form label {
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.proc-lines-wrap {
+    max-height: min(48vh, 560px);
+    overscroll-behavior-y: contain;
+    overflow: auto;
+}
+
+.proc-lines-table {
+    min-width: 100%;
+    margin-bottom: 0;
+}
+
+.proc-lines-table th,
+.proc-lines-table td {
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.proc-lines-table tbody td {
+    overflow: visible;
+    vertical-align: top;
+}
+
+.proc-lines-table .ts-wrapper.single .ts-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: 34px;
+    height: 34px;
+    overflow: hidden;
+}
+
+.proc-lines-table .ts-wrapper.single.focus .ts-control > input,
+.proc-lines-table .ts-wrapper.single.input-active .ts-control > input {
+    min-width: 1ch !important;
+    width: 1ch !important;
+}
+
+.proc-lines-table select.form-control,
+.proc-lines-table .ts-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.proc-lines-table .ts-control .item,
+.proc-lines-table .ts-control > input {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.proc-lines-table .form-control.js-client-invalid {
+    border-color: #d15b47 !important;
+}
+
+#payment-form .widget-main .proc-lines-table .form-control.js-client-invalid {
+    border-color: #d15b47 !important;
+}
+
+.proc-lines-table select.js-client-invalid + .ts-wrapper .ts-control,
+.proc-lines-table .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15);
+}
+
+#payment-form .widget-main .proc-lines-table select.js-client-invalid + .ts-wrapper .ts-control,
+#payment-form .widget-main .proc-lines-table .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15);
+}
+
+.line-row {
+    transition: background-color 0.15s ease;
+}
+
+.line-row.danger {
+    background-color: #fde6e6 !important;
+}
+
+.line-row.line-row-deleted {
+    opacity: 0.6;
+    background-color: #f0f0f0;
+}
+
+.proc-col-actions {
+    text-align: center;
+    width: 60px;
+}
+
+.js-delete-line-btn {
+    cursor: pointer;
+    color: #d9534f;
+    font-size: 16px;
+    transition: color 0.15s ease;
+}
+
+.js-delete-line-btn:hover {
+    color: #c9302c;
+}
+
+.ts-dropdown-content .ts-option {
+    white-space: normal;
+    word-break: break-word;
+    padding: 6px 8px;
+}
+
+#payment-form .widget-main .form-control.js-client-invalid {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
+}
+
+#payment-form .widget-main select.js-client-invalid + .ts-wrapper .ts-control,
+#payment-form .widget-main .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
+}
+
+.form-feedback {
+    margin-bottom: 15px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -8,6 +8,8 @@
 Pago
 {% endblock %}
 
+{% block page_subtitle %}{% if object and object.pk %}Editar{% else %}Agregar{% endif %}{% endblock %}
+
 {% block breadcrumb %}
 <li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
 <li><a href="{% url 'procurement:payment_list' %}">Pagos</a></li>
@@ -15,22 +17,8 @@ Pago
 {% endblock %}
 
 {% block extra_css %}
-<style>
-    #payment-form .row {
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    #payment-form .row > [class*="col-"] {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
-    #payment-form .ts-control {
-        min-height: 34px;
-        border-color: #d5d5d5;
-    }
-</style>
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
+<link rel="stylesheet" href="{% static 'procurement/css/payment_form.css' %}" />
 {% endblock %}
 
 {% block content %}
@@ -50,455 +38,121 @@ Pago
     </div>
 {% endif %}
 
-<form method="post" id="payment-form" data-order-budgets-url-template="{{ order_budgets_base_url }}" data-contract-orders-url-template="{{ contract_orders_base_url }}">
+<form method="post" id="payment-form" class="proc-form" novalidate data-order-budgets-url-template="{{ order_budgets_base_url }}" data-contract-orders-url-template="{{ contract_orders_base_url }}">
     {% csrf_token %}
+    <div class="alert form-intro">
+        <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
+        seleccione primero el contrato y luego distribuya montos por orden y presupuesto.
+    </div>
+    <div id="payment-form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
     <div class="widget-box">
-        <div class="widget-header"><h4 class="widget-title">Cabecera</h4></div>
+        {% include "procurement/components/card_header.html" with title="Datos del pago" %}
         <div class="widget-body">
             <div class="widget-main">
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
                 <div class="row">
-                    <div class="col-sm-6">{{ form.contract.label_tag }}{{ form.contract }}{{ form.contract.errors }}</div>
-                    <div class="col-sm-6">{{ form.payment_number.label_tag }}{{ form.payment_number }}{{ form.payment_number.errors }}</div>
+                    <div class="col-sm-6">
+                        <label for="{{ form.contract.id_for_label }}">{{ form.contract.label }}<span class="required-marker">*</span></label>
+                        {{ form.contract }}{{ form.contract.errors }}
+                    </div>
+                    <div class="col-sm-6">
+                        <label for="{{ form.payment_number.id_for_label }}">{{ form.payment_number.label }}<span class="required-marker">*</span></label>
+                        {{ form.payment_number }}{{ form.payment_number.errors }}
+                    </div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
-                    <div class="col-sm-6">{{ form.payment_date.label_tag }}{{ form.payment_date }}{{ form.payment_date.errors }}</div>
-                    <div class="col-sm-6">{{ form.document_number.label_tag }}{{ form.document_number }}{{ form.document_number.errors }}</div>
+                    <div class="col-sm-6">
+                        <label for="{{ form.payment_date.id_for_label }}">{{ form.payment_date.label }}<span class="required-marker">*</span></label>
+                        {{ form.payment_date }}{{ form.payment_date.errors }}
+                    </div>
+                    <div class="col-sm-6">
+                        <label for="{{ form.document_number.id_for_label }}">{{ form.document_number.label }}</label>
+                        {{ form.document_number }}{{ form.document_number.errors }}
+                    </div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
-                    <div class="col-sm-6">{{ form.amount_total.label_tag }}{{ form.amount_total }}{{ form.amount_total.errors }}</div>
+                    <div class="col-sm-6">
+                        <label for="{{ form.amount_total.id_for_label }}">{{ form.amount_total.label }}<span class="required-marker">*</span></label>
+                        {{ form.amount_total }}{{ form.amount_total.errors }}
+                    </div>
                     <div class="col-sm-6"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="widget-box" style="margin-top: 12px;">
-        <div class="widget-header">
-            <h4 class="widget-title">Asignaciones a órdenes y presupuestos</h4>
-            <div class="widget-toolbar">
-                <button type="button" class="btn btn-xs btn-success" id="add-allocation-button">
-                    <i class="fa fa-plus"></i> Agregar asignación
-                </button>
-            </div>
-        </div>
+    <div id="payment-allocations-widget" class="widget-box" style="margin-top: 12px;">
+        {% include "procurement/components/card_header.html" with title="Asignaciones a órdenes y presupuestos" add_button_id="add-allocation-button" add_button_label="Agregar" %}
         <div class="widget-body">
             <div class="widget-main no-padding">
                 {{ allocation_formset.management_form }}
-                <table class="table table-striped table-bordered">
+                <div class="proc-lines-wrap">
+                <table class="table table-striped table-bordered proc-lines-table">
                     <thead>
                         <tr>
+                            {% include "procurement/components/line_index_header.html" %}
                             <th>Orden</th>
                             <th>Presupuesto</th>
                             <th>Monto</th>
-                            <th style="width:40px;"></th>
+                            {% include "procurement/components/line_actions_header.html" %}
                         </tr>
                     </thead>
                     <tbody>
                         {% for alloc_form in allocation_formset %}
-                        <tr>
-                            {% for hidden in alloc_form.hidden_fields %}{{ hidden }}{% endfor %}
-                            {% if allocation_formset.can_delete %}<span style="display:none">{{ alloc_form.DELETE }}</span>{% endif %}
-                            <td>{{ alloc_form.purchase_order }}{{ alloc_form.purchase_order.errors }}</td>
+                        <tr class="line-row">
+                            {% include "procurement/components/line_index_cell.html" with value=forloop.counter %}
+                            <td>
+                                <div style="display:none">
+                                    {% for hidden in alloc_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                    {% if allocation_formset.can_delete %}{{ alloc_form.DELETE }}{% endif %}
+                                </div>
+                                {{ alloc_form.purchase_order }}{{ alloc_form.purchase_order.errors }}
+                            </td>
                             <td>{{ alloc_form.contract_budget }}{{ alloc_form.contract_budget.errors }}</td>
-                            <td>{{ alloc_form.amount }}{{ alloc_form.amount.errors }}<small class="text-danger amount-error" style="display:block;min-height:0.8em;"></small></td>
-                            <td class="center">
-                                <button type="button" class="btn btn-xs btn-danger remove-row-btn" title="Eliminar">
-                                    <i class="fa fa-trash"></i>
-                                </button>
+                            <td>
+                                {{ alloc_form.amount }}{{ alloc_form.amount.errors }}
+                                <small class="text-danger amount-error payment-amount-error"></small>
+                            </td>
+                            <td class="center proc-col-actions">
+                                {% include "procurement/components/line_delete_button.html" %}
                             </td>
                         </tr>
                         {% if alloc_form.non_field_errors %}
-                        <tr><td colspan="4" class="text-danger">{{ alloc_form.non_field_errors }}</td></tr>
+                        <tr><td colspan="5" class="text-danger">{{ alloc_form.non_field_errors }}</td></tr>
                         {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
 
     <template id="allocation-row-template">
-        <tr>
-            {% for hidden in allocation_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
-            <td>{{ allocation_formset.empty_form.purchase_order }}</td>
+        <tr class="line-row">
+            {% include "procurement/components/line_index_cell.html" with value='#' %}
+            <td>
+                <div style="display:none">
+                    {% for hidden in allocation_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    {% if allocation_formset.can_delete %}{{ allocation_formset.empty_form.DELETE }}{% endif %}
+                </div>
+                {{ allocation_formset.empty_form.purchase_order }}
+            </td>
             <td>{{ allocation_formset.empty_form.contract_budget }}</td>
-            <td>{{ allocation_formset.empty_form.amount }}<small class="text-danger amount-error" style="display:block;min-height:0.8em;"></small></td>
-            <td class="center">
-                <button type="button" class="btn btn-xs btn-danger remove-row-btn" title="Eliminar">
-                    <i class="fa fa-trash"></i>
-                </button>
+            <td>{{ allocation_formset.empty_form.amount }}<small class="text-danger amount-error payment-amount-error"></small></td>
+            <td class="center proc-col-actions">
+                {% include "procurement/components/line_delete_button.html" %}
             </td>
         </tr>
     </template>
 
-    <div class="clearfix" style="margin-top: 12px;">
-        <a href="{% url 'procurement:payment_list' %}" class="btn btn-default">Cancelar</a>
-        <button type="submit" class="btn btn-primary pull-right"><i class="fa fa-save"></i> Guardar borrador</button>
-    </div>
+    {% url 'procurement:payment_list' as payment_cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="save-payment-button" cancel_url=payment_cancel_url %}
 </form>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    (function () {
-        const form = document.getElementById('payment-form');
-        if (!form) return;
-
-        const numberUtils = window.SIGECOPNumbers || {};
-        const addButton = document.getElementById('add-allocation-button');
-        const totalFormsInput = document.getElementById('id_allocations-TOTAL_FORMS') || document.getElementById('id_paymentallocation_set-TOTAL_FORMS');
-        const tableBody = form.querySelector('table tbody');
-        const rowTemplate = document.getElementById('allocation-row-template');
-        const urlTemplate = form.dataset.orderBudgetsUrlTemplate || '';
-        let currentContractOrderOptions = [];
-
-        function initSelect2In(container) {
-            if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
-                window.SIGECOPUI.enhanceSelects(container || form);
-            }
-        }
-
-        function buildUrl(template, orderId) {
-            if (!orderId || !template) return '';
-            return template
-                .replace('__ORDER_ID__', encodeURIComponent(orderId))
-                .replace('%5F%5FORDER_ID%5F%5F', encodeURIComponent(orderId));
-        }
-
-        function setOptions(select, options) {
-            if (!select) return;
-            const prev = select.value;
-            select.innerHTML = '';
-            const first = document.createElement('option');
-            first.value = '';
-            first.textContent = '---------';
-            select.appendChild(first);
-            options.forEach(function (opt) {
-                const option = document.createElement('option');
-                option.value = String(opt.id);
-                option.textContent = opt.text;
-                option.dataset.availableAmount = String(opt.available_amount || '0');
-                select.appendChild(option);
-            });
-            if (prev) select.value = prev;
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        async function refreshBudgetsForRow(row) {
-            const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-            const budgetSelect = row.querySelector('select[name$="-contract_budget"]');
-            if (!orderSelect || !budgetSelect) return;
-
-            const orderId = orderSelect.value;
-            console.log('🔄 Refreshing budgets for order:', orderId);
-            
-            if (!orderId) {
-                console.log('⚠️ No order selected - clearing budgets');
-                setOptions(budgetSelect, []);
-                return;
-            }
-
-            const url = buildUrl(urlTemplate, orderId);
-            if (!url) {
-                console.log('⚠️ Invalid URL template - clearing budgets');
-                setOptions(budgetSelect, []);
-                return;
-            }
-
-            console.log('🌐 Fetching budgets from:', url);
-            const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) {
-                console.error('Response error:', resp.status);
-                setOptions(budgetSelect, []);
-                return;
-            }
-
-            const payload = await resp.json();
-            const budgets = payload.budgets || [];
-            console.log('✓ Loaded', budgets.length, 'budgets for order', payload.order?.order_number);
-            setOptions(budgetSelect, budgets);
-        }
-
-        function validateAmountInput(input) {
-            const row = input.closest('tr');
-            if (!row) return;
-            const budgetSelect = row.querySelector('select[name$="-contract_budget"]');
-            const selected = budgetSelect && budgetSelect.selectedIndex >= 0
-                ? budgetSelect.options[budgetSelect.selectedIndex]
-                : null;
-            const errorEl = row.querySelector('.amount-error');
-            if (!selected || !selected.value) {
-                if (errorEl) errorEl.textContent = '';
-                return;
-            }
-
-            const entered = numberUtils.parseQuantity
-                ? numberUtils.parseQuantity(input.value)
-                : (parseFloat(String(input.value).replace(/\./g, '').replace(',', '.')) || 0);
-
-            const available = parseFloat(selected.dataset.availableAmount || '0') || 0;
-            if (errorEl) {
-                if (Number.isFinite(entered) && available > 0 && entered > available) {
-                    errorEl.textContent = `Excede el saldo disponible del presupuesto (Gs. ${available.toLocaleString('es-PY', { maximumFractionDigits: 0 })}).`;
-                } else {
-                    errorEl.textContent = '';
-                }
-            }
-        }
-
-        function setupOrderSelectListener(orderSelect) {
-            if (!orderSelect) return;
-            
-            // Listener HTML estándar
-            orderSelect.addEventListener('change', function () {
-                console.log('🔄 Order changed (HTML event):', this.value);
-                const row = this.closest('tr');
-                if (row) refreshBudgetsForRow(row);
-            });
-        }
-
-        function addRow() {
-            if (!rowTemplate || !tableBody || !totalFormsInput) return;
-            const index = Number(totalFormsInput.value || '0');
-            const html = rowTemplate.innerHTML.replace(/__prefix__/g, String(index));
-            const temp = document.createElement('tbody');
-            temp.innerHTML = html.trim();
-            const row = temp.firstElementChild;
-            if (!row) return;
-            tableBody.appendChild(row);
-            totalFormsInput.value = String(index + 1);
-
-            initSelect2In(row);
-            
-            // Configurar listeners para el select de orden
-            const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-            if (orderSelect) {
-                if (contractField && contractField.value) {
-                    console.log('📦 NEW ROW: Applying filtered orders for current contract');
-                    setOptions(orderSelect, currentContractOrderOptions);
-                } else {
-                    console.log('📦 NEW ROW: Clearing orders (no contract selected)');
-                    setOptions(orderSelect, []);
-                }
-                setupOrderSelectListener(orderSelect);
-            }
-            
-            // Los presupuestos siempre deben iniciar vacios hasta seleccionar una orden
-            const budgetSelect = row.querySelector('select[name$="-contract_budget"]');
-            if (budgetSelect) {
-                console.log('💰 NEW ROW: Clearing budgets until an order is selected');
-                setOptions(budgetSelect, []);
-            }
-            
-            row.querySelectorAll('input[name$="-amount"]').forEach(function (input) {
-                if (numberUtils.bindInputFormatting) {
-                    numberUtils.bindInputFormatting(input, {
-                        kind: 'money',
-                        currency: 'Gs.',
-                        precision: 0,
-                        locale: 'es-PY',
-                    });
-                }
-            });
-        }
-
-        function removeRow(btn) {
-            const row = btn.closest('tr');
-            if (!row) return;
-            const deleteCheckbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-            if (deleteCheckbox) {
-                deleteCheckbox.checked = true;
-                row.style.opacity = '0.4';
-                row.style.pointerEvents = 'none';
-            } else {
-                row.remove();
-            }
-            recalculateTotal();
-        }
-
-        function recalculateTotal() {
-            let sum = 0;
-            form.querySelectorAll('input[name$="-amount"]').forEach(function (input) {
-                const row = input.closest('tr');
-                if (!row) return;
-                const deleteCheckbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-                if (deleteCheckbox && deleteCheckbox.checked) return;
-                const val = numberUtils.parseQuantity ? numberUtils.parseQuantity(input.value) : (parseFloat(input.value.replace(/\./g, '').replace(',', '.')) || 0);
-                if (Number.isFinite(val)) sum += val;
-            });
-            const totalInput = document.getElementById('id_amount_total');
-            if (totalInput && numberUtils.setMoneyInputValue) {
-                numberUtils.setMoneyInputValue(totalInput, sum, { currency: 'Gs.', precision: 0, locale: 'es-PY' });
-            }
-        }
-
-        form.querySelectorAll('input[name$="-amount"]').forEach(function (input) {
-            if (numberUtils.bindInputFormatting) {
-                numberUtils.bindInputFormatting(input, {
-                    kind: 'money',
-                    currency: 'Gs.',
-                    precision: 0,
-                    locale: 'es-PY',
-                });
-            }
-        });
-
-        if (addButton) addButton.addEventListener('click', addRow);
-
-        form.addEventListener('click', function (e) {
-            const btn = e.target.closest('.remove-row-btn');
-            if (btn) removeRow(btn);
-        });
-
-        form.addEventListener('input', function (e) {
-            if (e.target && e.target.matches('input[name$="-amount"]')) {
-                recalculateTotal();
-            }
-        });
-
-        form.addEventListener('change', function (e) {
-            // Listener para presupuesto y monto (no es necesario para orden, eso está en setupOrderSelectListener)
-            if (e.target && e.target.matches('select[name$="-contract_budget"], input[name$="-amount"]')) {
-                const row = e.target.closest('tr');
-                if (row) {
-                    const amountInput = row.querySelector('input[name$="-amount"]');
-                    if (amountInput) validateAmountInput(amountInput);
-                }
-            }
-        });
-
-        form.addEventListener('submit', function () {
-            form.querySelectorAll('input[name$="-amount"]').forEach(function (input) {
-                if (numberUtils.normalizeInputForSubmit) {
-                    numberUtils.normalizeInputForSubmit(input, {
-                        kind: 'money',
-                        currency: 'Gs.',
-                        precision: 0,
-                        locale: 'es-PY',
-                    });
-                }
-            });
-            const totalInput = document.getElementById('id_amount_total');
-            if (totalInput && numberUtils.normalizeInputForSubmit) {
-                numberUtils.normalizeInputForSubmit(totalInput, {
-                    kind: 'money',
-                    currency: 'Gs.',
-                    precision: 0,
-                    locale: 'es-PY',
-                });
-            }
-        });
-
-        form.querySelectorAll('tbody tr').forEach(function (row) {
-            const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-            if (orderSelect) {
-                setupOrderSelectListener(orderSelect);
-            }
-        });
-
-        recalculateTotal();
-
-        // ============ CARGAR ÓRDENES AL SELECCIONAR CONTRATO ============
-        const contractField = document.getElementById('id_contract');
-        const contractOrdersUrlTemplate = form.dataset.contractOrdersUrlTemplate || '';
-        
-        console.log('🔍 Payment Form Initialized');
-        console.log('Contract Field:', contractField);
-        console.log('Contract Field Visible:', contractField?.offsetParent !== null);
-        console.log('Contract Value on load:', contractField?.value);
-        console.log('URL Template:', contractOrdersUrlTemplate);
-        
-        // Si es modo UPDATE (edición), bloquear visualmente el contrato sin usar disabled
-        // (disabled evita que el valor se envíe en el POST, causando que Django lo trate como vacío)
-        if (contractField && contractField.value) {
-            contractField.style.pointerEvents = 'none';
-            contractField.style.backgroundColor = '#f5f5f5';
-            contractField.style.color = '#777';
-            contractField.tabIndex = -1;
-            console.log('✓ Protected mode (UPDATE) - Contract locked (readonly style)');
-        }
-
-        async function loadOrdersForContract(contractId, { clearBudgets = true } = {}) {
-            console.log('📦 Loading orders for contract:', contractId);
-            
-            if (!contractOrdersUrlTemplate || !contractId) {
-                console.log('⚠️ Empty contract or URL template - clearing orders and budgets');
-                currentContractOrderOptions = [];
-                form.querySelectorAll('select[name$="-purchase_order"]').forEach(function (orderSelect) {
-                    setOptions(orderSelect, []);
-                });
-                form.querySelectorAll('select[name$="-contract_budget"]').forEach(function (budgetSelect) {
-                    setOptions(budgetSelect, []);
-                });
-                return;
-            }
-            
-            const url = contractOrdersUrlTemplate.replace('__CONTRACT_ID__', encodeURIComponent(contractId));
-            console.log('🌐 Fetching from:', url);
-            
-            try {
-                const resp = await fetch(url, { credentials: 'same-origin' });
-                if (!resp.ok) {
-                    console.error('Response error:', resp.status);
-                    return;
-                }
-                
-                const payload = await resp.json();
-                const orders = payload.orders || [];
-                currentContractOrderOptions = orders;
-                console.log('✓ Loaded', orders.length, 'orders');
-                
-                // Actualizar todos los dropdowns de órdenes
-                form.querySelectorAll('select[name$="-purchase_order"]').forEach(function (orderSelect) {
-                    setOptions(orderSelect, orders);
-                });
-                
-                // Limpiar presupuestos solo al cambiar contrato, no en carga inicial de edición
-                if (clearBudgets) {
-                    form.querySelectorAll('select[name$="-contract_budget"]').forEach(function (budgetSelect) {
-                        setOptions(budgetSelect, []);
-                    });
-                }
-                
-            } catch (e) {
-                console.error('Error loading orders:', e);
-            }
-        }
-
-        // ===== INICIALIZACIÓN: Si NO hay contrato (CREATE mode), limpiar órdenes y presupuestos =====
-        if (!contractField || !contractField.value) {
-            console.log('📝 CREATE mode - clearing initial orders and budgets');
-            loadOrdersForContract('');  // Trigger clearance
-            
-            // También limpiar presupuestos en todas las filas iniciales
-            form.querySelectorAll('select[name$="-contract_budget"]').forEach(function (budgetSelect) {
-                console.log('💰 Clearing initial budgets for new row');
-                setOptions(budgetSelect, []);
-            });
-        } else {
-            console.log('📝 UPDATE mode - loading orders for existing contract');
-            // clearBudgets: false para no destruir los valores ya cargados por Django
-            loadOrdersForContract(contractField.value, { clearBudgets: false }).then(function() {
-                // Cargar presupuestos para cada fila que ya tiene orden seleccionada
-                form.querySelectorAll('tbody tr').forEach(function (row) {
-                    const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-                    if (orderSelect && orderSelect.value) {
-                        refreshBudgetsForRow(row);
-                    }
-                });
-            });
-        }
-
-        // Listener: Cargar órdenes cuando cambie el contrato
-        // Soporte para ambos: SELECT2 y select HTML normal
-        if (contractField) {
-            // Listener estándar HTML
-            contractField.addEventListener('change', function () {
-                console.log('🔄 Contract changed (HTML) to:', this.value);
-                loadOrdersForContract(this.value);
-            });
-        }
-    })();
-</script>
+<script src="{% static 'procurement/js/line_delete.js' %}"></script>
+<script src="{% static 'procurement/js/form_errors.js' %}"></script>
+<script src="{% static 'procurement/js/payment_form.js' %}"></script>
 {% endblock %}

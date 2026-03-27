@@ -8,6 +8,8 @@
 Memorándum de Cumplimiento
 {% endblock %}
 
+{% block page_subtitle %}{% if object and object.pk %}Editar{% else %}Agregar{% endif %}{% endblock %}
+
 {% block breadcrumb %}
 <li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
 <li><a href="{% url 'procurement:memo_list' %}">Memorándums</a></li>
@@ -15,33 +17,35 @@ Memorándum de Cumplimiento
 {% endblock %}
 
 {% block extra_css %}
-<style>
-    #memo-form .row { margin-left: 0; margin-right: 0; }
-    #memo-form .row > [class*="col-"] { padding-left: 8px; padding-right: 8px; }
-    #memo-form .ts-control { min-height: 34px; border-color: #d5d5d5; }
-</style>
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
+<link rel="stylesheet" href="{% static 'procurement/css/memo_form.css' %}" />
 {% endblock %}
 
 {% block content %}
-<form method="post" id="memo-form" data-contract-orders-url-template="{{ contract_orders_base_url }}" data-order-lines-url-template="{{ order_lines_base_url }}" data-memo-id="{% if object and object.pk %}{{ object.pk }}{% endif %}">
+<form method="post" id="memo-form" class="proc-form" data-contract-orders-url-template="{{ contract_orders_base_url }}" data-order-lines-url-template="{{ order_lines_base_url }}" data-memo-id="{% if object and object.pk %}{{ object.pk }}{% endif %}">
     {% csrf_token %}
+    <div class="alert form-intro">
+        <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
+        seleccione primero el contrato; luego cargue ordenes y sus lineas parciales para registrar el cumplimiento.
+    </div>
+    <div id="memo-form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
 
     <div class="widget-box">
-        <div class="widget-header"><h4 class="widget-title">Cabecera</h4></div>
+        {% include "procurement/components/card_header.html" with title="Datos del cumplimiento" %}
         <div class="widget-body">
             <div class="widget-main">
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
                 <div class="row">
-                    <div class="col-sm-4">{{ form.contract.label_tag }}{{ form.contract }}{{ form.contract.errors }}</div>
-                    <div class="col-sm-4">{{ form.memo_number.label_tag }}{{ form.memo_number }}{{ form.memo_number.errors }}</div>
+                    <div class="col-sm-4">{{ form.contract.label_tag }}<span class="required-marker">*</span>{{ form.contract }}{{ form.contract.errors }}</div>
+                    <div class="col-sm-4">{{ form.memo_number.label_tag }}<span class="required-marker">*</span>{{ form.memo_number }}{{ form.memo_number.errors }}</div>
                     <div class="col-sm-4"></div>
                 </div>
                 <div style="display:none">{{ form.purchase_order }}{{ form.fulfillment_mode }}</div>
                 <div class="row" style="margin-top: 10px;">
-                    <div class="col-sm-3">{{ form.memo_date.label_tag }}{{ form.memo_date }}{{ form.memo_date.errors }}</div>
-                    <div class="col-sm-3">{{ form.beneficiary_sector.label_tag }}{{ form.beneficiary_sector }}{{ form.beneficiary_sector.errors }}</div>
-                    <div class="col-sm-3">{{ form.received_by.label_tag }}{{ form.received_by }}{{ form.received_by.errors }}</div>
-                    <div class="col-sm-3">{{ form.sender_position.label_tag }}{{ form.sender_position }}{{ form.sender_position.errors }}</div>
+                    <div class="col-sm-3">{{ form.memo_date.label_tag }}<span class="required-marker">*</span>{{ form.memo_date }}{{ form.memo_date.errors }}</div>
+                    <div class="col-sm-3">{{ form.beneficiary_sector.label_tag }}<span class="required-marker">*</span>{{ form.beneficiary_sector }}{{ form.beneficiary_sector.errors }}</div>
+                    <div class="col-sm-3">{{ form.received_by.label_tag }}<span class="required-marker">*</span>{{ form.received_by }}{{ form.received_by.errors }}</div>
+                    <div class="col-sm-3">{{ form.sender_position.label_tag }}<span class="required-marker">*</span>{{ form.sender_position }}{{ form.sender_position.errors }}</div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
                     <div class="col-sm-12">{{ form.notes.label_tag }}{{ form.notes }}{{ form.notes.errors }}</div>
@@ -51,337 +55,139 @@ Memorándum de Cumplimiento
     </div>
 
     <div class="widget-box" style="margin-top: 12px;" id="memo-lines-widget">
-        <div class="widget-header">
-            <h4 class="widget-title">Detalle por orden</h4>
-            <div class="widget-toolbar">
-                <button type="button" class="btn btn-xs btn-success" id="add-memo-line-button">
-                    <i class="fa fa-plus"></i> Agregar orden
-                </button>
-            </div>
-        </div>
+        {% include "procurement/components/card_header.html" with title="Órdenes a cumplir" add_button_id="add-memo-line-button" add_button_label="Agregar" %}
         <div class="widget-body">
             <div class="widget-main no-padding">
                 {{ line_formset.management_form }}
-                <table class="table table-striped table-bordered" id="orders-table">
+                <div class="memo-lines-wrap proc-lines-wrap">
+                <table class="table table-striped table-bordered memo-lines-table proc-lines-table" id="orders-table">
                     <thead>
                         <tr>
+                            {% include "procurement/components/line_index_header.html" %}
                             <th>Orden</th>
                             <th>Modo</th>
                             <th>Observaciones</th>
-                            <th style="width:40px;"></th>
+                            {% include "procurement/components/line_actions_header.html" %}
                         </tr>
                     </thead>
                     <tbody>
                         {% for line_form in line_formset %}
-                        <tr data-row-kind="order">
-                            {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
-                            {% if line_formset.can_delete %}<span style="display:none">{{ line_form.DELETE }}</span>{% endif %}
-                            <td>{{ line_form.purchase_order }}{{ line_form.purchase_order.errors }}</td>
+                        <tr data-row-kind="order" class="line-row">
+                            {% include "procurement/components/line_index_cell.html" with value=forloop.counter %}
+                            <td>
+                                <div style="display:none">
+                                    {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                    {% if line_formset.can_delete %}{{ line_form.DELETE }}{% endif %}
+                                </div>
+                                {{ line_form.purchase_order }}{{ line_form.purchase_order.errors }}
+                            </td>
                             <td>{{ line_form.line_mode }}{{ line_form.line_mode.errors }}</td>
                             <td>{{ line_form.observations }}{{ line_form.observations.errors }}</td>
-                            <td class="center"><button type="button" class="btn btn-xs btn-danger remove-row-btn"><i class="fa fa-trash"></i></button></td>
+                            <td class="center proc-col-actions">
+                                {% include "procurement/components/line_delete_button.html" %}
+                            </td>
                         </tr>
                         {% if line_form.non_field_errors %}
-                        <tr><td colspan="4" class="text-danger">{{ line_form.non_field_errors }}</td></tr>
+                        <tr><td colspan="5" class="text-danger">{{ line_form.non_field_errors }}</td></tr>
                         {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="widget-box" style="margin-top: 12px;" id="memo-partials-widget">
-        <div class="widget-header">
-            <h4 class="widget-title">Detalle parcial por línea</h4>
-            <div class="widget-toolbar">
-                <button type="button" class="btn btn-xs btn-success" id="add-partial-line-button">
-                    <i class="fa fa-plus"></i> Agregar detalle parcial
-                </button>
-            </div>
-        </div>
+        {% include "procurement/components/card_header.html" with title="Detalles parciales por línea" add_button_id="add-partial-line-button" add_button_label="Agregar" %}
         <div class="widget-body">
             <div class="widget-main no-padding">
                 {{ partial_formset.management_form }}
-                <table class="table table-striped table-bordered" id="partials-table">
+                <div class="memo-lines-wrap proc-lines-wrap">
+                <table class="table table-striped table-bordered memo-lines-table proc-lines-table" id="partials-table">
                     <thead>
                         <tr>
+                            {% include "procurement/components/line_index_header.html" %}
                             <th>Orden</th>
                             <th>Línea</th>
                             <th>Cantidad cumplida</th>
                             <th>Observaciones</th>
-                            <th style="width:40px;"></th>
+                            {% include "procurement/components/line_actions_header.html" %}
                         </tr>
                     </thead>
                     <tbody>
                         {% for partial_form in partial_formset %}
-                        <tr data-row-kind="partial">
-                            {% for hidden in partial_form.hidden_fields %}{{ hidden }}{% endfor %}
-                            {% if partial_formset.can_delete %}<span style="display:none">{{ partial_form.DELETE }}</span>{% endif %}
-                            <td>{{ partial_form.purchase_order }}{{ partial_form.purchase_order.errors }}</td>
+                        <tr data-row-kind="partial" class="line-row">
+                            {% include "procurement/components/line_index_cell.html" with value=forloop.counter %}
+                            <td>
+                                <div style="display:none">
+                                    {% for hidden in partial_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                    {% if partial_formset.can_delete %}{{ partial_form.DELETE }}{% endif %}
+                                </div>
+                                {{ partial_form.purchase_order }}{{ partial_form.purchase_order.errors }}
+                            </td>
                             <td>{{ partial_form.purchase_order_line }}{{ partial_form.purchase_order_line.errors }}</td>
                             <td>{{ partial_form.fulfilled_quantity }}{{ partial_form.fulfilled_quantity.errors }}</td>
                             <td>{{ partial_form.observations }}{{ partial_form.observations.errors }}</td>
-                            <td class="center"><button type="button" class="btn btn-xs btn-danger remove-row-btn"><i class="fa fa-trash"></i></button></td>
+                            <td class="center proc-col-actions">
+                                {% include "procurement/components/line_delete_button.html" %}
+                            </td>
                         </tr>
                         {% if partial_form.non_field_errors %}
-                        <tr><td colspan="5" class="text-danger">{{ partial_form.non_field_errors }}</td></tr>
+                        <tr><td colspan="6" class="text-danger">{{ partial_form.non_field_errors }}</td></tr>
                         {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
 
     <template id="memo-line-row-template">
-        <tr data-row-kind="order">
-            {% for hidden in line_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
-            <td>{{ line_formset.empty_form.purchase_order }}</td>
+        <tr data-row-kind="order" class="line-row">
+            {% include "procurement/components/line_index_cell.html" %}
+            <td>
+                <div style="display:none">
+                    {% for hidden in line_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    {% if line_formset.can_delete %}{{ line_formset.empty_form.DELETE }}{% endif %}
+                </div>
+                {{ line_formset.empty_form.purchase_order }}
+            </td>
             <td>{{ line_formset.empty_form.line_mode }}</td>
             <td>{{ line_formset.empty_form.observations }}</td>
-            <td class="center"><button type="button" class="btn btn-xs btn-danger remove-row-btn"><i class="fa fa-trash"></i></button></td>
+            <td class="center proc-col-actions">
+                {% include "procurement/components/line_delete_button.html" %}
+            </td>
         </tr>
     </template>
 
     <template id="memo-partial-row-template">
-        <tr data-row-kind="partial">
-            {% for hidden in partial_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
-            <td>{{ partial_formset.empty_form.purchase_order }}</td>
+        <tr data-row-kind="partial" class="line-row">
+            {% include "procurement/components/line_index_cell.html" %}
+            <td>
+                <div style="display:none">
+                    {% for hidden in partial_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    {% if partial_formset.can_delete %}{{ partial_formset.empty_form.DELETE }}{% endif %}
+                </div>
+                {{ partial_formset.empty_form.purchase_order }}
+            </td>
             <td>{{ partial_formset.empty_form.purchase_order_line }}</td>
             <td>{{ partial_formset.empty_form.fulfilled_quantity }}</td>
             <td>{{ partial_formset.empty_form.observations }}</td>
-            <td class="center"><button type="button" class="btn btn-xs btn-danger remove-row-btn"><i class="fa fa-trash"></i></button></td>
+            <td class="center proc-col-actions">
+                {% include "procurement/components/line_delete_button.html" %}
+            </td>
         </tr>
     </template>
 
-    <div class="clearfix" style="margin-top: 12px;">
-        <a href="{% url 'procurement:memo_list' %}" class="btn btn-default">Cancelar</a>
-        <button type="submit" class="btn btn-primary pull-right"><i class="fa fa-save"></i> Guardar</button>
-    </div>
+    {% url 'procurement:memo_list' as memo_cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="save-memo-button" cancel_url=memo_cancel_url %}
 </form>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function () {
-    const form = document.getElementById('memo-form');
-    if (!form) return;
-
-    const contractSelect = document.getElementById('id_contract');
-    const ordersUrlTemplate = form.dataset.contractOrdersUrlTemplate || '';
-    const orderLinesUrlTemplate = form.dataset.orderLinesUrlTemplate || '';
-    const memoId = form.dataset.memoId || '';
-
-    const addOrderBtn = document.getElementById('add-memo-line-button');
-    const addPartialBtn = document.getElementById('add-partial-line-button');
-
-    const orderTotalForms = document.getElementById('id_lines-TOTAL_FORMS') || document.getElementById('id_fulfillmentmemoline_set-TOTAL_FORMS');
-    const partialTotalForms = document.getElementById('id_partials-TOTAL_FORMS');
-
-    const orderTemplate = document.getElementById('memo-line-row-template');
-    const partialTemplate = document.getElementById('memo-partial-row-template');
-
-    const orderBody = document.querySelector('#orders-table tbody');
-    const partialBody = document.querySelector('#partials-table tbody');
-
-    let currentOrderOptions = [];
-    const currentOrderLineOptions = {};
-
-    function initSelect2In(container) {
-        if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
-            window.SIGECOPUI.enhanceSelects(container || form);
-        }
-    }
-
-    function buildUrl(template, key, value) {
-        if (!value || !template) return '';
-        return template
-            .replace(key, encodeURIComponent(value))
-            .replace(encodeURIComponent(key), encodeURIComponent(value));
-    }
-
-    async function fetchContractOrders(contractId) {
-        const url = buildUrl(ordersUrlTemplate, '__CONTRACT_ID__', contractId);
-        if (!url) return [];
-        try {
-            const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) return null;
-            const payload = await resp.json();
-            return payload.orders || [];
-        } catch (_e) {
-            return null;
-        }
-    }
-
-    async function fetchOrderLines(orderId) {
-        let url = buildUrl(orderLinesUrlTemplate, '__ORDER_ID__', orderId);
-        if (!url) return [];
-        if (memoId) {
-            url += (url.includes('?') ? '&' : '?') + 'memo_id=' + encodeURIComponent(memoId);
-        }
-        try {
-            const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) return null;
-            const payload = await resp.json();
-            return payload.lines || [];
-        } catch (_e) {
-            return null;
-        }
-    }
-
-    function setOptions(select, options, selectedValue) {
-        if (!select) return;
-        const previous = selectedValue !== undefined ? String(selectedValue || '') : String(select.value || '');
-        select.innerHTML = '<option value="">---------</option>';
-        (options || []).forEach(function (opt) {
-            const option = document.createElement('option');
-            option.value = String(opt.id);
-            option.textContent = opt.text;
-            option.dataset.pendingQuantity = String(opt.pending_quantity || '0');
-            select.appendChild(option);
-        });
-        if (previous) select.value = previous;
-        if (window.jQuery) jQuery(select).val(select.value || null).trigger('change');
-    }
-
-    async function refreshPartialOrderLines(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        const lineSelect = row.querySelector('select[name$="-purchase_order_line"]');
-        if (!orderSelect || !lineSelect) return;
-        if (!orderSelect.value) {
-            setOptions(lineSelect, [], '');
-            return;
-        }
-        const oid = String(orderSelect.value);
-        if (!currentOrderLineOptions[oid]) {
-            const lines = await fetchOrderLines(oid);
-            currentOrderLineOptions[oid] = lines || [];
-        }
-        setOptions(lineSelect, currentOrderLineOptions[oid], lineSelect.value);
-    }
-
-    function setupOrderRow(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        if (orderSelect) setOptions(orderSelect, currentOrderOptions, orderSelect.value);
-    }
-
-    function setupPartialRow(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        if (orderSelect) {
-            setOptions(orderSelect, currentOrderOptions, orderSelect.value);
-            const onChange = function () { refreshPartialOrderLines(row); };
-            orderSelect.addEventListener('change', onChange);
-        }
-        refreshPartialOrderLines(row);
-    }
-
-    function addRow(template, body, totalFormsInput, setupFn) {
-        if (!template || !body || !totalFormsInput) return;
-        const index = Number(totalFormsInput.value || '0');
-        const html = template.innerHTML.replace(/__prefix__/g, String(index));
-        const tmp = document.createElement('tbody');
-        tmp.innerHTML = html.trim();
-        const row = tmp.firstElementChild;
-        if (!row) return;
-        body.appendChild(row);
-        totalFormsInput.value = String(index + 1);
-        initSelect2In(row);
-        setupFn(row);
-    }
-
-    function removeRow(btn) {
-        const row = btn.closest('tr');
-        if (!row) return;
-        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-        if (del) {
-            del.checked = true;
-            row.style.display = 'none';
-        } else {
-            row.remove();
-        }
-    }
-
-    function rowVisible(row) {
-        if (!row || row.style.display === 'none') return false;
-        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-        return !(del && del.checked);
-    }
-
-    function validatePartialCoverage() {
-        const partialOrderIds = new Set();
-        const hasDetailByOrder = new Map();
-
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(function (row) {
-            if (!rowVisible(row)) return;
-            const mode = row.querySelector('select[name$="-line_mode"]');
-            const order = row.querySelector('select[name$="-purchase_order"]');
-            if (!mode || !order || !order.value) return;
-            if (mode.value === 'partial') {
-                partialOrderIds.add(String(order.value));
-                hasDetailByOrder.set(String(order.value), false);
-            }
-        });
-
-        partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(function (row) {
-            if (!rowVisible(row)) return;
-            const order = row.querySelector('select[name$="-purchase_order"]');
-            if (!order || !order.value) return;
-            const key = String(order.value);
-            if (hasDetailByOrder.has(key)) {
-                hasDetailByOrder.set(key, true);
-            }
-        });
-
-        for (const oid of partialOrderIds) {
-            if (!hasDetailByOrder.get(oid)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    async function refreshContractData() {
-        const contractId = contractSelect ? contractSelect.value : '';
-        Object.keys(currentOrderLineOptions).forEach(function (k) { delete currentOrderLineOptions[k]; });
-
-        if (!contractId) {
-            currentOrderOptions = [];
-            orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(setupOrderRow);
-            partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
-            return;
-        }
-
-        const fetched = await fetchContractOrders(contractId);
-        if (fetched === null) return;
-
-        currentOrderOptions = fetched || [];
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(setupOrderRow);
-        partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
-    }
-
-    orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(setupOrderRow);
-    partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
-
-    form.addEventListener('click', function (e) {
-        const btn = e.target.closest('.remove-row-btn');
-        if (btn) removeRow(btn);
-    });
-
-    form.addEventListener('submit', function (e) {
-        if (!validatePartialCoverage()) {
-            e.preventDefault();
-            alert('Cada orden marcada en modo parcial debe tener al menos un detalle parcial por línea.');
-        }
-    });
-
-    if (contractSelect) {
-        contractSelect.addEventListener('change', refreshContractData);
-    }
-    if (addOrderBtn) addOrderBtn.addEventListener('click', function () { addRow(orderTemplate, orderBody, orderTotalForms, setupOrderRow); });
-    if (addPartialBtn) addPartialBtn.addEventListener('click', function () { addRow(partialTemplate, partialBody, partialTotalForms, setupPartialRow); });
-
-    refreshContractData();
-})();
-</script>
+<script src="{% static 'procurement/js/line_delete.js' %}"></script>
+<script src="{% static 'procurement/js/form_errors.js' %}"></script>
+<script src="{% static 'procurement/js/memo_form.js' %}"></script>
 {% endblock %}

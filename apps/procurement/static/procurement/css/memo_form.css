@@ -1,0 +1,18 @@
+.form-intro {
+    border: 1px solid #d7e5f6;
+    background: #f8fbff;
+    color: #2d4b73;
+}
+
+.memo-lines-wrap {
+    max-height: min(42vh, 500px);
+}
+
+.memo-lines-table {
+    min-width: 860px;
+}
+
+#memo-partials-widget.memo-partials-collapsed .widget-body {
+    display: none;
+}
+

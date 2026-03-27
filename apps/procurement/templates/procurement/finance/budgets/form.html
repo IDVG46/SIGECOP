@@ -8,6 +8,8 @@
 Presupuesto
 {% endblock %}
 
+{% block page_subtitle %}{% if object and object.pk %}Editar{% else %}Agregar{% endif %}{% endblock %}
+
 {% block breadcrumb %}
 <li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
 <li><a href="{% url 'procurement:budget_list' %}">Presupuestos</a></li>
@@ -15,45 +17,54 @@ Presupuesto
 {% endblock %}
 
 {% block extra_css %}
-<style>
-    #budget-form .row {
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    #budget-form .row > [class*="col-"] {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
-    #budget-form .ts-control {
-        min-height: 34px;
-        border-color: #d5d5d5;
-    }
-</style>
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
+<link rel="stylesheet" href="{% static 'procurement/css/budget_form.css' %}" />
 {% endblock %}
 
 {% block content %}
-<form method="post" id="budget-form" data-financial-codes-url-template="{{ financial_codes_base_url }}">
+<form method="post" id="budget-form" class="proc-form" data-financial-codes-url-template="{{ financial_codes_base_url }}">
     {% csrf_token %}
+    <div class="alert form-intro">
+        <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
+        seleccione primero el contrato para cargar automáticamente los códigos financieros disponibles.
+    </div>
+    <div id="budget-form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
     <div class="widget-box">
-        <div class="widget-header"><h4 class="widget-title">Datos del presupuesto</h4></div>
+        {% include "procurement/components/card_header.html" with title="Datos del presupuesto" %}
         <div class="widget-body">
             <div class="widget-main">
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
                 <div class="row">
-                    <div class="col-sm-4">{{ form.contract.label_tag }}{{ form.contract }}{{ form.contract.errors }}</div>
-                    <div class="col-sm-4">{{ form.expense_object.label_tag }}{{ form.expense_object }}{{ form.expense_object.errors }}</div>
-                    <div class="col-sm-4">{{ form.fiscal_year.label_tag }}{{ form.fiscal_year }}{{ form.fiscal_year.errors }}</div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.contract.id_for_label }}">{{ form.contract.label }}<span class="required-marker">*</span></label>
+                        {{ form.contract }}{{ form.contract.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.expense_object.id_for_label }}">{{ form.expense_object.label }}<span class="required-marker">*</span></label>
+                        {{ form.expense_object }}{{ form.expense_object.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.fiscal_year.id_for_label }}">{{ form.fiscal_year.label }}<span class="required-marker">*</span></label>
+                        {{ form.fiscal_year }}{{ form.fiscal_year.errors }}
+                    </div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
                     <div class="col-sm-4">{{ form.financial_code.label_tag }}{{ form.financial_code }}{{ form.financial_code.errors }}</div>
-                    <div class="col-sm-4">{{ form.funding_source.label_tag }}{{ form.funding_source }}{{ form.funding_source.errors }}</div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.funding_source.id_for_label }}">{{ form.funding_source.label }}<span class="required-marker">*</span></label>
+                        {{ form.funding_source }}{{ form.funding_source.errors }}
+                    </div>
                     <div class="col-sm-4">{{ form.cdp_number.label_tag }}{{ form.cdp_number }}{{ form.cdp_number.errors }}</div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
-                    <div class="col-sm-4">{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}</div>
-                    <div class="col-sm-4">{{ form.assigned_amount.label_tag }}{{ form.assigned_amount }}{{ form.assigned_amount.errors }}</div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.status.id_for_label }}">{{ form.status.label }}<span class="required-marker">*</span></label>
+                        {{ form.status }}{{ form.status.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.assigned_amount.id_for_label }}">{{ form.assigned_amount.label }}<span class="required-marker">*</span></label>
+                        {{ form.assigned_amount }}{{ form.assigned_amount.errors }}
+                    </div>
                     <div class="col-sm-4">{{ form.committed_amount.label_tag }}{{ form.committed_amount }}{{ form.committed_amount.errors }}</div>
                 </div>
                 <div class="row" style="margin-top: 10px;">
@@ -63,131 +74,12 @@ Presupuesto
         </div>
     </div>
 
-    <div class="clearfix" style="margin-top: 12px;">
-        <a href="{% url 'procurement:budget_list' %}" class="btn btn-default">Cancelar</a>
-        <button type="submit" class="btn btn-primary pull-right"><i class="fa fa-save"></i> Guardar</button>
-    </div>
+    {% url 'procurement:budget_list' as budget_cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="save-budget-button" cancel_url=budget_cancel_url %}
 </form>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    (function () {
-        const form = document.getElementById('budget-form');
-        if (!form) return;
-        const contractSelect = document.getElementById('id_contract');
-        const financialCodeSelect = document.getElementById('id_financial_code');
-        const financialCodesUrlTemplate = form.dataset.financialCodesUrlTemplate || '';
-
-        if (window.SIGECOPUI && window.SIGECOPUI.enhanceSelects) {
-            window.SIGECOPUI.enhanceSelects(form);
-        }
-
-        function buildFinancialCodesUrl(contractId) {
-            if (!contractId || !financialCodesUrlTemplate) return '';
-            return financialCodesUrlTemplate.replace('__CONTRACT_ID__', encodeURIComponent(contractId));
-        }
-
-        async function refreshFinancialCodes() {
-            if (!contractSelect || !financialCodeSelect) return;
-
-            const contractId = contractSelect.value;
-            const previousValue = financialCodeSelect.value || '';
-            financialCodeSelect.innerHTML = '';
-
-            const blank = document.createElement('option');
-            blank.value = '';
-            blank.textContent = '---------';
-            financialCodeSelect.appendChild(blank);
-
-            if (!contractId) {
-                financialCodeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                return;
-            }
-
-            // Fallback visible option even if API call fails.
-            const contractOption = document.createElement('option');
-            contractOption.value = contractId;
-            contractOption.textContent = contractId;
-            financialCodeSelect.appendChild(contractOption);
-
-            try {
-                const url = buildFinancialCodesUrl(contractId);
-                if (!url) return;
-
-                const response = await fetch(url, { credentials: 'same-origin' });
-                if (!response.ok) return;
-
-                const payload = await response.json();
-                const items = payload.financial_codes || [];
-                items.forEach((item) => {
-                    const option = document.createElement('option');
-                    option.value = item.value;
-                    option.textContent = item.label;
-                    financialCodeSelect.appendChild(option);
-                });
-
-                if (previousValue) {
-                    const exists = Array.from(financialCodeSelect.options).some((opt) => opt.value === previousValue);
-                    if (!exists) {
-                        const custom = document.createElement('option');
-                        custom.value = previousValue;
-                        custom.textContent = previousValue;
-                        financialCodeSelect.appendChild(custom);
-                    }
-                    financialCodeSelect.value = previousValue;
-                }
-                financialCodeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            } catch (error) {
-                if (window.console) console.warn('No se pudieron cargar financial codes', error);
-                if (previousValue) {
-                    const exists = Array.from(financialCodeSelect.options).some((opt) => opt.value === previousValue);
-                    if (!exists) {
-                        const custom = document.createElement('option');
-                        custom.value = previousValue;
-                        custom.textContent = previousValue;
-                        financialCodeSelect.appendChild(custom);
-                    }
-                    financialCodeSelect.value = previousValue;
-                }
-                financialCodeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        }
-
-        const numberUtils = window.SIGECOPNumbers || {};
-        const moneyInputs = ['id_assigned_amount', 'id_committed_amount', 'id_executed_amount']
-            .map((id) => document.getElementById(id))
-            .filter(Boolean);
-
-        moneyInputs.forEach((input) => {
-            if (numberUtils.bindInputFormatting) {
-                numberUtils.bindInputFormatting(input, {
-                    kind: 'money',
-                    currency: 'Gs.',
-                    precision: 0,
-                    locale: 'es-PY',
-                });
-            }
-        });
-
-        if (contractSelect) {
-            contractSelect.addEventListener('change', refreshFinancialCodes);
-        }
-
-        refreshFinancialCodes();
-
-        form.addEventListener('submit', function () {
-            moneyInputs.forEach((input) => {
-                if (numberUtils.normalizeInputForSubmit) {
-                    numberUtils.normalizeInputForSubmit(input, {
-                        kind: 'money',
-                        currency: 'Gs.',
-                        precision: 0,
-                        locale: 'es-PY',
-                    });
-                }
-            });
-        });
-    })();
-</script>
+<script src="{% static 'procurement/js/form_errors.js' %}"></script>
+<script src="{% static 'procurement/js/budget_form.js' %}"></script>
 {% endblock %}

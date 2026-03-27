@@ -75,6 +75,9 @@ class PurchaseOrder(models.Model):
 		return self.order_number
 
 	def clean(self):
+		if not self.expense_object_id:
+			raise ValidationError({"expense_object": "Debe seleccionar un objeto de gasto."})
+
 		if self.contract_id and self.supplier_id:
 			award = self.contract.award
 			if award and not award.suppliers.filter(id=self.supplier_id).exists():
@@ -114,12 +117,7 @@ class PurchaseOrderLine(models.Model):
 	line_total = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
 
 	class Meta:
-		constraints = [
-			models.CheckConstraint(
-				condition=(Q(award_item__isnull=False, award_subitem__isnull=True) | Q(award_item__isnull=True, award_subitem__isnull=False)),
-				name="po_line_item_xor_subitem_ck",
-			),
-		]
+		constraints = []
 		indexes = [
 			models.Index(fields=["purchase_order", "lot"], name="po_line_order_lot_idx"),
 		]
@@ -128,8 +126,11 @@ class PurchaseOrderLine(models.Model):
 		return f"{self.purchase_order.order_number} - línea {self.pk}"
 
 	def clean(self):
-		if bool(self.award_item_id) == bool(self.award_subitem_id):
-			raise ValidationError("Debe seleccionar item o subitem, no ambos.")
+		if not self.award_item_id and not self.award_subitem_id:
+			raise ValidationError("Debe seleccionar un item.")
+
+		if self.award_subitem_id and not self.award_item_id:
+			raise ValidationError({"award_item": "Debe seleccionar un item para el subitem elegido."})
 
 		contract_award_id = None
 		if self.purchase_order_id:
@@ -145,6 +146,10 @@ class PurchaseOrderLine(models.Model):
 
 		if self.award_subitem_id and contract_award_id and self.award_subitem.award_id != contract_award_id:
 			raise ValidationError({"award_subitem": "El subitem no pertenece a la adjudicación del contrato."})
+
+		if self.award_item_id and self.award_subitem_id and self.award_subitem.subitem and self.award_subitem.subitem.item:
+			if self.award_subitem.subitem.item_id != self.award_item.item_id:
+				raise ValidationError({"award_subitem": "El subitem no corresponde al item seleccionado."})
 
 		if self.award_item_id and self.award_item.item and self.award_item.item.lot_id != self.lot_id:
 			raise ValidationError({"lot": "El lote no coincide con el item seleccionado."})

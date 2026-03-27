@@ -110,6 +110,8 @@ class FulfillmentMemoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["purchase_order"].required = False
         self.fields["fulfillment_mode"].required = False
+        self.fields["received_by"].required = True
+        self.fields["sender_position"].required = True
         self.fields["fulfillment_mode"].initial = FulfillmentMemo.MODE_PARTIAL
         self.fields["fulfillment_mode"].widget = forms.HiddenInput()
 
@@ -157,7 +159,7 @@ class FulfillmentMemoLineForm(forms.ModelForm):
     line_mode = forms.ChoiceField(
         choices=FulfillmentMemoLine.MODE_CHOICES,
         required=True,
-        initial=FulfillmentMemoLine.MODE_PARTIAL,
+        initial=FulfillmentMemoLine.MODE_TOTAL,
         label="Modo",
         widget=forms.Select(attrs={"class": "form-control select2 row-line-mode"}),
     )
@@ -175,11 +177,13 @@ class FulfillmentMemoLineForm(forms.ModelForm):
         self.fields["purchase_order"].required = True
         if self.instance and self.instance.pk:
             self.fields["line_mode"].initial = self.instance.fulfillment_mode or FulfillmentMemoLine.MODE_PARTIAL
+        else:
+            self.fields["line_mode"].initial = FulfillmentMemoLine.MODE_TOTAL
 
     def clean(self):
         cleaned = super().clean()
         order = cleaned.get("purchase_order")
-        line_mode = cleaned.get("line_mode") or FulfillmentMemoLine.MODE_PARTIAL
+        line_mode = cleaned.get("line_mode") or FulfillmentMemoLine.MODE_TOTAL
 
         if order is None:
             raise ValidationError({"purchase_order": "Debe seleccionar una orden de compra."})
@@ -228,7 +232,7 @@ class BaseFulfillmentMemoLineFormSet(forms.BaseInlineFormSet):
                 continue
 
             order = form.cleaned_data.get("purchase_order")
-            line_mode = form.cleaned_data.get("line_mode") or FulfillmentMemoLine.MODE_PARTIAL
+            line_mode = form.cleaned_data.get("line_mode") or FulfillmentMemoLine.MODE_TOTAL
             if order is None:
                 continue
 
@@ -258,6 +262,15 @@ FulfillmentMemoLineFormSet = inlineformset_factory(
     form=FulfillmentMemoLineForm,
     formset=BaseFulfillmentMemoLineFormSet,
     extra=1,
+    can_delete=True,
+)
+
+FulfillmentMemoLineEditFormSet = inlineformset_factory(
+    FulfillmentMemo,
+    FulfillmentMemoLine,
+    form=FulfillmentMemoLineForm,
+    formset=BaseFulfillmentMemoLineFormSet,
+    extra=0,
     can_delete=True,
 )
 
@@ -334,12 +347,22 @@ FulfillmentMemoPartialLineFormSet = modelformset_factory(
     can_delete=True,
 )
 
+FulfillmentMemoPartialLineEditFormSet = modelformset_factory(
+    FulfillmentMemoPartialLine,
+    form=FulfillmentMemoPartialLineForm,
+    extra=0,
+    can_delete=True,
+)
+
 
 class PaymentForm(LocalizedDecimalMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Hacer contract required (requerido en el form, no en la BD)
         self.fields["contract"].required = True
+        self.fields["payment_number"].required = True
+        self.fields["payment_date"].required = True
+        self.fields["amount_total"].required = True
     
     class Meta:
         model = Payment
@@ -359,13 +382,35 @@ class PaymentForm(LocalizedDecimalMixin, forms.ModelForm):
         }
 
     def clean_amount_total(self):
-        return self._clean_localized_decimal_field("amount_total")
+        amount = self._clean_localized_decimal_field("amount_total")
+        if amount is not None and amount <= 0:
+            raise ValidationError("El monto total debe ser mayor a cero.")
+        return amount
+
+    def clean_contract(self):
+        contract = self.cleaned_data.get("contract")
+        if not contract:
+            raise ValidationError("Debe seleccionar un contrato.")
+        return contract
+
+    def clean_payment_number(self):
+        payment_number = self.cleaned_data.get("payment_number")
+        if not payment_number:
+            raise ValidationError("El número de pago es requerido.")
+        return payment_number
+
+    def clean_payment_date(self):
+        payment_date = self.cleaned_data.get("payment_date")
+        if not payment_date:
+            raise ValidationError("La fecha del pago es requerida.")
+        return payment_date
 
 
 class PaymentAllocationForm(LocalizedDecimalMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["contract_budget"].required = True
+        self.fields["amount"].required = True
 
     class Meta:
         model = PaymentAllocation
@@ -377,25 +422,84 @@ class PaymentAllocationForm(LocalizedDecimalMixin, forms.ModelForm):
         }
 
     def clean_amount(self):
-        return self._clean_localized_decimal_field("amount")
+        amount = self._clean_localized_decimal_field("amount")
+        if amount is not None and amount <= 0:
+            raise ValidationError("El monto debe ser mayor a cero.")
+        return amount
+
+    def clean_contract_budget(self):
+        budget = self.cleaned_data.get("contract_budget")
+        if not budget:
+            raise ValidationError("Debe seleccionar un presupuesto.")
+        return budget
+
+    def clean(self):
+        cleaned = super().clean()
+        purchase_order = cleaned.get("purchase_order")
+        contract_budget = cleaned.get("contract_budget")
+        amount = cleaned.get("amount")
+
+        if purchase_order is None or contract_budget is None or amount in (None, ""):
+            return cleaned
+
+        if purchase_order.contract_id != contract_budget.contract_id:
+            raise ValidationError(
+                f"La orden {purchase_order.order_number} y el presupuesto no pertenecen al mismo contrato."
+            )
+
+        if purchase_order.expense_object_id != contract_budget.expense_object_id:
+            raise ValidationError(
+                f"La orden y el presupuesto no coinciden en objeto de gasto."
+            )
+
+        return cleaned
 
 
 class BasePaymentAllocationFormSet(forms.BaseInlineFormSet):
+    def _resolve_contract_id(self):
+        if self.data:
+            return self.data.get("contract")
+        if self.instance and getattr(self.instance, "contract_id", None):
+            return self.instance.contract_id
+        return None
+
+    def _build_filtered_querysets(self):
+        contract_id = self._resolve_contract_id()
+
+        orders_qs = PurchaseOrder.objects.none()
+        budgets_qs = ContractBudget.objects.none()
+
+        if contract_id:
+            orders_qs = (
+                PurchaseOrder.objects.filter(contract_id=contract_id)
+                .exclude(status=PurchaseOrder.STATUS_CANCELLED)
+                .select_related("contract", "supplier")
+            )
+            budgets_qs = (
+                ContractBudget.objects.filter(contract_id=contract_id)
+                .exclude(status=ContractBudget.STATUS_CANCELLED)
+                .select_related("contract", "expense_object")
+            )
+
+        return orders_qs, budgets_qs
+
+    def _apply_querysets_to_form(self, form, orders_qs, budgets_qs):
+        if not form:
+            return
+        form.fields["purchase_order"].queryset = orders_qs
+        form.fields["contract_budget"].queryset = budgets_qs
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ✓ ESTRATEGIA: Aceptar TODAS las órdenes, let clean() validate relationships
-        # RAZÓN: Permite que el formset acepte órdenes sin conocer el contrato del pago aún
-        # En CREATE: Payment.contract aún no existe
-        # En UPDATE: Payment.contract existe but queryset filter needed for form rendering
-        # Solución: Cargar TODAS las órdenes, JavaScript filtra el UI dinámicamente
-        
-        orders_qs = PurchaseOrder.objects.exclude(status=PurchaseOrder.STATUS_CANCELLED).select_related("contract", "supplier")
-        budgets_qs = ContractBudget.objects.exclude(status=ContractBudget.STATUS_CANCELLED).select_related("contract", "expense_object")
+        # Mantener selects filtrados por contrato y evitar mezcla de contratos.
+        orders_qs, budgets_qs = self._build_filtered_querysets()
 
         for form in self.forms:
-            form.fields["purchase_order"].queryset = orders_qs
-            form.fields["contract_budget"].queryset = budgets_qs
+            self._apply_querysets_to_form(form, orders_qs, budgets_qs)
+
+        # Importante: el template de filas nuevas usa empty_form.
+        self._apply_querysets_to_form(self.empty_form, orders_qs, budgets_qs)
 
     def clean(self):
         super().clean()
@@ -505,7 +609,7 @@ PaymentAllocationFormSet = inlineformset_factory(
     form=PaymentAllocationForm,
     formset=BasePaymentAllocationFormSet,
     extra=1,
-    can_delete=False,
+    can_delete=True,
 )
 
 PaymentAllocationUpdateFormSet = inlineformset_factory(

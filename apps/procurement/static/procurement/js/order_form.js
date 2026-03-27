@@ -1,6 +1,7 @@
 (function() {
         const form = document.getElementById('order-form');
         if (!form) return;
+    form.setAttribute('novalidate', 'novalidate');
 
         const contractSelect = document.getElementById('id_contract');
         const supplierSelect = document.getElementById('id_supplier');
@@ -31,6 +32,7 @@
         const feedbackBox = document.getElementById('form-feedback');
         const saveOrderButton = document.getElementById('save-order-button');
         const numberUtils = window.SIGECOPNumbers || {};
+        const formErrors = window.SIGECOPFormErrors || {};
         const detailPlaceholders = {
             lot: 'Buscar lote...',
             item: 'Buscar item...',
@@ -38,6 +40,11 @@
         };
 
         function showFormFeedback(message, level) {
+            if (formErrors.showFloatingFeedback) {
+                formErrors.showFloatingFeedback(feedbackBox, message, level);
+                return;
+            }
+
             if (!feedbackBox) return;
             if (!message) {
                 feedbackBox.style.display = 'none';
@@ -93,7 +100,11 @@
 
         function resetSelectValue(field) {
             if (!field) return;
-            field.value = '';
+            if (field.tomselect) {
+                field.tomselect.clear(true);
+            } else {
+                field.value = '';
+            }
             // No disparar change: el reset es interno, no debe cascadear
         }
 
@@ -160,23 +171,58 @@
             }
         }
 
-        function decorateFieldsWithErrors(container) {
+        function disableNativeRequiredOnEnhancedSelects(container) {
             const root = container || form;
-            root.querySelectorAll('.errorlist').forEach(function(errorList) {
-                const control = errorList.previousElementSibling;
-                if (!control || !control.matches('input, textarea, select')) return;
-                if (control.type === 'hidden' || control.type === 'checkbox' || control.type === 'radio') return;
-                if (control.parentElement && control.parentElement.classList.contains('field-error-icon-wrap')) return;
-
-                const wrapper = document.createElement('span');
-                wrapper.className = 'block input-icon input-icon-right field-error-icon-wrap';
-                control.parentNode.insertBefore(wrapper, control);
-                wrapper.appendChild(control);
-
-                const icon = document.createElement('i');
-                icon.className = 'ace-icon fa fa-times-circle error-icon';
-                wrapper.appendChild(icon);
+            root.querySelectorAll('select.select2[required]').forEach(function(select) {
+                select.dataset.requiredManaged = '1';
+                select.removeAttribute('required');
             });
+        }
+
+        function clearSingleFieldError(field) {
+            if (!field) return;
+            if (formErrors.clearFieldError) {
+                formErrors.clearFieldError(field);
+            }
+        }
+
+        function validateHeaderRequiredFields() {
+            const requiredFields = [
+                { key: 'order_number', message: 'Debe completar N° de orden.' },
+                { key: 'contract', message: 'Debe seleccionar un contrato.' },
+                { key: 'supplier', message: 'Debe seleccionar un proveedor.' },
+                { key: 'issue_date', message: 'Debe completar la fecha de emisión.' },
+                { key: 'expense_object', message: 'Debe seleccionar un objeto de gasto.' },
+            ];
+
+            requiredFields.forEach(function(entry) {
+                const field = document.getElementById('id_' + entry.key);
+                if (!field) return;
+                clearSingleFieldError(field);
+            });
+
+            for (const entry of requiredFields) {
+                const field = document.getElementById('id_' + entry.key);
+                if (!field) {
+                    continue;
+                }
+
+                const value = String(field.value || '').trim();
+                if (value !== '') {
+                    continue;
+                }
+
+                markFieldInvalid(field, entry.message);
+                return field;
+            }
+
+            return null;
+        }
+
+        function decorateFieldsWithErrors(container) {
+            if (formErrors.decorateFieldsWithErrors) {
+                formErrors.decorateFieldsWithErrors(container || form);
+            }
         }
 
         function buildContractUrl(template, contractId, fallbackSuffix) {
@@ -428,12 +474,26 @@
             }
         }
 
+        function getSelectedOptionData(select) {
+            if (!select || !select.value) return null;
+
+            if (select.tomselect) {
+                return select.tomselect.options[select.value] || null;
+            }
+
+            if (select.selectedIndex >= 0 && select.options) {
+                return select.options[select.selectedIndex].dataset || null;
+            }
+
+            return null;
+        }
+
         function getItemHasSubitemsForRow(row) {
             const els = rowElements(row);
             if (!els.lot || !els.lot.value || !els.item || !els.item.value) return false;
 
-            const selectedItemOption = els.item.options[els.item.selectedIndex];
-            const selectedItemDefinitionId = selectedItemOption ? selectedItemOption.dataset.itemDefinitionId : null;
+            const selectedItemData = getSelectedOptionData(els.item);
+            const selectedItemDefinitionId = selectedItemData ? selectedItemData.itemDefinitionId : null;
             if (!selectedItemDefinitionId) return false;
 
             return lineOptions.subitems.some(function(sub) {
@@ -492,21 +552,19 @@
         }
 
         function updateDeleteRowState(row) {
+            if (window.SIGECOPLineDelete && typeof window.SIGECOPLineDelete.applyState === 'function') {
+                window.SIGECOPLineDelete.applyState(row, {
+                    labels: {
+                        deleteText: 'Eliminar detalle',
+                        restoreText: 'Restaurar detalle',
+                    },
+                });
+                return;
+            }
+
             const els = rowElements(row);
             const isDeleted = !!(els.del && els.del.checked);
             row.classList.toggle('line-row-deleted', isDeleted);
-
-            if (els.deleteLabel) {
-                els.deleteLabel.textContent = 'Eliminar detalle';
-            }
-
-            if (els.deleteBtn) {
-                const icon = els.deleteBtn.querySelector('i');
-                if (icon) {
-                    icon.className = 'ace-icon fa fa-trash-o bigger-130';
-                }
-                els.deleteBtn.title = isDeleted ? 'Detalle marcado para eliminar' : 'Eliminar detalle';
-            }
         }
 
         function updateRowHints(row) {
@@ -517,27 +575,8 @@
             const els = rowElements(row);
             if (!els.unitPrice) return;
 
-            // Obtener el dataset de la opción seleccionada (funciona con Tom Select y select normal)
-            function getSelectedOptionDataset(select) {
-                if (!select || !select.value) return null;
-                
-                // Para Tom Select
-                if (select.tomselect) {
-                    const value = select.value;
-                    const option = select.tomselect.options[value];
-                    if (option) return option;
-                    return null;
-                }
-                
-                // Para select HTML normal
-                if (select.selectedIndex >= 0 && select.options) {
-                    return select.options[select.selectedIndex].dataset;
-                }
-                return null;
-            }
-
-            const selectedItemData = getSelectedOptionDataset(els.item);
-            const selectedSubitemData = getSelectedOptionDataset(els.subitem);
+            const selectedItemData = getSelectedOptionData(els.item);
+            const selectedSubitemData = getSelectedOptionData(els.subitem);
             const itemHasSubitems = getItemHasSubitemsForRow(row);
 
             if (selectedSubitemData?.unitPrice) {
@@ -559,10 +598,10 @@
             const lotId = els.lot ? els.lot.value : '';
             const selectedItem = els.item ? els.item.value : '';
             const selectedSubitem = els.subitem ? els.subitem.value : '';
-            const selectedItemOption = (els.item && els.item.selectedIndex >= 0) ? els.item.options[els.item.selectedIndex] : null;
-            const selectedItemDefinitionId = selectedItemOption ? selectedItemOption.dataset.itemDefinitionId : null;
-            const selectedSubitemOption = (els.subitem && els.subitem.selectedIndex >= 0) ? els.subitem.options[els.subitem.selectedIndex] : null;
-            const selectedSubitemDefinitionId = selectedSubitemOption ? selectedSubitemOption.dataset.itemDefinitionId : null;
+            const selectedItemData = getSelectedOptionData(els.item);
+            const selectedItemDefinitionId = selectedItemData ? selectedItemData.itemDefinitionId : null;
+            const selectedSubitemData = getSelectedOptionData(els.subitem);
+            const selectedSubitemDefinitionId = selectedSubitemData ? selectedSubitemData.itemDefinitionId : null;
 
             const items = lineOptions.items.filter(function(it) {
                 return !lotId || String(it.lot_id) === String(lotId);
@@ -625,8 +664,8 @@
             const hasLot = !!(els.lot && els.lot.value);
             const hasSelectedSubitem = !!(els.subitem && els.subitem.value);
 
-            const selectedItemOption = (els.item && els.item.selectedIndex >= 0) ? els.item.options[els.item.selectedIndex] : null;
-            const selectedItemDefinitionId = selectedItemOption ? selectedItemOption.dataset.itemDefinitionId : null;
+            const selectedItemData = getSelectedOptionData(els.item);
+            const selectedItemDefinitionId = selectedItemData ? selectedItemData.itemDefinitionId : null;
             const itemHasSubitems = !!(
                 hasLot &&
                 selectedItemDefinitionId &&
@@ -668,31 +707,28 @@
         }
 
         function clearFieldErrors(row) {
-            row.querySelectorAll('.js-client-invalid').forEach(function(field) {
-                field.classList.remove('js-client-invalid');
-            });
-            row.querySelectorAll('.js-inline-field-error').forEach(function(errorNode) {
-                errorNode.remove();
-            });
+            if (formErrors.clearInvalidInContainer) {
+                formErrors.clearInvalidInContainer(row);
+            }
         }
 
         function markFieldInvalid(field, message) {
-            if (!field) return;
-            field.classList.add('js-client-invalid');
-            if (!message) return;
-
-            const cell = field.closest('td');
-            if (!cell) return;
-
-            const errorNode = document.createElement('small');
-            errorNode.className = 'text-danger js-inline-field-error';
-            errorNode.textContent = message;
-            cell.appendChild(errorNode);
+            if (formErrors.markFieldInvalid) {
+                formErrors.markFieldInvalid(field, message);
+            }
         }
 
         function markInvalidFields(row, els, fields, message) {
             clearInvalidState(row);
             row.classList.add('danger');
+
+            if (fields && !Array.isArray(fields) && typeof fields === 'object') {
+                Object.keys(fields).forEach(function(fieldKey) {
+                    const field = els[fieldKey];
+                    markFieldInvalid(field, fields[fieldKey] || '');
+                });
+                return;
+            }
 
             const normalizedFields = Array.isArray(fields) ? fields : [fields];
             normalizedFields.forEach(function(fieldKey, index) {
@@ -717,6 +753,7 @@
 
         function validateRow(row, options) {
             const showErrors = !!(options && options.showErrors);
+            const requireCompleted = !!(options && options.requireCompleted);
             const els = rowElements(row);
 
             function fail(message, fields) {
@@ -739,6 +776,9 @@
 
             const hasAny = [els.lot?.value, els.item?.value, els.subitem?.value, els.quantity?.value, els.unitPrice?.value].some(Boolean);
             if (!hasAny) {
+                if (requireCompleted) {
+                    return fail('Debe seleccionar lote.', 'lot');
+                }
                 clearInvalidState(row);
                 return true;
             }
@@ -747,9 +787,13 @@
             const price = parseNumber(els.unitPrice?.dataset?.normalizedValue || els.unitPrice?.value || '0');
             const hasItem = !!(els.item && els.item.value);
             const hasSubitem = !!(els.subitem && els.subitem.value);
+            const itemRequiresSubitem = hasItem && getItemHasSubitemsForRow(row);
 
             if (!els.lot?.value) return fail('Debe seleccionar lote.', 'lot');
-            if (hasItem === hasSubitem) return fail('Debe seleccionar solo item o solo subitem.', ['item', 'subitem']);
+            if (!hasItem) {
+                return fail('Debe seleccionar un item.', 'item');
+            }
+            if (itemRequiresSubitem && !hasSubitem) return fail('Debe seleccionar un subitem.', 'subitem');
             if (!(qty > 0)) return fail('La cantidad debe ser mayor a cero.', 'quantity');
             if (!(price > 0)) return fail('El precio unitario debe ser mayor a cero.', 'unitPrice');
 
@@ -781,22 +825,10 @@
             });
         }
 
-        function hasAtLeastOneDetailLine() {
+        function hasActiveDetailRows() {
             return getRows().some(function(row) {
                 const els = rowElements(row);
-                if (!els || (els.del && els.del.checked)) return false;
-
-                const values = [
-                    els.lot?.value,
-                    els.item?.value,
-                    els.subitem?.value,
-                    els.quantity?.value,
-                    els.unitPrice?.value,
-                ];
-
-                return values.some(function(value) {
-                    return String(value || '').trim() !== '';
-                });
+                return !!(els && !(els.del && els.del.checked));
             });
         }
 
@@ -961,9 +993,6 @@
 
             if (els.subitem) {
                 bindSelectChangeEvents(els.subitem, function() {
-                    if (els.subitem.value && els.item) {
-                        resetSelectValue(els.item);
-                    }
                     filterRowOptions(row);
                     updateRowSelectionFlow(row);
                     setDefaultUnitPriceFromSelection(row);
@@ -1023,8 +1052,19 @@
 
             if (els.deleteBtn && els.del) {
                 els.deleteBtn.addEventListener('click', function() {
-                    els.del.checked = !els.del.checked;
-                    els.del.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (window.SIGECOPLineDelete && typeof window.SIGECOPLineDelete.toggleRow === 'function') {
+                        window.SIGECOPLineDelete.toggleRow(row, {
+                            labels: {
+                                deleteText: 'Eliminar detalle',
+                                restoreText: 'Restaurar detalle',
+                            },
+                        });
+                        validateRow(row);
+                        refreshRowAmounts(row);
+                    } else {
+                        els.del.checked = !els.del.checked;
+                        els.del.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 });
             }
 
@@ -1063,7 +1103,21 @@
         }
 
         form.addEventListener('submit', function(event) {
-            if (!hasAtLeastOneDetailLine()) {
+            const invalidHeaderField = validateHeaderRequiredFields();
+            if (invalidHeaderField) {
+                event.preventDefault();
+                showFormFeedback('Complete los campos obligatorios de la cabecera.', 'danger');
+                const wrapper = invalidHeaderField.closest('.row') || invalidHeaderField;
+                if (wrapper && wrapper.scrollIntoView) {
+                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                if (!invalidHeaderField.matches('select') && typeof invalidHeaderField.focus === 'function') {
+                    invalidHeaderField.focus();
+                }
+                return;
+            }
+
+            if (!hasActiveDetailRows()) {
                 event.preventDefault();
                 showFormFeedback('Debe agregar al menos una linea de detalle para guardar la orden.', 'danger');
                 const firstRow = getRows()[0];
@@ -1073,7 +1127,7 @@
                 return;
             }
 
-            if (!validateAllRows({ showErrors: true })) {
+            if (!validateAllRows({ showErrors: true, requireCompleted: true })) {
                 event.preventDefault();
                 showFormFeedback('Hay lineas con errores. Revise lote/item/subitem, cantidad y precio.', 'danger');
                 const invalidRow = firstInvalidRow();
@@ -1125,6 +1179,8 @@
 
         decorateFieldsWithErrors(form);
         bindRowEvents();
+        initSelect2In(form);
+        disableNativeRequiredOnEnhancedSelects(form);
 
         if (contractSelect && contractSelect.value && isEditMode) {
             renderContractInfo(initialContractSummary || null);

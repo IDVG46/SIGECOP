@@ -1,0 +1,4 @@
+<button type="button" class="line-delete-btn js-delete-line-btn{% if extra_class %} {{ extra_class }}{% endif %}" title="{{ title|default:'Eliminar detalle' }}">
+    <i class="ace-icon fa fa-trash-o bigger-130"></i>
+    {% if show_label %}<span class="delete-text js-delete-line-label">{{ title|default:'Eliminar detalle' }}</span>{% endif %}
+</button>

@@ -9,7 +9,9 @@ from django.views.generic import CreateView, ListView, UpdateView
 from apps.dncp_integration.models import Contract
 from apps.procurement.forms import (
     FulfillmentMemoForm,
+    FulfillmentMemoLineEditFormSet,
     FulfillmentMemoLineFormSet,
+    FulfillmentMemoPartialLineEditFormSet,
     FulfillmentMemoPartialLineFormSet,
 )
 from apps.procurement.models import FulfillmentMemo, FulfillmentMemoLine, FulfillmentMemoPartialLine
@@ -183,23 +185,23 @@ class FulfillmentMemoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
         contract = self._resolve_contract()
 
         if self.request.method == "POST":
-            context["line_formset"] = FulfillmentMemoLineFormSet(
+            context["line_formset"] = FulfillmentMemoLineEditFormSet(
                 self.request.POST,
                 instance=self.object,
                 contract=contract,
             )
-            context["partial_formset"] = FulfillmentMemoPartialLineFormSet(
+            context["partial_formset"] = FulfillmentMemoPartialLineEditFormSet(
                 self.request.POST,
                 prefix="partials",
                 queryset=self.object.partial_lines.all(),
                 form_kwargs={"contract": contract},
             )
         else:
-            context["line_formset"] = FulfillmentMemoLineFormSet(
+            context["line_formset"] = FulfillmentMemoLineEditFormSet(
                 instance=self.object,
                 contract=contract,
             )
-            context["partial_formset"] = FulfillmentMemoPartialLineFormSet(
+            context["partial_formset"] = FulfillmentMemoPartialLineEditFormSet(
                 prefix="partials",
                 queryset=self.object.partial_lines.all(),
                 form_kwargs={"contract": contract},

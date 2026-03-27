@@ -1,0 +1,19 @@
+.proc-form .budget-money-summary {
+    margin-top: 10px;
+}
+
+.proc-form .required-marker {
+    color: #d15b47;
+    margin-left: 2px;
+}
+
+#budget-form .widget-main .form-control.js-client-invalid {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
+}
+
+#budget-form .widget-main select.js-client-invalid + .ts-wrapper .ts-control,
+#budget-form .widget-main .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
+}
