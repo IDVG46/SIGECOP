@@ -1,4 +1,3 @@
-from collections import defaultdict
 from decimal import Decimal
 
 from django.contrib import messages
@@ -6,6 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
+from django.db.models import Q, Sum
 from django.urls import reverse_lazy
 from django.utils.safestring import mark_safe
 from django.views import View
@@ -19,7 +19,6 @@ from apps.procurement.forms import (
     PaymentForm,
 )
 from apps.procurement.models import (
-    ContractLotBalance,
     FulfillmentMemo,
     Payment,
     PurchaseOrder,
@@ -27,6 +26,7 @@ from apps.procurement.models import (
 from apps.procurement.selectors import get_payments_queryset
 from apps.procurement.services import cancel_payment, post_payment
 from apps.procurement.services.finance_service import get_unapproved_memos_for_orders
+from apps.procurement.services.payments import build_payment_lot_report_sections
 
 
 class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -100,7 +100,6 @@ class PaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
                 allocation_formset = PaymentAllocationFormSet(self.request.POST, instance=self.object)
             else:
                 allocation_formset = PaymentAllocationFormSet(instance=self.object)
-
         if not allocation_formset.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
 
@@ -129,10 +128,10 @@ class PaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
         if unapproved_by_order:
             error_lines = [
                 "<strong>Cumplimientos Pendientes de Aprobacion</strong><br><br>",
-                "Las siguientes ordenes tienen cumplimientos sin aprobar:<br><br>"
+                "Las siguientes ordenes tienen cumplimientos sin aprobar:<br><br>",
             ]
             for order_id, memos in sorted(unapproved_by_order.items()):
-                order = next((o for o in orders_to_pay if o.id == order_id), None)
+                order = next((order for order in orders_to_pay if order.id == order_id), None)
                 if order:
                     error_lines.append(f"<strong>Orden {order.order_number}:</strong><br>")
                     for memo in memos[:3]:
@@ -142,7 +141,6 @@ class PaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
                         error_lines.append(f"- ... y {len(memos) - 3} mas<br><br>")
 
             error_lines.append("<strong>Accion:</strong> Ve a <strong>Cumplimientos</strong> y aprueba todos los memos antes de crear este pago.")
-
             messages.warning(
                 self.request,
                 mark_safe("".join(error_lines))
@@ -185,7 +183,6 @@ class PaymentPostView(LoginRequiredMixin, PermissionRequiredMixin, View):
             post_payment(payment)
         except ValidationError as exc:
             error_messages = exc.messages if getattr(exc, "messages", None) else [str(exc)]
-
             error_html = "<strong>Error al Imputar el Pago</strong><br><br>"
             for idx, msg in enumerate(error_messages, 1):
                 error_html += f"<strong>{idx}.</strong> {msg}<br>"
@@ -482,117 +479,11 @@ class PaymentReportView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
         context["memos_grouped"] = memos_grouped
         context["formatted_payment_total"] = _format_amount(payment.amount_total, getattr(contract, "value_currency", None) if contract else None)
 
-        def _as_dec(v, default="0.00"):
-            if v is None:
-                return Decimal(default)
-            if isinstance(v, Decimal):
-                return v
-            return Decimal(str(v))
-
-        lot_sections = []
-        lot_sections_total = Decimal("0.00")
-
-        cur_order_ids = list({alloc.purchase_order_id for alloc in allocations})
-        if cur_order_ids:
-            from apps.procurement.models import PurchaseOrderLine
-
-            item_lines = list(
-                PurchaseOrderLine.objects
-                .filter(purchase_order_id__in=cur_order_ids)
-                .select_related(
-                    "lot",
-                    "purchase_order",
-                    "award_item__item",
-                    "award_subitem__subitem",
-                )
-            )
-
-            lot_pol_totals = defaultdict(lambda: {"qty": Decimal("0.000"), "pol": None})
-            lot_obj_map = {}
-            for pol in item_lines:
-                lot_obj_map[pol.lot_id] = pol.lot
-                k = (pol.lot_id, pol.id)
-                lot_pol_totals[k]["qty"] += _as_dec(pol.quantity, "0.000")
-                lot_pol_totals[k]["pol"] = pol
-
-            prev_lot_paid = {}
-            lot_balance_map = {}
-            if contract is not None and lot_obj_map:
-                for lb in ContractLotBalance.objects.filter(contract=contract, lot_id__in=list(lot_obj_map.keys())):
-                    lot_balance_map[lb.lot_id] = lb
-
-            lot_pols = defaultdict(list)
-            for (lot_id, pol_id), data in lot_pol_totals.items():
-                lot_pols[lot_id].append((pol_id, data))
-
-            def _pol_sort_key(entry):
-                pol = entry[1]["pol"]
-                order_number = pol.purchase_order.order_number or ""
-                if pol.award_item_id is not None:
-                    return (order_number, pol.award_item.orden_licitado or 9999, entry[0])
-                if pol.award_subitem_id is not None:
-                    return (order_number, pol.award_subitem.orden_licitado or 9999, entry[0])
-                return (order_number, 9999, entry[0])
-
-            for lot_id in sorted(lot_pols.keys(), key=lambda lid: lot_obj_map[lid].title):
-                lot = lot_obj_map[lot_id]
-                lb = lot_balance_map.get(lot_id)
-                max_amount = _as_dec(lb.max_amount) if lb else (_as_dec(lot.value_amount) if lot.value_amount else Decimal("0.00"))
-                prev_paid = prev_lot_paid.get(lot_id, Decimal("0.00"))
-                saldo_anterior = max_amount - prev_paid
-
-                items = []
-                current_amount = Decimal("0.00")
-                for pol_id, data in sorted(lot_pols[lot_id], key=_pol_sort_key):
-                    pol = data["pol"]
-                    qty = data["qty"]
-                    line_total = qty * pol.unit_price
-                    current_amount += line_total
-
-                    if pol.award_item_id is not None:
-                        item_number = pol.award_item.orden_licitado
-                        description = pol.award_item.item.description
-                    elif pol.award_subitem_id is not None:
-                        item_number = pol.award_subitem.orden_licitado
-                        description = pol.award_subitem.subitem.description
-                    else:
-                        item_number = None
-                        description = "-"
-
-                    items.append({
-                        "item_number": item_number,
-                        "description": description,
-                        "order_number": pol.purchase_order.order_number,
-                        "unit_price": pol.unit_price,
-                        "invoiced_qty": qty,
-                        "line_total": line_total,
-                    })
-
-                order_rowspans = defaultdict(int)
-                for item in items:
-                    order_rowspans[item["order_number"]] += 1
-
-                seen_orders = set()
-                for item in items:
-                    order_number = item["order_number"]
-                    if order_number in seen_orders:
-                        item["show_order"] = False
-                        item["order_rowspan"] = 0
-                    else:
-                        item["show_order"] = True
-                        item["order_rowspan"] = order_rowspans[order_number]
-                        seen_orders.add(order_number)
-
-                lot_sections.append({
-                    "lot": lot,
-                    "max_amount": max_amount,
-                    "saldo_anterior": saldo_anterior,
-                    "current_amount": current_amount,
-                    "saldo_actual": saldo_anterior - current_amount,
-                    "prev_paid": prev_paid,
-                    "items": items,
-                })
-                lot_sections_total += current_amount
+        lot_sections, lot_sections_total = build_payment_lot_report_sections(
+            payment=payment,
+            allocations=allocations,
+            contract=contract,
+        )
 
         context["lot_sections"] = lot_sections
         context["lot_sections_total"] = lot_sections_total

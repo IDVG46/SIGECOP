@@ -35,6 +35,7 @@ from apps.procurement.services.finance_service import (
     reconcile_order_payment,
     update_fulfillment_memo,
 )
+from apps.procurement.services.payments import build_payment_lot_report_sections
 
 
 class FinanceServicePhaseBTests(TestCase):
@@ -485,3 +486,57 @@ class FinanceServicePhaseBTests(TestCase):
 
         payment.refresh_from_db()
         self.assertEqual(payment.status, Payment.STATUS_POSTED)
+
+    def test_build_payment_lot_report_sections_uses_previous_posted_payments_as_snapshot(self):
+        memo = create_fulfillment_memo(
+            purchase_order=self.order,
+            beneficiary_sector="Mantenimiento",
+            memo_number="MEMO-B-013",
+            memo_date=timezone.now().date(),
+            created_by=self.user,
+            lines_data=[{"purchase_order_line": self.order_line, "fulfilled_quantity": Decimal("10.000")}],
+        )
+        approve_fulfillment_memo(memo)
+
+        first_payment = Payment.objects.create(
+            payment_number="PAGO-B-007",
+            payment_date=timezone.now().date(),
+            amount_total=Decimal("300.00"),
+            status=Payment.STATUS_DRAFT,
+            created_by=self.user,
+            contract=self.contract,
+        )
+        PaymentAllocation.objects.create(
+            payment=first_payment,
+            purchase_order=self.order,
+            contract_budget=self.budget,
+            amount=Decimal("300.00"),
+        )
+        post_payment(first_payment)
+
+        second_payment = Payment.objects.create(
+            payment_number="PAGO-B-008",
+            payment_date=timezone.now().date() + timezone.timedelta(days=1),
+            amount_total=Decimal("200.00"),
+            status=Payment.STATUS_DRAFT,
+            created_by=self.user,
+            contract=self.contract,
+        )
+        second_allocation = PaymentAllocation.objects.create(
+            payment=second_payment,
+            purchase_order=self.order,
+            contract_budget=self.budget,
+            amount=Decimal("200.00"),
+        )
+
+        lot_sections, lot_sections_total = build_payment_lot_report_sections(
+            payment=second_payment,
+            allocations=[second_allocation],
+            contract=self.contract,
+        )
+
+        self.assertEqual(len(lot_sections), 1)
+        self.assertEqual(lot_sections[0]["max_amount"], Decimal("8000.00"))
+        self.assertEqual(lot_sections[0]["prev_paid"], Decimal("300.00"))
+        self.assertEqual(lot_sections[0]["saldo_anterior"], Decimal("7700.00"))
+        self.assertEqual(lot_sections_total, Decimal("1000.00"))
