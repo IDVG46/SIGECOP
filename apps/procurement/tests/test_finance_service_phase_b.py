@@ -145,7 +145,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_approve_fulfillment_memo_blocks_overfulfillment(self):
         memo_1 = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-001",
             memo_date=timezone.now().date(),
@@ -156,7 +156,7 @@ class FinanceServicePhaseBTests(TestCase):
 
         with self.assertRaises(ValidationError):
             create_fulfillment_memo(
-                purchase_order=self.order,
+                contract=self.contract,
                 beneficiary_sector="Mantenimiento",
                 memo_number="MEMO-B-002",
                 memo_date=timezone.now().date(),
@@ -166,7 +166,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_post_payment_success_updates_budget_and_ledger(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-003",
             memo_date=timezone.now().date(),
@@ -208,7 +208,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_post_payment_fails_if_exceeds_approved_fulfillment(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-004",
             memo_date=timezone.now().date(),
@@ -236,7 +236,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_cancel_payment_reverses_execution(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-005",
             memo_date=timezone.now().date(),
@@ -279,7 +279,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_reconcile_order_payment_returns_expected_snapshot(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-006",
             memo_date=timezone.now().date(),
@@ -311,20 +311,21 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_create_total_memo_auto_generates_pending_lines(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             fulfillment_mode=FulfillmentMemo.MODE_TOTAL,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-007",
             memo_date=timezone.now().date(),
             created_by=self.user,
+            lines_data=[{"purchase_order": self.order, "purchase_order_line": self.order_line}],
         )
 
-        line = memo.lines.get(purchase_order_line=self.order_line)
+        line = memo.lines.get(purchase_order=self.order)
         self.assertEqual(line.fulfilled_quantity, Decimal("10.000"))
 
     def test_create_fulfillment_memo_starts_as_draft(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-011",
             memo_date=timezone.now().date(),
@@ -336,7 +337,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_update_fulfillment_memo_replaces_lines_before_approval(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-012",
             memo_date=timezone.now().date(),
@@ -346,7 +347,7 @@ class FinanceServicePhaseBTests(TestCase):
 
         update_fulfillment_memo(
             memo,
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Laboratorio",
             memo_number="MEMO-B-012-EDIT",
             memo_date=timezone.now().date(),
@@ -363,7 +364,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_create_total_memo_uses_remaining_pending_quantity(self):
         partial = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             fulfillment_mode=FulfillmentMemo.MODE_PARTIAL,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-008",
@@ -374,12 +375,13 @@ class FinanceServicePhaseBTests(TestCase):
         approve_fulfillment_memo(partial)
 
         total = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             fulfillment_mode=FulfillmentMemo.MODE_TOTAL,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-009",
             memo_date=timezone.now().date(),
             created_by=self.user,
+            lines_data=[{"purchase_order": self.order, "purchase_order_line": self.order_line}],
         )
 
         line = total.lines.get(purchase_order_line=self.order_line)
@@ -388,7 +390,7 @@ class FinanceServicePhaseBTests(TestCase):
     def test_create_partial_memo_requires_lines(self):
         with self.assertRaises(ValidationError):
             create_fulfillment_memo(
-                purchase_order=self.order,
+                contract=self.contract,
                 fulfillment_mode=FulfillmentMemo.MODE_PARTIAL,
                 beneficiary_sector="Mantenimiento",
                 memo_number="MEMO-B-010",
@@ -399,7 +401,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_post_payment_ac_budget_requires_active_amendment(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-011",
             memo_date=timezone.now().date(),
@@ -438,7 +440,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_post_payment_ac_budget_with_active_amendment_succeeds(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-012",
             memo_date=timezone.now().date(),
@@ -489,7 +491,7 @@ class FinanceServicePhaseBTests(TestCase):
 
     def test_build_payment_lot_report_sections_uses_previous_posted_payments_as_snapshot(self):
         memo = create_fulfillment_memo(
-            purchase_order=self.order,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-B-013",
             memo_date=timezone.now().date(),

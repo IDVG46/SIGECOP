@@ -19,6 +19,7 @@ from apps.procurement.models import (
     PurchaseOrder,
     PurchaseOrderLine,
 )
+from apps.procurement.services.finance_service import validate_payment_allocation_batch
 
 
 class ContractBudgetForm(LocalizedDecimalMixin, forms.ModelForm):
@@ -108,7 +109,6 @@ class FulfillmentMemoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["purchase_order"].required = False
         self.fields["fulfillment_mode"].required = False
         self.fields["received_by"].required = True
         self.fields["sender_position"].required = True
@@ -127,13 +127,12 @@ class FulfillmentMemoForm(forms.ModelForm):
             contract_id = self.data.get(self.add_prefix("contract"))
             self.fields["contract"].initial = contract_id
         elif self.instance and self.instance.pk:
-            self.fields["contract"].initial = self.instance.contract_id or getattr(self.instance.purchase_order, "contract_id", None)
+            self.fields["contract"].initial = self.instance.contract_id
 
     class Meta:
         model = FulfillmentMemo
         fields = [
             "contract",
-            "purchase_order",
             "fulfillment_mode",
             "beneficiary_sector",
             "memo_number",
@@ -144,7 +143,6 @@ class FulfillmentMemoForm(forms.ModelForm):
         ]
         widgets = {
             "contract": forms.Select(attrs={"class": "form-control select2"}),
-            "purchase_order": forms.Select(attrs={"class": "form-control select2"}),
             "fulfillment_mode": forms.Select(attrs={"class": "form-control select2"}),
             "beneficiary_sector": forms.TextInput(attrs={"class": "form-control"}),
             "memo_number": forms.TextInput(attrs={"class": "form-control"}),
@@ -201,7 +199,7 @@ class BaseFulfillmentMemoLineFormSet(forms.BaseInlineFormSet):
 
         resolved_contract = contract
         if resolved_contract is None and self.instance and self.instance.pk:
-            resolved_contract = self.instance.contract or getattr(self.instance.purchase_order, "contract", None)
+            resolved_contract = self.instance.contract
 
         self.contract = resolved_contract
 
@@ -504,13 +502,8 @@ class BasePaymentAllocationFormSet(forms.BaseInlineFormSet):
     def clean(self):
         super().clean()
 
-        # Validar que si el Payment tiene contrato, todas las órdenes deben ser de ese contrato
-        payment_contract = getattr(self.instance, "contract", None) if self.instance else None
-
-        submitted_by_order = {}
-        submitted_by_budget = {}
-        has_allocations = False
-
+        # Recolectar asignaciones válidas del formset
+        allocations = []
         for form in self.forms:
             if not hasattr(form, "cleaned_data"):
                 continue
@@ -525,82 +518,24 @@ class BasePaymentAllocationFormSet(forms.BaseInlineFormSet):
             if purchase_order is None or budget is None or amount in (None, ""):
                 continue
 
-            # Validar que la orden pertenece al contrato del pago (si está asignado)
-            if payment_contract and purchase_order.contract_id != payment_contract.id:
-                raise ValidationError(
-                    f"La orden {purchase_order.order_number} pertenece al contrato {purchase_order.contract_id}, "
-                    f"pero el pago está asignado al contrato {payment_contract.id}."
-                )
+            allocations.append({
+                "purchase_order": purchase_order,
+                "contract_budget": budget,
+                "amount": amount,
+            })
 
-            has_allocations = True
-            submitted_by_order[purchase_order.id] = submitted_by_order.get(purchase_order.id, 0) + amount
-            submitted_by_budget[budget.id] = submitted_by_budget.get(budget.id, 0) + amount
+        # Validación centralizada usando función de servicio
+        payment_contract = getattr(self.instance, "contract", None) if self.instance else None
+        excluded_payment_id = self.instance.pk if self.instance else None
 
-            if purchase_order.contract_id != budget.contract_id:
-                raise ValidationError(
-                    f"La orden {purchase_order.order_number} y el presupuesto {budget.id} no pertenecen al mismo contrato."
-                )
-
-            if purchase_order.expense_object_id != budget.expense_object_id:
-                raise ValidationError(
-                    f"La orden {purchase_order.order_number} y el presupuesto {budget.id} no coinciden en objeto de gasto."
-                )
-
-        if not has_allocations:
-            raise ValidationError("Debe registrar al menos una asignacion de pago.")
-
-        for order_id, submitted_amount in submitted_by_order.items():
-            order = PurchaseOrder.objects.filter(pk=order_id).first()
-            if order is None:
-                raise ValidationError("Se selecciono una orden de compra inexistente.")
-
-            already_paid = (
-                order.payment_allocations.filter(payment__status=Payment.STATUS_POSTED)
-                .exclude(payment_id=self.instance.pk)
-                .aggregate(total=models.Sum("amount"))["total"]
-                or 0
+        try:
+            validate_payment_allocation_batch(
+                allocations,
+                payment_contract=payment_contract,
+                excluded_payment_id=excluded_payment_id
             )
-
-            approved_lines = FulfillmentMemoLine.objects.filter(
-                purchase_order=order,
-                memo__status=FulfillmentMemo.STATUS_APPROVED,
-            )
-            approved_fulfilled_amount = Decimal("0.00")
-            ordered_qty = order.lines.aggregate(total=models.Sum("quantity"))["total"] or Decimal("0.000")
-            for ml in approved_lines:
-                if ml.fulfillment_mode == FulfillmentMemoLine.MODE_TOTAL:
-                    total_mode_qty = ml.fulfilled_quantity or Decimal("0.000")
-                    if total_mode_qty <= Decimal("0.000"):
-                        total_mode_qty = ordered_qty
-                    if ordered_qty > Decimal("0.000"):
-                        ratio = total_mode_qty / ordered_qty
-                        approved_fulfilled_amount += (order.total_amount or Decimal("0.00")) * ratio
-                else:
-                    approved_qty = ml.fulfilled_quantity or Decimal("0.000")
-                    if ordered_qty > Decimal("0.000"):
-                        ratio = approved_qty / ordered_qty
-                        approved_fulfilled_amount += (order.total_amount or Decimal("0.00")) * ratio
-
-            pending_by_order = (order.total_amount or 0) - already_paid
-            if submitted_amount > pending_by_order:
-                raise ValidationError(
-                    f"El monto para la orden {order.order_number} excede su saldo pendiente ({pending_by_order})."
-                )
-
-            if already_paid + submitted_amount > approved_fulfilled_amount:
-                raise ValidationError(
-                    f"El monto para la orden {order.order_number} excede el monto maximo de cumplimiento."
-                )
-
-        for budget_id, submitted_amount in submitted_by_budget.items():
-            budget = ContractBudget.objects.filter(pk=budget_id).first()
-            if budget is None:
-                raise ValidationError("Se selecciono un presupuesto inexistente.")
-
-            if submitted_amount > (budget.available_amount or 0):
-                raise ValidationError(
-                    f"El monto asignado al presupuesto {budget.id} excede su disponible ({budget.available_amount})."
-                )
+        except ValidationError as e:
+            raise ValidationError(str(e))
 
 
 PaymentAllocationFormSet = inlineformset_factory(

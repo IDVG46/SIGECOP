@@ -75,6 +75,7 @@ class PurchaseOrder(models.Model):
 		return self.order_number
 
 	def clean(self):
+		super().clean()
 		if not self.expense_object_id:
 			raise ValidationError({"expense_object": "Debe seleccionar un objeto de gasto."})
 
@@ -117,7 +118,12 @@ class PurchaseOrderLine(models.Model):
 	line_total = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
 
 	class Meta:
-		constraints = []
+		constraints = [
+			models.CheckConstraint(
+				condition=(Q(award_item__isnull=False, award_subitem__isnull=True) | Q(award_item__isnull=True, award_subitem__isnull=False)),
+				name="po_line_item_xor_sub_ck",
+			),
+		]
 		indexes = [
 			models.Index(fields=["purchase_order", "lot"], name="po_line_order_lot_idx"),
 		]
@@ -126,6 +132,7 @@ class PurchaseOrderLine(models.Model):
 		return f"{self.purchase_order.order_number} - línea {self.pk}"
 
 	def clean(self):
+		super().clean()
 		if not self.award_item_id and not self.award_subitem_id:
 			raise ValidationError("Debe seleccionar un item.")
 
@@ -173,6 +180,7 @@ class ContractLotBalance(models.Model):
 			models.UniqueConstraint(fields=["contract", "lot"], name="uq_contract_lot_balance"),
 			models.CheckConstraint(condition=Q(max_amount__gte=0), name="lot_balance_max_non_negative_ck"),
 			models.CheckConstraint(condition=Q(min_amount__gte=0), name="lot_balance_min_non_negative_ck"),
+			models.CheckConstraint(condition=Q(min_amount__lte=models.F("max_amount")), name="lot_balance_min_le_max_ck"),
 			models.CheckConstraint(condition=Q(committed_amount__gte=0), name="lot_balance_commit_non_neg_ck"),
 			models.CheckConstraint(condition=Q(executed_amount__gte=0), name="lot_balance_exec_non_neg_ck"),
 			models.CheckConstraint(
@@ -208,6 +216,16 @@ class ItemQuantityBalance(models.Model):
 
 	class Meta:
 		constraints = [
+			models.UniqueConstraint(
+				fields=["contract", "award_item"],
+				condition=Q(award_item__isnull=False, award_subitem__isnull=True),
+				name="item_bal_uq_ct_item_only",
+			),
+			models.UniqueConstraint(
+				fields=["contract", "award_subitem"],
+				condition=Q(award_item__isnull=True, award_subitem__isnull=False),
+				name="item_bal_uq_ct_sub_only",
+			),
 			models.CheckConstraint(
 				condition=(Q(award_item__isnull=False, award_subitem__isnull=True) | Q(award_item__isnull=True, award_subitem__isnull=False)),
 				name="item_balance_item_xor_subitem_ck",
@@ -396,14 +414,7 @@ class FulfillmentMemo(models.Model):
 		(STATUS_CANCELLED, "Anulado"),
 	)
 
-	contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="fulfillment_memos", null=True, blank=True)
-	purchase_order = models.ForeignKey(
-		PurchaseOrder,
-		on_delete=models.PROTECT,
-		related_name="fulfillment_memos",
-		null=True,
-		blank=True,
-	)
+	contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="fulfillment_memos")
 	fulfillment_mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_PARTIAL, db_index=True)
 	beneficiary_sector = models.CharField(max_length=255)
 	memo_number = models.CharField(max_length=100, db_index=True)
@@ -424,7 +435,6 @@ class FulfillmentMemo(models.Model):
 
 	class Meta:
 		indexes = [
-			models.Index(fields=["purchase_order", "status"], name="memo_order_status_idx"),
 			models.Index(fields=["beneficiary_sector", "memo_date"], name="memo_sector_date_idx"),
 			models.Index(fields=["contract", "status"], name="memo_ct_status_idx"),
 		]
@@ -433,16 +443,14 @@ class FulfillmentMemo(models.Model):
 		]
 
 	def __str__(self):
-		if self.purchase_order_id:
-			return f"Memo {self.memo_number} - {self.purchase_order.order_number}"
 		if self.contract_id:
 			return f"Memo {self.memo_number} - Contrato {self.contract_id}"
 		return f"Memo {self.memo_number}"
 
 	def clean(self):
 		super().clean()
-		if not self.contract_id and not self.purchase_order_id:
-			raise ValidationError("El memorandum debe estar asociado a un contrato o a una orden de compra.")
+		if not self.contract_id:
+			raise ValidationError({"contract": "El memorandum debe estar asociado a un contrato."})
 
 
 class FulfillmentMemoLine(models.Model):
@@ -500,8 +508,6 @@ class FulfillmentMemoLine(models.Model):
 		super().clean()
 		if self.memo_id and self.purchase_order_id:
 			memo_contract_id = self.memo.contract_id
-			if memo_contract_id is None and self.memo.purchase_order_id:
-				memo_contract_id = self.memo.purchase_order.contract_id
 			order_contract_id = self.purchase_order.contract_id
 			if memo_contract_id and memo_contract_id != order_contract_id:
 				raise ValidationError({"purchase_order": "La orden debe pertenecer al mismo contrato del memorandum."})
@@ -632,6 +638,11 @@ class PaymentAllocation(models.Model):
 				raise ValidationError(
 					"La orden de compra y el presupuesto deben pertenecer al mismo contrato."
 				)
+			if self.purchase_order.expense_object_id and self.contract_budget.expense_object_id:
+				if self.purchase_order.expense_object_id != self.contract_budget.expense_object_id:
+					raise ValidationError(
+						"La orden de compra y el presupuesto deben usar el mismo objeto de gasto."
+					)
 
 
 class BudgetLedgerEntry(models.Model):

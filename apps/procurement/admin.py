@@ -87,9 +87,9 @@ class ContractAmendmentAdmin(admin.ModelAdmin):
 
 @admin.register(FulfillmentMemo)
 class FulfillmentMemoAdmin(admin.ModelAdmin):
-	list_display = ("memo_number", "purchase_order", "beneficiary_sector", "memo_date", "status")
+	list_display = ("memo_number", "contract", "beneficiary_sector", "memo_date", "status")
 	list_filter = ("status", "memo_date", "beneficiary_sector")
-	search_fields = ("memo_number", "purchase_order__order_number", "beneficiary_sector")
+	search_fields = ("memo_number", "contract__id", "beneficiary_sector")
 	inlines = [FulfillmentMemoLineInline]
 
 

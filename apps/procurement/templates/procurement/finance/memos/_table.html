@@ -13,7 +13,7 @@
         {% for memo in memos %}
         <tr>
             <td class="center"><span style="font-family: monospace; font-weight: 600; color: #4D90FE;">{{ memo.memo_number }}</span></td>
-            <td class="center"><span style="font-family: monospace;">{% if memo.contract_id %}{{ memo.contract_id }}{% elif memo.purchase_order %}{{ memo.purchase_order.contract_id }}{% endif %}</span></td>
+            <td class="center"><span style="font-family: monospace;">{% if memo.contract_id %}{{ memo.contract_id }}{% endif %}</span></td>
             <td><div class="text-overflow" title="{{ memo.beneficiary_sector }}">{{ memo.beneficiary_sector }}</div></td>
             <td class="center">{{ memo.memo_date|date:"d/m/Y" }}</td>
             <td class="center"><span class="label label-sm label-default arrowed">{{ memo.get_status_display }}</span></td>

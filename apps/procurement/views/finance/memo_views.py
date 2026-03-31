@@ -178,7 +178,7 @@ class FulfillmentMemoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upd
         contract_id = self.request.POST.get("contract") if self.request.method == "POST" else None
         if contract_id:
             return Contract.objects.filter(pk=contract_id).first()
-        return self.object.contract or getattr(self.object.purchase_order, "contract", None)
+        return self.object.contract
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

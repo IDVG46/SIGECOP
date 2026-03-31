@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Crear contrato - SIGECOP{% endblock %}
+
+{% block page_title %}Crear Contrato{% endblock %}
+{% block page_subtitle %}Carga manual{% endblock %}
+
+{% block breadcrumb %}
+<ul class="breadcrumb">
+  <li>
+    <i class="ace-icon fa fa-home home-icon"></i>
+    <a href="{% url 'home' %}">Inicio</a>
+  </li>
+  <li>
+    <a href="{% url 'dncp_integration:contract_list' %}">Contratos</a>
+  </li>
+  <li class="active">Crear contrato</li>
+</ul>
+{% endblock %}
+
+{% block content %}
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="widget-box">
+  <div class="widget-header widget-header-green widget-header-flat">
+    <h4 class="widget-title lighter">
+      <i class="ace-icon fa fa-file-text-o"></i>
+      Nuevo contrato
+    </h4>
+  </div>
+  <div class="widget-body">
+    <div class="widget-main">
+      <form method="post" class="form-horizontal">
+        {% csrf_token %}
+
+        <div class="row">
+          <div class="col-md-12 form-group">
+            <label class="control-label">{{ form.award.label }}</label>
+            {{ form.award }}
+            {% if form.award.errors %}
+              <small class="text-danger">{{ form.award.errors.0 }}</small>
+            {% endif %}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">{{ form.contract_id.label }}</label>
+            {{ form.contract_id }}
+            {% if form.contract_id.errors %}
+              <small class="text-danger">{{ form.contract_id.errors.0 }}</small>
+            {% endif %}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">{{ form.status_details.label }}</label>
+            {{ form.status_details }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">Inicio</label>
+            {{ form.period_start_date }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">Fin</label>
+            {{ form.period_end_date }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">Monto</label>
+            {{ form.value_amount }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">Moneda</label>
+            {{ form.value_currency }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">{{ form.contract_number.label }}</label>
+            {{ form.contract_number }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">{{ form.resolution_number.label }}</label>
+            {{ form.resolution_number }}
+          </div>
+          <div class="col-md-12 form-group">
+            <label class="control-label">{{ form.resolution_sender.label }}</label>
+            {{ form.resolution_sender }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">{{ form.resolution_article.label }}</label>
+            {{ form.resolution_article }}
+          </div>
+          <div class="col-md-6 form-group">
+            <label class="control-label">{{ form.contract_administrator.label }}</label>
+            {{ form.contract_administrator }}
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">
+          <i class="ace-icon fa fa-check"></i>
+          Crear contrato
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

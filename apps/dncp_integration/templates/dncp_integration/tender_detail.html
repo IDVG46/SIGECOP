@@ -480,7 +480,8 @@
       $(".lote-collapse").collapse("hide");
     });
 
-    $(".open-subitems").on("click", function(event) {
+    // Event delegation keeps handlers working after DataTables redraw/pagination.
+    $(document).on("click", ".open-subitems", function(event) {
       event.preventDefault();
       var templateId = $(this).data("subitems-id");
       var itemOrden = $(this).data("item-orden");

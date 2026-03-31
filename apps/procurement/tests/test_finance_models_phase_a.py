@@ -167,7 +167,7 @@ class FinanceModelsPhaseATests(TestCase):
 
     def test_fulfillment_memo_line_must_belong_to_same_order(self):
         memo = FulfillmentMemo.objects.create(
-            purchase_order=self.order_1,
+            contract=self.contract,
             beneficiary_sector="Mantenimiento",
             memo_number="MEMO-001",
             memo_date=timezone.now().date(),
@@ -177,6 +177,7 @@ class FinanceModelsPhaseATests(TestCase):
 
         line = FulfillmentMemoLine(
             memo=memo,
+            purchase_order=self.order_1,
             purchase_order_line=self.order_line_2,
             fulfilled_quantity=Decimal("1.000"),
         )

@@ -127,6 +127,126 @@ def _pending_fulfilled_quantity_for_order_line(order_line, *, exclude_memo=None)
     pending = _to_decimal(order_line.quantity, default="0.000") - approved_qty
     return pending if pending > Decimal("0.000") else Decimal("0.000")
 
+
+def validate_payment_allocation_batch(allocations, payment_contract=None, excluded_payment_id=None):
+    """
+    Valida un conjunto de asignaciones de pago contra reglas de negocio centralizadas.
+    
+    Argumentos:
+    - allocations: list de PaymentAllocation objects (o dicts con purchase_order, contract_budget, amount)
+    - payment_contract: Contract opcional si el Payment está asignado a un contrato específico
+    - excluded_payment_id: ID del pago a excluir del cálculo de 'ya pagado' (para ediciones)
+    
+    Retorna:
+    - dict con {
+        'submitted_by_order': {order_id: amount_sum},
+        'submitted_by_budget': {budget_id: amount_sum},
+        'orders': {order_id: order_obj},
+        'budgets': {budget_id: budget_obj},
+      }
+    
+    Lanza ValidationError si hay inconsistencias.
+    """
+    if not allocations:
+        raise ValidationError("Debe registrar al menos una asignacion de pago.")
+    
+    submitted_by_order = {}
+    submitted_by_budget = {}
+    orders_dict = {}
+    budgets_dict = {}
+    
+    # Paso 1: Recolectar y validar asignaciones básicas
+    for alloc in allocations:
+        # Soportar tanto objetos como dicts
+        if isinstance(alloc, dict):
+            purchase_order = alloc.get("purchase_order")
+            budget = alloc.get("contract_budget")
+            amount = alloc.get("amount")
+        else:
+            purchase_order = alloc.purchase_order
+            budget = alloc.contract_budget
+            amount = alloc.amount
+        
+        if purchase_order is None or budget is None or amount in (None, ""):
+            continue
+        
+        # Validar que la orden pertenece al contrato del pago (si está asignado)
+        if payment_contract and purchase_order.contract_id != payment_contract.id:
+            raise ValidationError(
+                f"La orden {purchase_order.order_number} pertenece al contrato {purchase_order.contract_id}, "
+                f"pero el pago está asignado al contrato {payment_contract.id}."
+            )
+        
+        # Validar coherencia orden-presupuesto
+        if purchase_order.contract_id != budget.contract_id:
+            raise ValidationError(
+                f"La orden {purchase_order.order_number} y el presupuesto {budget.id} no pertenecen al mismo contrato."
+            )
+        
+        if purchase_order.expense_object_id != budget.expense_object_id:
+            raise ValidationError(
+                f"La orden {purchase_order.order_number} y el presupuesto {budget.id} no coinciden en objeto de gasto."
+            )
+        
+        # Acumular montos
+        amount_decimal = _to_decimal(amount)
+        submitted_by_order[purchase_order.id] = submitted_by_order.get(purchase_order.id, Decimal("0.00")) + amount_decimal
+        submitted_by_budget[budget.id] = submitted_by_budget.get(budget.id, Decimal("0.00")) + amount_decimal
+        
+        # Cachear objetos para paso 2
+        if purchase_order.id not in orders_dict:
+            orders_dict[purchase_order.id] = purchase_order
+        if budget.id not in budgets_dict:
+            budgets_dict[budget.id] = budget
+    
+    if not submitted_by_order:
+        raise ValidationError("Debe registrar al menos una asignacion de pago.")
+    
+    # Paso 2: Validar saldos per-orden
+    for order_id, submitted_amount in submitted_by_order.items():
+        order = orders_dict[order_id]
+        
+        # Calcular montos ya pagados (excluyendo el pago actual si se proporciona ID)
+        filter_kwargs = {"payment__status": Payment.STATUS_POSTED}
+        if excluded_payment_id:
+            already_paid_qs = order.payment_allocations.filter(**filter_kwargs).exclude(payment_id=excluded_payment_id)
+        else:
+            already_paid_qs = order.payment_allocations.filter(**filter_kwargs)
+        
+        already_paid = _to_decimal(already_paid_qs.aggregate(total=Sum("amount"))["total"])
+        
+        # Calcular monto cumplido aprobado
+        approved_fulfilled_amount = _approved_fulfilled_amount(order)
+        
+        # Validar saldo pendiente
+        pending_by_order = (order.total_amount or Decimal("0.00")) - already_paid
+        if submitted_amount > pending_by_order:
+            raise ValidationError(
+                f"El monto para la orden {order.order_number} excede su saldo pendiente ({pending_by_order})."
+            )
+        
+        # Validar no exceder monto cumplido aprobado
+        if already_paid + submitted_amount > approved_fulfilled_amount:
+            raise ValidationError(
+                f"El monto para la orden {order.order_number} excede el monto maximo de cumplimiento."
+            )
+    
+    # Paso 3: Validar disponibilidad de presupuestos
+    for budget_id, submitted_amount in submitted_by_budget.items():
+        budget = budgets_dict[budget_id]
+        if submitted_amount > (budget.available_amount or Decimal("0.00")):
+            raise ValidationError(
+                f"El monto asignado al presupuesto {budget.id} excede su disponible ({budget.available_amount})."
+            )
+    
+    return {
+        'submitted_by_order': submitted_by_order,
+        'submitted_by_budget': submitted_by_budget,
+        'orders': orders_dict,
+        'budgets': budgets_dict,
+    }
+
+
 def _resolve_fulfillment_lines_data(
     contract,
     fulfillment_mode,
@@ -134,25 +254,11 @@ def _resolve_fulfillment_lines_data(
     partial_lines_data=None,
     *,
     exclude_memo=None,
-    default_order=None,
 ):
     if contract is None:
         raise ValidationError("Debe seleccionar un contrato para el memorandum.")
 
     resolved_lines = list(lines_data or [])
-    if not resolved_lines and fulfillment_mode == FulfillmentMemoLine.MODE_TOTAL and default_order is not None:
-        default_order_lines = list(default_order.lines.order_by("id")[:2])
-        default_order_line = default_order_lines[0] if len(default_order_lines) == 1 else None
-        resolved_lines = [
-            {
-                "purchase_order": default_order,
-                "purchase_order_line": default_order_line,
-                "line_mode": FulfillmentMemoLine.MODE_TOTAL,
-                "fulfilled_quantity": None,
-                "observations": "",
-            }
-        ]
-
     if not resolved_lines:
         raise ValidationError("Debe agregar al menos una linea de cumplimiento.")
 
@@ -343,7 +449,6 @@ def approve_budget(budget):
 def create_fulfillment_memo(
     *,
     contract=None,
-    purchase_order=None,
     beneficiary_sector,
     memo_number,
     memo_date,
@@ -355,23 +460,15 @@ def create_fulfillment_memo(
     notes="",
     fulfillment_mode=FulfillmentMemo.MODE_PARTIAL,
 ):
-    if contract is None and purchase_order is not None:
-        contract = purchase_order.contract
-
     lines_data, partial_lines_data = _resolve_fulfillment_lines_data(
         contract,
         fulfillment_mode,
         lines_data,
         partial_lines_data,
-        default_order=purchase_order,
     )
-
-    # Use first order as the header purchase_order (backward-compat field on FulfillmentMemo)
-    primary_order = lines_data[0]["purchase_order"] if lines_data else None
 
     memo = FulfillmentMemo.objects.create(
         contract=contract,
-        purchase_order=primary_order,
         fulfillment_mode=fulfillment_mode,
         beneficiary_sector=beneficiary_sector,
         memo_number=memo_number,
@@ -414,7 +511,6 @@ def update_fulfillment_memo(
     memo,
     *,
     contract=None,
-    purchase_order=None,
     beneficiary_sector,
     memo_number,
     memo_date,
@@ -428,21 +524,15 @@ def update_fulfillment_memo(
     if memo.status in {FulfillmentMemo.STATUS_APPROVED, FulfillmentMemo.STATUS_CANCELLED, FulfillmentMemo.STATUS_REJECTED}:
         raise ValidationError("Solo se puede editar un memorandum pendiente de aprobacion.")
 
-    if contract is None and purchase_order is not None:
-        contract = purchase_order.contract
-
     resolved_lines, resolved_partial_lines = _resolve_fulfillment_lines_data(
         contract,
         fulfillment_mode,
         lines_data,
         partial_lines_data,
         exclude_memo=memo,
-        default_order=purchase_order,
     )
 
-    primary_order = resolved_lines[0]["purchase_order"] if resolved_lines else None
     memo.contract = contract
-    memo.purchase_order = primary_order
     memo.fulfillment_mode = fulfillment_mode
     memo.beneficiary_sector = beneficiary_sector
     memo.memo_number = memo_number
@@ -546,37 +636,25 @@ def post_payment(payment):
     if allocations_total != _to_decimal(payment.amount_total):
         raise ValidationError("La suma de asignaciones debe ser igual al total del pago.")
 
-    submitted_by_order = {}
-    submitted_by_budget = {}
+    # Validación centralizada de asignaciones
+    validation_result = validate_payment_allocation_batch(
+        allocations, 
+        payment_contract=getattr(payment, "contract", None),
+        excluded_payment_id=payment.id
+    )
+    
+    submitted_by_order = validation_result['submitted_by_order']
+    submitted_by_budget = validation_result['submitted_by_budget']
+    budgets_dict = validation_result['budgets']
 
+    # Validar código financiero y contexto de pago para cada asignación
     for alloc in allocations:
         order = alloc.purchase_order
         budget = alloc.contract_budget
-        if budget is None:
-            raise ValidationError("Cada asignacion de pago debe tener un presupuesto asociado.")
-        submitted_by_order[order.id] = submitted_by_order.get(order.id, Decimal("0.00")) + _to_decimal(alloc.amount)
-        submitted_by_budget[budget.id] = submitted_by_budget.get(budget.id, Decimal("0.00")) + _to_decimal(alloc.amount)
-
-        if order.contract_id != budget.contract_id or order.expense_object_id != budget.expense_object_id:
-            raise ValidationError(
-                f"La asignacion {order.order_number} / presupuesto {budget.id} no coincide en contrato y objeto de gasto."
-            )
-
         _validate_budget_financial_code(budget, payment.payment_date)
+        validate_payment_context(order, budget, already_paid=_posted_paid_amount(order), payment_amount=alloc.amount)
 
-    for alloc in allocations:
-        order = alloc.purchase_order
-        budget = alloc.contract_budget
-        already_paid = _posted_paid_amount(order)
-        submitted_for_order = submitted_by_order.get(order.id, Decimal("0.00"))
-        validate_payment_context(order, budget, already_paid=already_paid, payment_amount=alloc.amount)
-
-        approved_fulfilled_amount = _approved_fulfilled_amount(order)
-        if already_paid + submitted_for_order > approved_fulfilled_amount:
-            raise ValidationError(
-                f"El pago para la orden {order.order_number} excede el monto cumplido aprobado."
-            )
-
+    # Lock y ejecutar presupuestos
     locked_budgets = {
         budget.id: budget
         for budget in ContractBudget.objects.select_for_update().filter(id__in=list(submitted_by_budget.keys()))

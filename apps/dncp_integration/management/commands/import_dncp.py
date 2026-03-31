@@ -28,10 +28,16 @@ class Command(BaseCommand):
             action="store_true",
             help="No guarda en la base de datos, solo valida.",
         )
+        parser.add_argument(
+            "--force-reprocess",
+            action="store_true",
+            help="Reprocesa con la lógica actual aunque el release no sea más nuevo.",
+        )
 
     def handle(self, *args, **options):
         ocids = options.get("ocids") or []
         dry_run = options.get("dry_run")
+        force_reprocess = options.get("force_reprocess")
 
         if not ocids:
             self.stderr.write("Debes proveer al menos un --ocid.")
@@ -61,41 +67,57 @@ class Command(BaseCommand):
                 release_date = parse_datetime(release_date_raw) if release_date_raw else None
                 if release_date is None:
                     raise ValueError("release.date invalido o ausente")
-                if timezone.is_naive(release_date):
-                    release_date = timezone.make_aware(release_date)
+                if timezone.is_aware(release_date):
+                    release_date = timezone.make_naive(release_date)
 
                 payload_hash = hashlib.sha256(
                     json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
                 ).hexdigest()
 
                 latest = RawRelease.objects.filter(ocid=ocid).order_by("-release_date").first()
-                if latest and release_date <= latest.release_date:
+                latest_release_date = latest.release_date if latest else None
+                if latest_release_date and timezone.is_aware(latest_release_date):
+                    latest_release_date = timezone.make_naive(latest_release_date)
+                if latest_release_date and release_date <= latest_release_date and not force_reprocess:
                     skipped += 1
                     continue
 
                 if not dry_run:
                     with transaction.atomic():
-                        raw_release = RawRelease.objects.create(
-                            ocid=ocid,
-                            release_id=release_id or "",
-                            release_date=release_date,
-                            payload=payload,
-                            payload_hash=payload_hash,
-                            import_run=run,
-                        )
+                        if latest_release_date and release_date <= latest_release_date and force_reprocess:
+                            compiled_release_obj, _ = CompiledRelease.objects.update_or_create(
+                                ocid=ocid,
+                                defaults={
+                                    "release_id": release_id or "",
+                                    "date": release_date,
+                                    "raw_release": latest,
+                                    "last_synced_at": timezone.now(),
+                                    "import_run": run,
+                                },
+                            )
+                            mapper.persist(compiled_release_obj, compiled_release)
+                        else:
+                            raw_release = RawRelease.objects.create(
+                                ocid=ocid,
+                                release_id=release_id or "",
+                                release_date=release_date,
+                                payload=payload,
+                                payload_hash=payload_hash,
+                                import_run=run,
+                            )
 
-                        compiled_release_obj, _ = CompiledRelease.objects.update_or_create(
-                            ocid=ocid,
-                            defaults={
-                                "release_id": release_id or "",
-                                "date": release_date,
-                                "raw_release": raw_release,
-                                "last_synced_at": timezone.now(),
-                                "import_run": run,
-                            },
-                        )
+                            compiled_release_obj, _ = CompiledRelease.objects.update_or_create(
+                                ocid=ocid,
+                                defaults={
+                                    "release_id": release_id or "",
+                                    "date": release_date,
+                                    "raw_release": raw_release,
+                                    "last_synced_at": timezone.now(),
+                                    "import_run": run,
+                                },
+                            )
 
-                        mapper.persist(compiled_release_obj, compiled_release)
+                            mapper.persist(compiled_release_obj, compiled_release)
 
                 imported += 1
             except Exception as exc:

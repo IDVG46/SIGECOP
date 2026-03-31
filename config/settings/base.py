@@ -134,3 +134,39 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
+# Logging local para auditoria de importaciones DNCP y casos especiales.
+LOCAL_LOG_DIR = BASE_DIR / ".copilot_local" / "logs"
+LOCAL_LOG_DIR.mkdir(parents=True, exist_ok=True)
+DNCP_IMPORT_LOG_FILE = LOCAL_LOG_DIR / "dncp_import.log"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "dncp_file": {
+            "class": "logging.FileHandler",
+            "filename": str(DNCP_IMPORT_LOG_FILE),
+            "encoding": "utf-8",
+            "formatter": "verbose",
+            "level": "INFO",
+        },
+    },
+    "loggers": {
+        "apps.dncp_integration": {
+            "handlers": ["console", "dncp_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+

@@ -9,6 +9,7 @@ from apps.dncp_integration.models import (
     Award,
     AwardItem,
     AwardSubItem,
+    Currency,
     Party,
 )
 
@@ -303,3 +304,115 @@ AwardSubItemFormSet = modelformset_factory(
     can_delete=False,
     fields=['quantity', 'unit_price_amount']
 )
+
+
+class AwardChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        tender_id = getattr(obj.tender, "tenderID", "-") if obj.tender else "-"
+        return f"{obj.id} | Licitacion {tender_id}"
+
+
+class ContractManualCreateForm(forms.Form):
+    award = AwardChoiceField(
+        queryset=Award.objects.select_related("tender").order_by("-date"),
+        label="Adjudicacion asociada",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+    contract_id = forms.CharField(
+        required=False,
+        max_length=255,
+        label="ID de contrato",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Si se deja vacio, se genera automaticamente",
+            }
+        ),
+    )
+    status_details = forms.CharField(
+        required=False,
+        max_length=50,
+        label="Estado",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    period_start_date = forms.DateTimeField(
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S"],
+        widget=forms.DateTimeInput(
+            format="%Y-%m-%dT%H:%M",
+            attrs={"class": "form-control", "type": "datetime-local"},
+        ),
+    )
+    period_end_date = forms.DateTimeField(
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S"],
+        widget=forms.DateTimeInput(
+            format="%Y-%m-%dT%H:%M",
+            attrs={"class": "form-control", "type": "datetime-local"},
+        ),
+    )
+    value_amount = forms.DecimalField(
+        required=False,
+        max_digits=18,
+        decimal_places=2,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Monto"}),
+    )
+    value_currency = forms.ModelChoiceField(
+        queryset=Currency.objects.all().order_by("code"),
+        required=False,
+        empty_label="Seleccionar moneda",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    contract_number = forms.CharField(
+        required=False,
+        max_length=100,
+        label="Numero de contrato",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    resolution_number = forms.CharField(
+        required=False,
+        max_length=100,
+        label="Numero de resolucion",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    resolution_sender = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Remitente de la resolucion",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    resolution_article = forms.CharField(
+        required=False,
+        max_length=50,
+        label="Articulo de designacion",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    contract_administrator = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Administrador/a del contrato",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+
+    def clean_contract_id(self):
+        contract_id = (self.cleaned_data.get("contract_id") or "").strip()
+        if not contract_id:
+            return ""
+        if Contract.objects.filter(id=contract_id).exists():
+            raise forms.ValidationError("Ya existe un contrato con ese ID.")
+        return contract_id
+
+    def clean_value_amount(self):
+        raw_value = self.cleaned_data.get("value_amount")
+        if raw_value in (None, ""):
+            return None
+        if isinstance(raw_value, Decimal):
+            return raw_value
+        if isinstance(raw_value, str):
+            normalized = raw_value.replace(".", "").replace(",", ".").strip()
+            try:
+                return Decimal(normalized)
+            except InvalidOperation:
+                raise forms.ValidationError("Monto invalido.")
+        return raw_value
