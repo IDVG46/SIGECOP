@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Nuevo presupuesto - SIGECOP{% endblock %}
+
+{% block page_title %}
+<i class="ace-icon fa fa-money"></i>
+Presupuestos
+{% endblock %}
+
+{% block page_subtitle %}Seleccionar contrato{% endblock %}
+
+{% block breadcrumb %}
+<li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
+<li><a href="{% url 'procurement:budget_list' %}">Presupuestos</a></li>
+<li class="active">Seleccionar contrato</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
+{% endblock %}
+
+{% block content %}
+<form method="post" class="proc-form">
+    {% csrf_token %}
+    <div class="widget-box" style="max-width: 540px; margin: 0 auto;">
+        {% include "procurement/components/card_header.html" with title="¿Para qué contrato?" %}
+        <div class="widget-body">
+            <div class="widget-main">
+                <p class="text-muted" style="margin-bottom: 14px;">
+                    Seleccione el contrato para acceder al editor de presupuestos. Allí podrá agregar, modificar o eliminar todos los presupuestos de ese contrato en una sola pantalla.
+                </p>
+                {% if form.contract.errors %}
+                <div class="alert alert-danger">{{ form.contract.errors }}</div>
+                {% endif %}
+                <div class="form-group">
+                    <label for="{{ form.contract.id_for_label }}">{{ form.contract.label }} <span class="required-marker">*</span></label>
+                    {{ form.contract }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% url 'procurement:budget_list' as cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="go-to-batch-btn" cancel_url=cancel_url %}
+</form>
+{% endblock %}

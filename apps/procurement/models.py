@@ -23,6 +23,34 @@ class ExpenseObject(models.Model):
 		return f"{self.code} - {self.description}"
 
 
+class ApplicationScope(models.Model):
+	TYPE_SECTOR = "sector"
+	TYPE_TEAM = "team"
+	TYPE_EQUIPMENT = "equipment"
+	TYPE_OTHER = "other"
+
+	TYPE_CHOICES = (
+		(TYPE_SECTOR, "Sector"),
+		(TYPE_TEAM, "Equipo"),
+		(TYPE_EQUIPMENT, "Activo/Equipo especifico"),
+		(TYPE_OTHER, "Otro"),
+	)
+
+	name = models.CharField(max_length=255, unique=True, verbose_name="Nombre")
+	scope_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_SECTOR, db_index=True, verbose_name="Tipo")
+	is_active = models.BooleanField(default=True, db_index=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ["name"]
+		verbose_name = "Ambito de aplicacion"
+		verbose_name_plural = "Ambitos de aplicacion"
+
+	def __str__(self):
+		return self.name
+
+
 class PurchaseOrder(models.Model):
 	STATUS_DRAFT = "draft"
 	STATUS_APPROVED = "approved"
@@ -57,6 +85,20 @@ class PurchaseOrder(models.Model):
 		blank=True,
 		verbose_name="Objeto de gasto",
 	)
+	application_scope = models.ForeignKey(
+		ApplicationScope,
+		on_delete=models.PROTECT,
+		related_name="purchase_orders",
+		null=True,
+		blank=True,
+		verbose_name="Ambito de aplicacion",
+	)
+	application_detail = models.CharField(
+		max_length=255,
+		blank=True,
+		default="",
+		verbose_name="Detalle especifico de aplicacion",
+	)
 	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
 	total_amount = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
 	notes = models.TextField(blank=True, default="")
@@ -87,6 +129,16 @@ class PurchaseOrder(models.Model):
 		if self.expense_object_id and not self.expense_object.is_active:
 			raise ValidationError({"expense_object": "El objeto de gasto seleccionado esta inactivo."})
 
+		if self.application_scope_id and not self.application_scope.is_active:
+			raise ValidationError({"application_scope": "El ambito de aplicacion seleccionado esta inactivo."})
+
+	def application_scope_display(self):
+		if self.application_scope_id:
+			if self.application_detail:
+				return f"{self.application_scope.name} - {self.application_detail}"
+			return self.application_scope.name
+		return self.application_detail or ""
+
 
 class PurchaseOrderLine(models.Model):
 	purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name="lines")
@@ -95,8 +147,7 @@ class PurchaseOrderLine(models.Model):
 		AwardItem,
 		on_delete=models.PROTECT,
 		related_name="purchase_order_lines",
-		null=True,
-		blank=True,
+		verbose_name="Item de licitación",
 	)
 	award_subitem = models.ForeignKey(
 		AwardSubItem,
@@ -116,14 +167,23 @@ class PurchaseOrderLine(models.Model):
 		validators=[MinValueValidator(Decimal("0.01"))],
 	)
 	line_total = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+	application_scope = models.ForeignKey(
+		ApplicationScope,
+		on_delete=models.PROTECT,
+		related_name="purchase_order_lines",
+		null=True,
+		blank=True,
+		verbose_name="Ambito de aplicacion",
+	)
+	application_detail = models.CharField(
+		max_length=255,
+		blank=True,
+		default="",
+		verbose_name="Detalle especifico de aplicacion",
+	)
 
 	class Meta:
-		constraints = [
-			models.CheckConstraint(
-				condition=(Q(award_item__isnull=False, award_subitem__isnull=True) | Q(award_item__isnull=True, award_subitem__isnull=False)),
-				name="po_line_item_xor_sub_ck",
-			),
-		]
+		constraints = []
 		indexes = [
 			models.Index(fields=["purchase_order", "lot"], name="po_line_order_lot_idx"),
 		]
@@ -133,9 +193,6 @@ class PurchaseOrderLine(models.Model):
 
 	def clean(self):
 		super().clean()
-		if not self.award_item_id and not self.award_subitem_id:
-			raise ValidationError("Debe seleccionar un item.")
-
 		if self.award_subitem_id and not self.award_item_id:
 			raise ValidationError({"award_item": "Debe seleccionar un item para el subitem elegido."})
 
@@ -165,6 +222,32 @@ class PurchaseOrderLine(models.Model):
 			item_lot_id = self.award_subitem.subitem.item.lot_id
 			if item_lot_id != self.lot_id:
 				raise ValidationError({"lot": "El lote no coincide con el subitem seleccionado."})
+
+		if self.application_scope_id and not self.application_scope.is_active:
+			raise ValidationError({"application_scope": "El ambito de aplicacion seleccionado esta inactivo."})
+
+	def effective_application_scope(self):
+		if self.application_scope_id:
+			return self.application_scope
+		if self.purchase_order_id:
+			return self.purchase_order.application_scope
+		return None
+
+	def effective_application_detail(self):
+		if self.application_detail:
+			return self.application_detail
+		if self.purchase_order_id:
+			return self.purchase_order.application_detail or ""
+		return ""
+
+	def effective_application_display(self):
+		scope = self.effective_application_scope()
+		detail = self.effective_application_detail()
+		if scope and detail:
+			return f"{scope.name} - {detail}"
+		if scope:
+			return scope.name
+		return detail
 
 
 class ContractLotBalance(models.Model):
@@ -387,19 +470,12 @@ class ContractAmendment(models.Model):
 					{"period_extension_days": "Una adenda mixta requiere dias o nueva fecha fin."}
 				)
 
-		if self.amendment_type in {self.TYPE_AMOUNT, self.TYPE_MIXED} and not self.financial_code:
-			raise ValidationError({"financial_code": "La adenda con impacto financiero requiere codigo financiero."})
+		if not (self.financial_code or "").strip():
+			raise ValidationError({"financial_code": "El codigo financiero es obligatorio para la adenda."})
+
 
 
 class FulfillmentMemo(models.Model):
-	MODE_PARTIAL = "partial"
-	MODE_TOTAL = "total"
-
-	MODE_CHOICES = (
-		(MODE_PARTIAL, "Parcial detallado"),
-		(MODE_TOTAL, "Total"),
-	)
-
 	STATUS_DRAFT = "draft"
 	STATUS_ISSUED = "issued"
 	STATUS_APPROVED = "approved"
@@ -415,8 +491,20 @@ class FulfillmentMemo(models.Model):
 	)
 
 	contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="fulfillment_memos")
-	fulfillment_mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_PARTIAL, db_index=True)
-	beneficiary_sector = models.CharField(max_length=255)
+	application_scope = models.ForeignKey(
+		ApplicationScope,
+		on_delete=models.PROTECT,
+		related_name="fulfillment_memos",
+		null=True,
+		blank=True,
+		verbose_name="Ambito de aplicacion",
+	)
+	application_detail = models.CharField(
+		max_length=255,
+		blank=True,
+		default="",
+		verbose_name="Detalle especifico de aplicacion",
+	)
 	memo_number = models.CharField(max_length=100, db_index=True)
 	memo_date = models.DateField(db_index=True)
 	received_by = models.CharField(max_length=255, blank=True, default="")
@@ -435,11 +523,11 @@ class FulfillmentMemo(models.Model):
 
 	class Meta:
 		indexes = [
-			models.Index(fields=["beneficiary_sector", "memo_date"], name="memo_sector_date_idx"),
+			models.Index(fields=["memo_date", "status"], name="memo_date_status_idx"),
 			models.Index(fields=["contract", "status"], name="memo_ct_status_idx"),
 		]
 		constraints = [
-			models.UniqueConstraint(fields=["beneficiary_sector", "memo_number"], name="uq_memo_sector_number"),
+			models.UniqueConstraint(fields=["contract", "memo_number"], name="uq_memo_contract_num"),
 		]
 
 	def __str__(self):
@@ -452,16 +540,21 @@ class FulfillmentMemo(models.Model):
 		if not self.contract_id:
 			raise ValidationError({"contract": "El memorandum debe estar asociado a un contrato."})
 
+		if self.application_scope_id and not self.application_scope.is_active:
+			raise ValidationError({"application_scope": "El ambito de aplicacion seleccionado esta inactivo."})
+
+		if not self.application_scope_id and not self.application_detail:
+			raise ValidationError({"application_scope": "Debe seleccionar un ambito de aplicacion o indicar un detalle."})
+
+	def application_scope_display(self):
+		if self.application_scope_id:
+			if self.application_detail:
+				return f"{self.application_scope.name} - {self.application_detail}"
+			return self.application_scope.name
+		return self.application_detail or ""
+
 
 class FulfillmentMemoLine(models.Model):
-	MODE_PARTIAL = "partial"
-	MODE_TOTAL = "total"
-
-	MODE_CHOICES = (
-		(MODE_PARTIAL, "Parcial"),
-		(MODE_TOTAL, "Total"),
-	)
-
 	memo = models.ForeignKey(FulfillmentMemo, on_delete=models.CASCADE, related_name="lines")
 	purchase_order = models.ForeignKey(
 		PurchaseOrder,
@@ -473,18 +566,28 @@ class FulfillmentMemoLine(models.Model):
 		"PurchaseOrderLine",
 		on_delete=models.PROTECT,
 		related_name="fulfillment_lines",
-		null=True,
-		blank=True,
 		verbose_name="Linea de orden de compra",
 	)
-	fulfillment_mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_PARTIAL, db_index=True)
 	fulfilled_quantity = models.DecimalField(
 		max_digits=18,
 		decimal_places=3,
-		null=True,
-		blank=True,
+		validators=[MinValueValidator(Decimal("0.001"))],
 	)
 	observations = models.TextField(blank=True, default="")
+	application_scope = models.ForeignKey(
+		ApplicationScope,
+		on_delete=models.PROTECT,
+		related_name="fulfillment_memo_lines",
+		null=True,
+		blank=True,
+		verbose_name="Ambito de aplicacion",
+	)
+	application_detail = models.CharField(
+		max_length=255,
+		blank=True,
+		default="",
+		verbose_name="Detalle especifico de aplicacion",
+	)
 
 	class Meta:
 		indexes = [
@@ -493,14 +596,8 @@ class FulfillmentMemoLine(models.Model):
 		]
 		constraints = [
 			models.UniqueConstraint(
-				fields=["memo", "purchase_order"],
-				condition=Q(purchase_order_line__isnull=True),
-				name="uq_memo_purchase_order_total",
-			),
-			models.UniqueConstraint(
-				fields=["memo", "purchase_order", "purchase_order_line"],
-				condition=Q(purchase_order_line__isnull=False),
-				name="uq_memo_purchase_order_line",
+				fields=["memo", "purchase_order_line"],
+				name="uq_memo_line_orderline",
 			),
 		]
 
@@ -512,53 +609,31 @@ class FulfillmentMemoLine(models.Model):
 			if memo_contract_id and memo_contract_id != order_contract_id:
 				raise ValidationError({"purchase_order": "La orden debe pertenecer al mismo contrato del memorandum."})
 
-		if self.fulfillment_mode == self.MODE_TOTAL:
-			if self.fulfilled_quantity is not None and self.fulfilled_quantity <= Decimal("0.000"):
-				raise ValidationError({"fulfilled_quantity": "La cantidad en modo total debe ser mayor a cero."})
+		if self.fulfilled_quantity is None or self.fulfilled_quantity <= Decimal("0.000"):
+			raise ValidationError({"fulfilled_quantity": "La cantidad cumplida debe ser mayor a cero."})
 
 		if self.purchase_order_line_id and self.purchase_order_line.purchase_order_id != self.purchase_order_id:
 			raise ValidationError({"purchase_order_line": "La linea seleccionada no pertenece a la orden de compra."})
 
+		if self.application_scope_id and not self.application_scope.is_active:
+			raise ValidationError({"application_scope": "El ambito de aplicacion seleccionado esta inactivo."})
+
+	def effective_application_scope(self):
+		if self.application_scope_id:
+			return self.application_scope
+		if self.memo_id:
+			return self.memo.application_scope
+		return None
+
+	def effective_application_detail(self):
+		if self.application_detail:
+			return self.application_detail
+		if self.memo_id:
+			return self.memo.application_detail or ""
+		return ""
+
 	def __str__(self):
 		return f"{self.memo.memo_number} - orden {self.purchase_order_id}"
-
-
-class FulfillmentMemoPartialLine(models.Model):
-	memo = models.ForeignKey(FulfillmentMemo, on_delete=models.CASCADE, related_name="partial_lines")
-	purchase_order = models.ForeignKey(
-		PurchaseOrder,
-		on_delete=models.PROTECT,
-		related_name="fulfillment_partial_lines",
-		verbose_name="Orden de compra",
-	)
-	purchase_order_line = models.ForeignKey(
-		"PurchaseOrderLine",
-		on_delete=models.PROTECT,
-		related_name="fulfillment_partial_lines",
-		verbose_name="Linea de orden de compra",
-	)
-	fulfilled_quantity = models.DecimalField(max_digits=18, decimal_places=3, validators=[MinValueValidator(Decimal("0.001"))])
-	observations = models.TextField(blank=True, default="")
-
-	class Meta:
-		indexes = [
-			models.Index(fields=["memo", "purchase_order"], name="memo_partial_memo_ord_idx"),
-			models.Index(fields=["memo", "purchase_order_line"], name="memo_partial_memo_oline_idx"),
-		]
-		constraints = [
-			models.UniqueConstraint(fields=["memo", "purchase_order_line"], name="uq_memo_partial_oline"),
-		]
-
-	def clean(self):
-		super().clean()
-		if self.purchase_order_line_id and self.purchase_order_id:
-			if self.purchase_order_line.purchase_order_id != self.purchase_order_id:
-				raise ValidationError({"purchase_order_line": "La linea seleccionada no pertenece a la orden de compra."})
-
-		if self.memo_id and self.purchase_order_id:
-			memo_contract_id = self.memo.contract_id
-			if memo_contract_id and memo_contract_id != self.purchase_order.contract_id:
-				raise ValidationError({"purchase_order": "La orden debe pertenecer al mismo contrato del memorandum."})
 
 
 class Payment(models.Model):

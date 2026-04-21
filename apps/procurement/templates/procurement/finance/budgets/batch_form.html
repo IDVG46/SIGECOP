@@ -1,0 +1,224 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Presupuestos por Contrato - SIGECOP{% endblock %}
+
+{% block page_title %}
+<i class="ace-icon fa fa-money"></i>
+Presupuestos del Contrato
+{% endblock %}
+
+{% block page_subtitle %}{% if contract %}{{ contract.id }}{% else %}Nuevo{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
+<li><a href="{% url 'procurement:budget_list' %}">Presupuestos</a></li>
+<li class="active">Editor por contrato</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
+<link rel="stylesheet" href="{% static 'procurement/css/budget_form.css' %}" />
+{% endblock %}
+
+{% block content %}
+<form method="post" id="budget-batch-form" class="proc-form"
+      data-batch-url-template="{{ batch_url_template }}">
+    {% csrf_token %}
+    {% if contract %}{{ formset.management_form }}{% endif %}
+
+    <div class="alert form-intro">
+        <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
+        seleccione el contrato; luego agregue o edite sus presupuestos en la tabla.
+    </div>
+
+    <div id="batch-form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
+
+    {# ── Card 1: Selector de contrato + saldo ─────────────────────── #}
+    <div class="widget-box">
+        {% include "procurement/components/card_header.html" with title="Contrato" %}
+        <div class="widget-body">
+            <div class="widget-main">
+
+                {# Selector #}
+                <div class="row">
+                    <div class="col-sm-6">
+                        <label for="id_batch_contract">Contrato <span class="required-marker">*</span></label>
+                        <select id="id_batch_contract" class="form-control select2">
+                            <option value=""></option>
+                            {% for c in contracts %}
+                            <option value="{{ c.id }}"{% if contract and c.id == contract.id %} selected{% endif %}>
+                                {{ c.id }}{% if c.award.description %} &mdash; {{ c.award.description|truncatechars:60 }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if not contract %}
+                        <p class="help-block">Seleccione un contrato para cargar y editar sus presupuestos.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# ── Strip de saldo disponible a presupuestar ─────────────────── #}
+                {% if contract and contract_summary %}
+                <div class="contract-amounts-strip">
+
+                    {# Valor del contrato #}
+                    <div class="contract-stat-card">
+                        <i class="fa fa-file-text-o contract-stat-icon"></i>
+                        <div class="contract-stat-body">
+                            <span class="contract-stat-label">Valor del contrato</span>
+                            {% if contract_summary.has_value %}
+                            <strong class="contract-stat-value">{{ contract_summary.contract_value }}</strong>
+                            {% else %}
+                            <span class="contract-stat-value text-muted">No informado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {# Total presupuestado #}
+                    <div class="contract-stat-card">
+                        <i class="fa fa-pie-chart contract-stat-icon"></i>
+                        <div class="contract-stat-body">
+                            <span class="contract-stat-label">Total presupuestado</span>
+                            <strong class="contract-stat-value">{{ contract_summary.total_assigned }}</strong>
+                        </div>
+                    </div>
+
+                    {# Disponible a presupuestar #}
+                    {% if contract_summary.has_value %}
+                    <div class="contract-stat-card {% if contract_summary.disponible_negative %}contract-stat-danger{% else %}contract-stat-available{% endif %}">
+                        <i class="fa fa-{% if contract_summary.disponible_negative %}exclamation-triangle{% else %}check-circle{% endif %} contract-stat-icon"></i>
+                        <div class="contract-stat-body">
+                            <span class="contract-stat-label">Disponible a presupuestar</span>
+                            <strong class="contract-stat-value">{{ contract_summary.disponible_presupuestar }}</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ── Card 2: Filas de presupuesto ─────────────────────────────── #}
+    {% if contract %}
+    <div class="widget-box" id="budget-lines-widget" style="margin-top: 12px;">
+        {% include "procurement/components/card_header.html" with title="Presupuestos" add_button_id="add-budget-row-btn" add_button_label="Agregar fila" %}
+        <div class="widget-body">
+            <div class="widget-main no-padding">
+                {% if formset.non_form_errors %}
+                <div class="alert alert-danger" style="margin: 10px;">
+                    {{ formset.non_form_errors }}
+                </div>
+                {% endif %}
+                <div class="proc-lines-wrap budget-lines-wrap">
+                <table class="table table-striped table-bordered table-hover proc-lines-table budget-lines-table" id="budget-batch-table">
+                    <thead>
+                        <tr>
+                            <th style="width:22%">Objeto de gasto <span class="required-marker">*</span></th>
+                            <th style="width:7%">A&#241;o <span class="required-marker">*</span></th>
+                            <th style="width:13%">C&#243;d. financiero</th>
+                            <th style="width:13%">Fuente <span class="required-marker">*</span></th>
+                            <th style="width:10%">N&#176; CDP</th>
+                            <th style="width:12%" class="text-right">Asignado <span class="required-marker">*</span></th>
+                            <th style="width:9%">Estado <span class="required-marker">*</span></th>
+                            <th class="proc-col-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="budget-batch-tbody">
+                        {% for budg_form in formset %}
+                        <tr class="budget-line-row line-row{% if budg_form.instance.pk %} line-existing{% endif %}"
+                            data-row-index="{{ forloop.counter0 }}">
+                            <td>
+                                <div style="display:none">
+                                    {% for hidden in budg_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                    {{ budg_form.DELETE }}
+                                </div>
+                                {{ budg_form.expense_object }}
+                                {{ budg_form.expense_object.errors }}
+                            </td>
+                            <td>
+                                {{ budg_form.fiscal_year }}
+                                {{ budg_form.fiscal_year.errors }}
+                            </td>
+                            <td>
+                                {{ budg_form.financial_code }}
+                                {{ budg_form.financial_code.errors }}
+                            </td>
+                            <td>
+                                {{ budg_form.funding_source }}
+                                {{ budg_form.funding_source.errors }}
+                            </td>
+                            <td>
+                                {{ budg_form.cdp_number }}
+                                {{ budg_form.cdp_number.errors }}
+                            </td>
+                            <td>
+                                {{ budg_form.assigned_amount }}
+                                {{ budg_form.assigned_amount.errors }}
+                            </td>
+                            <td>
+                                {{ budg_form.status }}
+                                {{ budg_form.status.errors }}
+                            </td>
+                            <td class="proc-col-actions">
+                                {% include "procurement/components/line_delete_button.html" with extra_class="js-budget-delete-btn" title="Eliminar detalle" %}
+                            </td>
+                        </tr>
+                        {% if budg_form.non_field_errors %}
+                        <tr class="budget-error-row">
+                            <td colspan="8" class="text-danger small">{{ budg_form.non_field_errors }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+
+                <script id="budget-empty-form-template" type="text/html">
+                <tr class="budget-line-row line-row" data-row-index="__prefix__">
+                    <td>
+                        <div style="display:none">
+                            {{ formset.empty_form.DELETE }}
+                            {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                        </div>
+                        {{ formset.empty_form.expense_object }}
+                    </td>
+                    <td>{{ formset.empty_form.fiscal_year }}</td>
+                    <td>{{ formset.empty_form.financial_code }}</td>
+                    <td>{{ formset.empty_form.funding_source }}</td>
+                    <td>{{ formset.empty_form.cdp_number }}</td>
+                    <td>{{ formset.empty_form.assigned_amount }}</td>
+                    <td>{{ formset.empty_form.status }}</td>
+                    <td class="proc-col-actions">
+                        {% include "procurement/components/line_delete_button.html" with extra_class="js-budget-delete-btn" title="Eliminar detalle" %}
+                    </td>
+                </tr>
+                </script>
+            </div>
+        </div>
+    </div>
+
+    {% url 'procurement:budget_list' as budget_cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="save-batch-budget-btn" cancel_url=budget_cancel_url %}
+
+    {% else %}
+    <div class="widget-box" style="margin-top: 12px;">
+        <div class="widget-body">
+            <div class="widget-main">
+                <div class="empty-state" style="padding: 40px 0; text-align: center;">
+                    <i class="ace-icon fa fa-hand-o-up fa-2x grey"></i>
+                    <p class="grey" style="margin-top: 12px; font-size: 15px;">Seleccione un contrato para ver y editar sus presupuestos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'procurement/js/form_errors.js' %}"></script>
+<script src="{% static 'procurement/js/batch_budget_form.js' %}"></script>
+{% endblock %}

@@ -17,3 +17,185 @@
     border-color: #d15b47 !important;
     box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
 }
+
+#budget-batch-form .budget-lines-table .form-control.js-client-invalid {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
+}
+
+#budget-batch-form .budget-lines-table select.js-client-invalid + .ts-wrapper .ts-control,
+#budget-batch-form .budget-lines-table .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15) !important;
+}
+
+/* ── Editor batch de presupuestos ── sigue patrón proc-lines ────────── */
+.budget-lines-wrap {
+    max-height: min(46vh, 540px);
+    overscroll-behavior-y: contain;
+}
+
+.budget-lines-table {
+    min-width: 820px;
+}
+
+.budget-lines-table th,
+.budget-lines-table td {
+    overflow: hidden;
+    font-size: 12px;
+}
+
+/* Las celdas del body permiten que el dropdown desborde */
+.budget-lines-table tbody td {
+    overflow: visible;
+    vertical-align: middle;
+    padding: 4px 4px;
+}
+
+/* Alto fijo del control TomSelect — igual que órdenes/pagos */
+.budget-lines-table .ts-wrapper.single .ts-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: 30px;
+    height: 30px;
+    overflow: hidden;
+}
+
+.budget-lines-table .ts-wrapper.single.focus .ts-control > input,
+.budget-lines-table .ts-wrapper.single.input-active .ts-control > input {
+    min-width: 1ch !important;
+    width: 1ch !important;
+}
+
+.budget-lines-table td .text-right.form-control {
+    text-align: right;
+}
+
+.budget-lines-table td .form-control {
+    font-size: 12px;
+}
+
+/* Fila marcada para eliminar */
+.budget-line-row.line-row-deleted td {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.budget-error-row td {
+    padding: 8px 10px !important;
+    background: #fdf2f2;
+    border-top: 1px solid #f3d6d2 !important;
+    color: #a94442 !important;
+}
+
+.budget-error-row ul {
+    margin-bottom: 0;
+    padding-left: 18px;
+}
+
+/* Resumen saldo en detalle */
+.budget-amounts-table td {
+    padding: 3px 6px;
+    border: none;
+}
+
+.budget-available-row td {
+    border-top: 1px solid #ddd;
+    padding-top: 6px;
+}
+
+/* DL del encabezado de detalle y contrato */
+.budget-detail-dl dt,
+.contract-summary-dl dt {
+    width: 120px;
+    font-weight: 600;
+}
+
+.budget-detail-dl dd,
+.contract-summary-dl dd {
+    margin-left: 130px;
+}
+
+/* Barra de saldo */
+.budget-balance-bar-wrap .progress {
+    border-radius: 3px;
+}
+
+/* ── Panel de saldo disponible a presupuestar (batch form) ─────────── */
+.contract-amounts-strip {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #e8e8e8;
+    flex-wrap: wrap;
+}
+
+.contract-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 170px;
+    padding: 11px 16px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.contract-stat-icon {
+    font-size: 22px;
+    color: #b0b0b0;
+    flex-shrink: 0;
+}
+
+.contract-stat-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.contract-stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+}
+
+.contract-stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+    font-family: "Courier New", Courier, monospace;
+}
+
+/* Card de disponible positivo */
+.contract-stat-available {
+    border-color: #b2d9a7;
+    background: #f0faf0;
+}
+
+.contract-stat-available .contract-stat-icon {
+    color: #4cae4c;
+}
+
+.contract-stat-available .contract-stat-value {
+    color: #3c763d;
+}
+
+/* Card de disponible negativo (sobrepresupuestado) */
+.contract-stat-danger {
+    border-color: #e6a0a0;
+    background: #fdf2f2;
+}
+
+.contract-stat-danger .contract-stat-icon {
+    color: #d15b47;
+}
+
+.contract-stat-danger .contract-stat-value {
+    color: #a94442;
+}
+

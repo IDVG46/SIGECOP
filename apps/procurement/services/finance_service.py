@@ -10,7 +10,6 @@ from apps.procurement.models import (
     ContractBudget,
     FulfillmentMemo,
     FulfillmentMemoLine,
-    FulfillmentMemoPartialLine,
     Payment,
     PurchaseOrder,
 )
@@ -113,13 +112,6 @@ def _total_ordered_quantity(order):
 
 def _approved_fulfilled_quantity_for_order(order, *, exclude_memo=None):
     return approved_fulfilled_quantity_for_order(order, exclude_memo=exclude_memo)
-
-
-def _pending_fulfilled_quantity_for_order(order, *, exclude_memo=None):
-    ordered_qty = _total_ordered_quantity(order)
-    approved_qty = _approved_fulfilled_quantity_for_order(order, exclude_memo=exclude_memo)
-    pending = ordered_qty - approved_qty
-    return pending if pending > Decimal("0.000") else Decimal("0.000")
 
 
 def _pending_fulfilled_quantity_for_order_line(order_line, *, exclude_memo=None):
@@ -249,9 +241,7 @@ def validate_payment_allocation_batch(allocations, payment_contract=None, exclud
 
 def _resolve_fulfillment_lines_data(
     contract,
-    fulfillment_mode,
     lines_data=None,
-    partial_lines_data=None,
     *,
     exclude_memo=None,
 ):
@@ -259,152 +249,54 @@ def _resolve_fulfillment_lines_data(
         raise ValidationError("Debe seleccionar un contrato para el memorandum.")
 
     resolved_lines = list(lines_data or [])
+
     if not resolved_lines:
         raise ValidationError("Debe agregar al menos una linea de cumplimiento.")
 
     normalized_lines = []
-    normalized_partial_lines = []
-    seen_total_order_ids = set()
-    seen_partial_order_ids = set()
-    seen_partial_order_line_ids = set()
+    seen_order_line_ids = set()
     for line_data in resolved_lines:
         order_line = line_data.get("purchase_order_line")
         order = line_data.get("purchase_order")
         if order is None and order_line is not None:
             order = order_line.purchase_order
-        line_mode = line_data.get("line_mode") or fulfillment_mode or FulfillmentMemoLine.MODE_PARTIAL
 
         if order is None:
             raise ValidationError("Cada linea de cumplimiento debe tener una orden de compra.")
         if order.contract_id != contract.id:
             raise ValidationError(f"La orden {order.order_number} no pertenece al contrato del memorandum.")
-        if line_mode == FulfillmentMemoLine.MODE_TOTAL:
-            if order.id in seen_partial_order_ids:
-                raise ValidationError(
-                    f"La orden {order.order_number} no puede mezclarse en modo total y parcial dentro del mismo memorandum."
-                )
-            if order.id in seen_total_order_ids:
-                raise ValidationError(f"La orden {order.order_number} esta repetida en modo total.")
-            seen_total_order_ids.add(order.id)
-
-            pending_qty = _pending_fulfilled_quantity_for_order(order, exclude_memo=exclude_memo)
-            if pending_qty <= Decimal("0.000"):
-                raise ValidationError(
-                    f"La orden {order.order_number} no tiene saldo pendiente para cumplimiento total."
-                )
-            fulfilled_quantity = pending_qty
-            if order_line is not None and order_line.purchase_order_id != order.id:
-                raise ValidationError(f"La linea seleccionada no pertenece a la orden {order.order_number}.")
-        else:
-            if order.id in seen_total_order_ids:
-                raise ValidationError(
-                    f"La orden {order.order_number} no puede mezclarse en modo parcial y total dentro del mismo memorandum."
-                )
-            seen_partial_order_ids.add(order.id)
-            fulfilled_quantity = None
-
-        normalized_lines.append(
-            {
-                "purchase_order": order,
-                "purchase_order_line": order_line if line_mode == FulfillmentMemoLine.MODE_TOTAL else None,
-                "fulfilled_quantity": fulfilled_quantity,
-                "line_mode": line_mode,
-                "observations": line_data.get("observations", ""),
-            }
-        )
-
-    partial_rows = list(partial_lines_data or [])
-
-    # Backward compatibility: if partial rows are still sent through lines_data, convert them.
-    if not partial_rows:
-        for line_data in resolved_lines:
-            line_mode = line_data.get("line_mode") or fulfillment_mode or FulfillmentMemoLine.MODE_PARTIAL
-            if line_mode != FulfillmentMemoLine.MODE_PARTIAL:
-                continue
-            order = line_data.get("purchase_order")
-            order_line = line_data.get("purchase_order_line")
-            if order is None and order_line is not None:
-                order = order_line.purchase_order
-            fulfilled_quantity = line_data.get("fulfilled_quantity")
-            if order is None or order_line is None or fulfilled_quantity in (None, ""):
-                continue
-            partial_rows.append(
-                {
-                    "purchase_order": order,
-                    "purchase_order_line": order_line,
-                    "fulfilled_quantity": fulfilled_quantity,
-                    "observations": line_data.get("observations", ""),
-                }
-            )
-
-    partial_order_ids = {
-        line["purchase_order"].id for line in normalized_lines if line["line_mode"] == FulfillmentMemoLine.MODE_PARTIAL
-    }
-
-    for row in partial_rows:
-        order = row.get("purchase_order")
-        order_line = row.get("purchase_order_line")
-        if order is None and order_line is not None:
-            order = order_line.purchase_order
-
-        if order is None or order_line is None:
-            raise ValidationError("Cada detalle parcial debe incluir orden y linea de orden.")
-
-        if order.contract_id != contract.id:
-            raise ValidationError(f"La orden {order.order_number} del detalle parcial no pertenece al contrato del memorandum.")
-
-        if order.id not in partial_order_ids:
-            raise ValidationError(
-                f"La orden {order.order_number} tiene detalle parcial pero no esta marcada en modo parcial en lineas de cumplimiento."
-            )
-
+        if order_line is None:
+            raise ValidationError(f"Debe seleccionar una linea para la orden {order.order_number}.")
         if order_line.purchase_order_id != order.id:
             raise ValidationError(f"La linea {order_line.id} no pertenece a la orden {order.order_number}.")
 
-        if order_line.id in seen_partial_order_line_ids:
-            raise ValidationError(f"La linea {order_line.id} de la orden {order.order_number} esta repetida en detalle parcial.")
-        seen_partial_order_line_ids.add(order_line.id)
-
-        fulfilled_quantity = _to_decimal(row.get("fulfilled_quantity"), default="0.000")
+        fulfilled_quantity = _to_decimal(line_data.get("fulfilled_quantity"), default="0.000")
         if fulfilled_quantity <= Decimal("0.000"):
             raise ValidationError(
                 f"La cantidad cumplida para la linea {order_line.id} de la orden {order.order_number} debe ser mayor a cero."
             )
-
         pending_qty = _pending_fulfilled_quantity_for_order_line(order_line, exclude_memo=exclude_memo)
         if fulfilled_quantity > pending_qty:
             raise ValidationError(
                 f"La cantidad cumplida para la linea {order_line.id} de la orden {order.order_number} excede el saldo pendiente ({pending_qty})."
             )
 
-        normalized_partial_lines.append(
+        if order_line.id in seen_order_line_ids:
+            raise ValidationError(f"La linea {order_line.id} de la orden {order.order_number} está repetida en el memorandum.")
+        seen_order_line_ids.add(order_line.id)
+
+        normalized_lines.append(
             {
                 "purchase_order": order,
                 "purchase_order_line": order_line,
                 "fulfilled_quantity": fulfilled_quantity,
-                "observations": row.get("observations", ""),
+                "application_scope": line_data.get("application_scope"),
+                "application_detail": line_data.get("application_detail", ""),
+                "observations": line_data.get("observations", ""),
             }
         )
 
-    for order_id in partial_order_ids:
-        if not any(row["purchase_order"].id == order_id for row in normalized_partial_lines):
-            order = PurchaseOrder.objects.filter(pk=order_id).first()
-            order_number = order.order_number if order else order_id
-            raise ValidationError(f"La orden {order_number} esta en modo parcial y requiere al menos un detalle parcial.")
-
-    partial_sum_by_order = {}
-    for row in normalized_partial_lines:
-        oid = row["purchase_order"].id
-        partial_sum_by_order[oid] = partial_sum_by_order.get(oid, Decimal("0.000")) + _to_decimal(
-            row["fulfilled_quantity"],
-            default="0.000",
-        )
-
-    for line in normalized_lines:
-        if line["line_mode"] == FulfillmentMemoLine.MODE_PARTIAL:
-            line["fulfilled_quantity"] = partial_sum_by_order.get(line["purchase_order"].id, Decimal("0.000"))
-
-    return normalized_lines, normalized_partial_lines
+    return normalized_lines, []
 
 
 @transaction.atomic
@@ -449,28 +341,25 @@ def approve_budget(budget):
 def create_fulfillment_memo(
     *,
     contract=None,
-    beneficiary_sector,
+    application_scope=None,
+    application_detail="",
     memo_number,
     memo_date,
     received_by="",
     sender_position="",
     created_by=None,
     lines_data=None,
-    partial_lines_data=None,
     notes="",
-    fulfillment_mode=FulfillmentMemo.MODE_PARTIAL,
 ):
-    lines_data, partial_lines_data = _resolve_fulfillment_lines_data(
+    lines_data, _ = _resolve_fulfillment_lines_data(
         contract,
-        fulfillment_mode,
         lines_data,
-        partial_lines_data,
     )
 
     memo = FulfillmentMemo.objects.create(
         contract=contract,
-        fulfillment_mode=fulfillment_mode,
-        beneficiary_sector=beneficiary_sector,
+        application_scope=application_scope,
+        application_detail=application_detail or "",
         memo_number=memo_number,
         memo_date=memo_date,
         received_by=received_by or "",
@@ -485,23 +374,13 @@ def create_fulfillment_memo(
             memo=memo,
             purchase_order=line_data["purchase_order"],
             purchase_order_line=line_data.get("purchase_order_line"),
-            fulfillment_mode=line_data.get("line_mode", FulfillmentMemoLine.MODE_PARTIAL),
-            fulfilled_quantity=line_data.get("fulfilled_quantity"),  # None for total mode
+            fulfilled_quantity=line_data.get("fulfilled_quantity"),
+            application_scope=line_data.get("application_scope"),
+            application_detail=line_data.get("application_detail", ""),
             observations=line_data.get("observations", ""),
         )
         line.full_clean()
         line.save()
-
-    for partial_data in partial_lines_data:
-        partial_line = FulfillmentMemoPartialLine(
-            memo=memo,
-            purchase_order=partial_data["purchase_order"],
-            purchase_order_line=partial_data["purchase_order_line"],
-            fulfilled_quantity=partial_data["fulfilled_quantity"],
-            observations=partial_data.get("observations", ""),
-        )
-        partial_line.full_clean()
-        partial_line.save()
 
     return memo
 
@@ -511,30 +390,27 @@ def update_fulfillment_memo(
     memo,
     *,
     contract=None,
-    beneficiary_sector,
+    application_scope=None,
+    application_detail="",
     memo_number,
     memo_date,
     received_by="",
     sender_position="",
     notes="",
-    fulfillment_mode=FulfillmentMemo.MODE_PARTIAL,
     lines_data=None,
-    partial_lines_data=None,
 ):
     if memo.status in {FulfillmentMemo.STATUS_APPROVED, FulfillmentMemo.STATUS_CANCELLED, FulfillmentMemo.STATUS_REJECTED}:
         raise ValidationError("Solo se puede editar un memorandum pendiente de aprobacion.")
 
-    resolved_lines, resolved_partial_lines = _resolve_fulfillment_lines_data(
+    resolved_lines, _ = _resolve_fulfillment_lines_data(
         contract,
-        fulfillment_mode,
         lines_data,
-        partial_lines_data,
         exclude_memo=memo,
     )
 
     memo.contract = contract
-    memo.fulfillment_mode = fulfillment_mode
-    memo.beneficiary_sector = beneficiary_sector
+    memo.application_scope = application_scope
+    memo.application_detail = application_detail or ""
     memo.memo_number = memo_number
     memo.memo_date = memo_date
     memo.received_by = received_by or ""
@@ -545,29 +421,18 @@ def update_fulfillment_memo(
     memo.save()
 
     memo.lines.all().delete()
-    memo.partial_lines.all().delete()
     for line_data in resolved_lines:
         line = FulfillmentMemoLine(
             memo=memo,
             purchase_order=line_data["purchase_order"],
             purchase_order_line=line_data.get("purchase_order_line"),
-            fulfillment_mode=line_data.get("line_mode", FulfillmentMemoLine.MODE_PARTIAL),
-            fulfilled_quantity=line_data.get("fulfilled_quantity"),  # None for total mode
+            fulfilled_quantity=line_data.get("fulfilled_quantity"),
+            application_scope=line_data.get("application_scope"),
+            application_detail=line_data.get("application_detail", ""),
             observations=line_data.get("observations", ""),
         )
         line.full_clean()
         line.save()
-
-    for partial_data in resolved_partial_lines:
-        partial_line = FulfillmentMemoPartialLine(
-            memo=memo,
-            purchase_order=partial_data["purchase_order"],
-            purchase_order_line=partial_data["purchase_order_line"],
-            fulfilled_quantity=partial_data["fulfilled_quantity"],
-            observations=partial_data.get("observations", ""),
-        )
-        partial_line.full_clean()
-        partial_line.save()
 
     return memo
 
@@ -581,41 +446,16 @@ def approve_fulfillment_memo(memo):
     if not memo_lines:
         raise ValidationError("No se puede aprobar un memorandum sin lineas de cumplimiento.")
 
-    memo_partial_lines = list(memo.partial_lines.select_related("purchase_order", "purchase_order_line"))
-
     for memo_line in memo_lines:
         order = memo_line.purchase_order
-        if memo_line.fulfillment_mode == FulfillmentMemoLine.MODE_TOTAL:
-            pending_order_qty = _pending_fulfilled_quantity_for_order(order, exclude_memo=memo)
-            total_qty = _to_decimal(memo_line.fulfilled_quantity, default="0.000")
-            if total_qty <= Decimal("0.000"):
-                total_qty = pending_order_qty
-            if total_qty > pending_order_qty:
-                raise ValidationError(
-                    f"El cumplimiento total para la orden {order.order_number} excede el saldo pendiente ({pending_order_qty})."
-                )
-            continue
-
         if memo_line.purchase_order_line_id is None:
-            pass
+            raise ValidationError(f"La línea de cumplimiento para la orden {order.order_number} debe indicar la línea de orden.")
 
-        partials_for_order = [p for p in memo_partial_lines if p.purchase_order_id == order.id]
-        if not partials_for_order:
-            raise ValidationError(f"La orden {order.order_number} en modo parcial requiere detalle de lineas parciales.")
-
-        for partial in partials_for_order:
-            pending_line_qty = _pending_fulfilled_quantity_for_order_line(partial.purchase_order_line, exclude_memo=memo)
-            line_qty = _to_decimal(partial.fulfilled_quantity, default="0.000")
-            if line_qty > pending_line_qty:
-                raise ValidationError(
-                    f"El cumplimiento aprobado excede la cantidad ordenada para la linea {partial.purchase_order_line_id} de la orden {order.order_number}."
-                )
-
-        order_partial_total = sum((_to_decimal(p.fulfilled_quantity, default="0.000") for p in partials_for_order), Decimal("0.000"))
-        pending_order_qty = _pending_fulfilled_quantity_for_order(order, exclude_memo=memo)
-        if order_partial_total > pending_order_qty:
+        pending_line_qty = _pending_fulfilled_quantity_for_order_line(memo_line.purchase_order_line, exclude_memo=memo)
+        line_qty = _to_decimal(memo_line.fulfilled_quantity, default="0.000")
+        if line_qty > pending_line_qty:
             raise ValidationError(
-                f"El cumplimiento parcial aprobado excede el saldo pendiente de la orden {order.order_number}."
+                f"El cumplimiento aprobado excede la cantidad ordenada para la linea {memo_line.purchase_order_line_id} de la orden {order.order_number}."
             )
 
     memo.status = FulfillmentMemo.STATUS_APPROVED

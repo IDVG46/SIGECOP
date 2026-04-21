@@ -25,7 +25,10 @@
             <td class="center"><span class="label label-sm label-default arrowed">{{ budget.get_status_display }}</span></td>
             <td class="text-center">
                 <div class="action-buttons">
-                    <a href="{% url 'procurement:budget_update' budget.id %}" class="green" title="Editar">
+                    <a href="{% url 'procurement:budget_detail' budget.id %}" class="blue" title="Ver detalle">
+                        <i class="ace-icon fa fa-eye bigger-130"></i>
+                    </a>
+                    <a href="{% url 'procurement:budget_batch' budget.contract.id %}" class="green" title="Editar presupuestos del contrato">
                         <i class="ace-icon fa fa-pencil bigger-130"></i>
                     </a>
                     {% if budget.status != 'active' and budget.status != 'cancelled' %}

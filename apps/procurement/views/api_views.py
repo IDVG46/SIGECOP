@@ -1,14 +1,16 @@
 from decimal import Decimal
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.dncp_integration.models import AwardItem, AwardSubItem, Contract
 from apps.procurement.models import ContractLotBalance, ItemQuantityBalance
 from apps.procurement.models import (
+    ApplicationScope,
     ContractAmendment,
     ContractBudget,
     FulfillmentMemo,
@@ -24,7 +26,7 @@ from apps.procurement.services.fulfillment_metrics import (
     approved_fulfilled_quantity_for_order_line,
 )
 from apps.procurement.utils.decimal_utils import to_decimal
-from apps.procurement.utils.format_utils import format_gs_amount
+from apps.procurement.utils.format_utils import format_gs_amount, format_quantity
 
 
 @login_required
@@ -158,7 +160,7 @@ def order_lines_options(request, order_id):
         payload.append(
             {
                 "id": line.id,
-                "text": f"Linea {line.id} - Lote {line.lot_id} - {item_description} - Pendiente: {pending_quantity}",
+                "text": f"Linea {line.id} - Lote {line.lot_id} - {item_description} - Pendiente: {format_quantity(pending_quantity)}",
                 "ordered_quantity": str(line.quantity),
                 "pending_quantity": str(pending_quantity),
                 "unit_price": str(line.unit_price),
@@ -219,7 +221,7 @@ def contract_lines_options(request, contract_id):
                 "text": (
                     f"OC {line.purchase_order.order_number} - "
                     f"Linea {line.id} - Lote {line.lot_id} - {item_description} - "
-                    f"Pendiente: {pending_quantity}"
+                    f"Pendiente: {format_quantity(pending_quantity)}"
                 ),
                 "order_id": line.purchase_order_id,
                 "order_number": line.purchase_order.order_number,
@@ -258,13 +260,15 @@ def order_budgets_options(request, order_id):
 
     payload = []
     for budget in budgets:
+        budget_code = (budget.financial_code or "").strip() or f"Presupuesto {budget.id}"
         payload.append(
             {
                 "id": budget.id,
                 "text": (
-                    f"Presupuesto {budget.id} - "
+                    f"{budget_code} - "
                     f"Disponible: {format_gs_amount(budget.available_amount)} - "
-                    f"Fuente: {budget.funding_source}"
+                    f"Fuente: {budget.funding_source} - "
+                    f"Ejercicio: {budget.fiscal_year}"
                 ),
                 "available_amount": str(budget.available_amount),
             }
@@ -346,6 +350,60 @@ def budget_orders_options(request, budget_id):
 
 
 @login_required
+@require_POST
+def create_application_scope(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = {}
+
+    name = (payload.get("name") or request.POST.get("name") or "").strip()
+    scope_type = (payload.get("scope_type") or request.POST.get("scope_type") or ApplicationScope.TYPE_SECTOR).strip()
+
+    valid_types = {choice[0] for choice in ApplicationScope.TYPE_CHOICES}
+    if scope_type not in valid_types:
+        return JsonResponse({"ok": False, "error": "Tipo de ámbito inválido."}, status=400)
+
+    if not name:
+        return JsonResponse({"ok": False, "error": "Debe indicar un nombre para el ámbito."}, status=400)
+
+    existing = ApplicationScope.objects.filter(name__iexact=name).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            existing.scope_type = scope_type
+            existing.save(update_fields=["is_active", "scope_type", "updated_at"])
+        return JsonResponse(
+            {
+                "ok": True,
+                "scope": {
+                    "id": existing.id,
+                    "name": existing.name,
+                    "scope_type": existing.scope_type,
+                },
+                "created": False,
+            }
+        )
+
+    scope = ApplicationScope.objects.create(
+        name=name,
+        scope_type=scope_type,
+        is_active=True,
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "scope": {
+                "id": scope.id,
+                "name": scope.name,
+                "scope_type": scope.scope_type,
+            },
+            "created": True,
+        }
+    )
+
+
+@login_required
 @require_GET
 def contract_orders_options(request, contract_id):
     """
@@ -368,8 +426,12 @@ def contract_orders_options(request, contract_id):
             order.payment_allocations.filter(payment__status=Payment.STATUS_POSTED).aggregate(total=models.Sum("amount"))["total"]
             or 0
         )
+        approved_fulfilled_amount = approved_fulfilled_amount_for_order(order)
         order_total = order.total_amount or 0
         pending_by_order = order_total - already_paid
+        payable_by_fulfillment = approved_fulfilled_amount - already_paid
+        if payable_by_fulfillment < 0:
+            payable_by_fulfillment = 0
 
         ordered_qty = (
             order.lines.aggregate(total=models.Sum("quantity"))["total"]
@@ -383,13 +445,19 @@ def contract_orders_options(request, contract_id):
         payload.append(
             {
                 "id": order.id,
-                "text": f"{order.order_number} - Proveedor: {order.supplier.name} - Pendiente: {format_gs_amount(pending_by_order)}",
+                "text": (
+                    f"{order.order_number} - Proveedor: {order.supplier.name} - "
+                    f"Pendiente pago: {format_gs_amount(pending_by_order)} - "
+                    f"Cumplimiento: {format_gs_amount(payable_by_fulfillment)}"
+                ),
                 "order_number": order.order_number,
                 "supplier": order.supplier.name,
                 "expense_object_id": order.expense_object_id,
                 "order_total": str(order_total),
                 "already_paid": str(already_paid),
                 "pending_by_order": str(pending_by_order),
+                "approved_fulfilled_amount": str(approved_fulfilled_amount),
+                "payable_by_fulfillment": str(payable_by_fulfillment),
                     "pending_quantity": str(pending_quantity),
                 "status": order.status,
             }

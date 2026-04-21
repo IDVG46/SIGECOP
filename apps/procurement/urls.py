@@ -1,10 +1,14 @@
 from django.urls import path
 
 from apps.procurement.views import (
+	ContractAmendmentCreateView,
+	ContractAmendmentDetailView,
+	ContractAmendmentListView,
+	ContractAmendmentUpdateView,
     ContractBudgetApproveView,
-	ContractBudgetCreateView,
-	ContractBudgetListView,
-	ContractBudgetUpdateView,
+    ContractBudgetBatchView,
+    ContractBudgetDetailView,
+    ContractBudgetListView,
     FulfillmentMemoApproveView,
 	FulfillmentMemoCreateView,
 	FulfillmentMemoListView,
@@ -21,6 +25,7 @@ from apps.procurement.views import (
     contract_line_options,
 	contract_orders_options,
 	contract_suppliers,
+	create_application_scope,
 	order_budgets_options,
     order_lines_options,
 	PurchaseOrderCancelView,
@@ -33,14 +38,19 @@ from apps.procurement.views import (
 app_name = "procurement"
 
 urlpatterns = [
+	path("amendments/", ContractAmendmentListView.as_view(), name="amendment_list"),
+	path("amendments/add/", ContractAmendmentCreateView.as_view(), name="amendment_create"),
+	path("amendments/<int:pk>/detail/", ContractAmendmentDetailView.as_view(), name="amendment_detail"),
+	path("amendments/<int:pk>/edit/", ContractAmendmentUpdateView.as_view(), name="amendment_update"),
 	path("orders/", PurchaseOrderListView.as_view(), name="order_list"),
 	path("orders/add/", PurchaseOrderCreateView.as_view(), name="order_create"),
 	path("orders/<int:pk>/edit/", PurchaseOrderUpdateView.as_view(), name="order_update"),
 	path("orders/<int:pk>/delete/", PurchaseOrderDeleteView.as_view(), name="order_delete"),
 	path("orders/<int:pk>/cancel/", PurchaseOrderCancelView.as_view(), name="order_cancel"),
 	path("budgets/", ContractBudgetListView.as_view(), name="budget_list"),
-	path("budgets/add/", ContractBudgetCreateView.as_view(), name="budget_create"),
-	path("budgets/<int:pk>/edit/", ContractBudgetUpdateView.as_view(), name="budget_update"),
+	path("budgets/add/", ContractBudgetBatchView.as_view(), name="budget_create"),
+	path("budgets/contract/<str:contract_id>/", ContractBudgetBatchView.as_view(), name="budget_batch"),
+	path("budgets/<int:pk>/detail/", ContractBudgetDetailView.as_view(), name="budget_detail"),
 	path("budgets/<int:pk>/approve/", ContractBudgetApproveView.as_view(), name="budget_approve"),
 	path("memos/", FulfillmentMemoListView.as_view(), name="memo_list"),
 	path("memos/add/", FulfillmentMemoCreateView.as_view(), name="memo_create"),
@@ -60,4 +70,5 @@ urlpatterns = [
 	path("api/orders/<int:order_id>/lines-options/", order_lines_options, name="order_lines_options"),
 	path("api/orders/<int:order_id>/budgets-options/", order_budgets_options, name="order_budgets_options"),
 	path("api/budgets/<int:budget_id>/orders-options/", budget_orders_options, name="budget_orders_options"),
+	path("api/application-scopes/create/", create_application_scope, name="application_scope_create"),
 ]
