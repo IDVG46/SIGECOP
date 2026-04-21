@@ -149,6 +149,7 @@ Reporte de Pago
     .detail-table th,
     .detail-table td {
         padding: 6px 8px;
+        vertical-align: middle;
     }
 
     .detail-table th {
@@ -166,6 +167,27 @@ Reporte de Pago
         border-bottom: 1px solid var(--line);
     }
 
+    .detail-application-row td {
+        text-align: left;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--accent-dark);
+        background: #f2f7fc !important;
+        border: 0 !important;
+        padding: 5px 8px;
+    }
+
+    .detail-application-row .application-label-cell {
+        text-align: center;
+    }
+
+    .detail-order-cell {
+        vertical-align: middle !important;
+        text-align: center;
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
     .detail-table tbody tr:nth-child(even) td {
         background: #ffffff;
     }
@@ -177,9 +199,34 @@ Reporte de Pago
         border-bottom: 0;
     }
 
-    .detail-table .text-right,
     .detail-table td.text-right {
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .detail-table td.text-center {
+        white-space: nowrap;
+    }
+
+    .detail-table td:nth-child(2) {
+        word-break: break-word;
+        hyphens: auto;
+    }
+
+    .detail-table .col-total,
+    .detail-table .col-total-value {
+        width: 112px;
+        max-width: 112px;
+    }
+
+    .col-amount,
+    .col-amount-value {
+        width: 108px;
+        max-width: 108px;
+    }
+
+    .col-amount-value {
+        white-space: nowrap;
     }
 
     .sheet-table th {
@@ -190,6 +237,11 @@ Reporte de Pago
         letter-spacing: .25px;
         text-transform: uppercase;
         line-height: 1.25;
+        white-space: normal;
+        overflow: visible;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        height: auto;
     }
 
     .section-title {
@@ -376,6 +428,21 @@ Reporte de Pago
         break-inside: avoid;
     }
 
+    .detail-table tbody.order-group {
+        page-break-inside: auto;
+        break-inside: auto;
+    }
+
+    .detail-table tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .detail-application-row {
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
     .section-title,
     .resumen-title,
     .contract-card {
@@ -451,6 +518,16 @@ Reporte de Pago
         color: var(--muted);
     }
 
+    .detail-subitem-header-row td {
+        font-weight: 700;
+        border-top: 1px solid #d8dee6;
+        border-bottom: 0;
+    }
+
+    .detail-subitem-row td {
+        font-weight: normal;
+    }
+
     @media print {
         @page {
             size: auto;
@@ -467,6 +544,8 @@ Reporte de Pago
         body {
             background: #fff !important;
             color: #000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .no-print {
@@ -492,6 +571,14 @@ Reporte de Pago
             padding: 0 !important;
             border: 0 !important;
             background: #fff !important;
+        }
+
+        .main-container,
+        #main-container,
+        .page-content-area {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
         }
 
         .sheet-table th {
@@ -530,6 +617,26 @@ Reporte de Pago
             background: #fff !important;
         }
 
+        .detail-application-row td {
+            background-color: #f2f7fc !important;
+            background: #f2f7fc !important;
+            color: #1f4f7a !important;
+            border: 0 !important;
+            font-weight: 700 !important;
+            text-align: left !important;
+        }
+
+        .detail-application-row .application-label-cell {
+            text-align: center !important;
+        }
+
+        .detail-order-cell {
+            vertical-align: middle !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+            font-weight: 600 !important;
+        }
+
         .detail-table .total-row th,
         .detail-table .total-row td {
             background-color: #eef5fc !important;
@@ -538,7 +645,9 @@ Reporte de Pago
             border-bottom: 0 !important;
         }
 
-        thead {
+        .sheet-table thead,
+        .contract-card thead,
+        .signature-table thead {
             display: table-header-group;
         }
 
@@ -612,9 +721,86 @@ Reporte de Pago
             border-left-color: #173f63 !important;
         }
 
+        .detail-subitem-header-row td {
+            font-weight: 700 !important;
+            border-top: 1px solid #d8dee6 !important;
+            border-bottom: 0 !important;
+        }
+
+        .detail-subitem-row td {
+            font-weight: normal !important;
+        }
+
         .lot-subtotal-row {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+        }
+
+        .detail-table tbody.order-group {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+        }
+
+        .detail-table tr,
+        .contract-card tr,
+        .signature-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+
+        .report-section {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+        }
+
+        .report-section .section-title,
+        .report-section .resumen-title,
+        .detail-table .lot-header-row,
+        .detail-application-row {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+        }
+
+        .detail-table,
+        .lot-balance-table,
+        .contract-card {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+        }
+
+        .detail-table td,
+        .detail-table th {
+            padding: 5px 7px !important;
+            vertical-align: middle !important;
+        }
+
+        .detail-table td:nth-child(2) {
+            word-break: break-word !important;
+            hyphens: auto !important;
+        }
+
+        .detail-table .col-total,
+        .detail-table .col-total-value {
+            width: 112px !important;
+            max-width: 112px !important;
+        }
+
+        .col-amount,
+        .col-amount-value {
+            width: 108px !important;
+            max-width: 108px !important;
+        }
+
+        .col-amount-value {
+            white-space: nowrap !important;
+        }
+
+        .sheet-table th {
+            white-space: normal !important;
+            overflow: visible !important;
+            overflow-wrap: break-word !important;
+            word-break: break-word !important;
+            height: auto !important;
         }
 
         .lot-header-row th {
@@ -643,10 +829,14 @@ Reporte de Pago
         .sheet {
             border: 0 !important;
             background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: none !important;
         }
 
         .sheet-header {
             border: 0 !important;
+            margin: 0 0 8px 0 !important;
         }
 
         .sheet-header td {
@@ -696,6 +886,8 @@ Reporte de Pago
         .signature-section {
             margin-top: 36px;
             padding-top: 8px;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
 
         .signature-table {
@@ -835,6 +1027,14 @@ Reporte de Pago
     <div class="resumen-title sector-accent sector-accent-facturacion">Detalle de Facturaci&oacute;n</div>
     {% for ls in lot_sections %}
     <table class="sheet-table detail-table">
+        <colgroup>
+            <col style="width:45px;">
+            <col>
+            <col style="width:72px;">
+            <col style="width:100px;">
+            <col style="width:96px;">
+            <col style="width:112px;">
+        </colgroup>
         <thead>
             <tr class="lot-header-row">
                 <th colspan="6">{{ ls.lot.title }}</th>
@@ -842,28 +1042,57 @@ Reporte de Pago
             <tr>
                 <th class="text-center" style="width:45px;">Item</th>
                 <th>Descripci&oacute;n del Bien / Servicio</th>
-                <th class="text-center" style="width:75px;">OC/S N&deg;</th>
-                <th class="text-right" style="width:110px;">Precio Unitario</th>
-                <th class="text-center" style="width:90px;">Cant. Facturada</th>
-                <th class="text-right" style="width:130px;">Total Factura Actual (Gs.)</th>
+                <th class="text-center" style="width:72px;">OC/S N&deg;</th>
+                <th class="text-right" style="width:100px;">Precio Unitario</th>
+                <th class="text-center" style="width:96px;">Cant. Facturada</th>
+                <th class="text-right col-total" style="width:112px;">Total Factura Actual (Gs.)</th>
             </tr>
         </thead>
-        <tbody>
-            {% for item in ls.items %}
-            <tr>
-                <td class="text-center">{{ item.item_number|default:"-" }}</td>
-                <td>{{ item.description }}</td>
-                {% if item.show_order %}
-                <td class="text-center" rowspan="{{ item.order_rowspan }}">{{ item.order_number }}</td>
+        {% if ls.order_groups %}
+            {% for og in ls.order_groups %}
+            <tbody class="order-group">
+                {% for item in og.items %}
+                {% ifchanged item.application_label %}
+                <tr class="detail-application-row">
+                    <td></td>
+                    <td class="application-label-cell">{{ item.application_label|default:"Sin ámbito" }}</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                {% endifchanged %}
+                {% if item.is_subitem_header %}
+                <tr class="detail-subitem-header-row">
+                    <td class="text-center">{{ item.item_number|default:"-" }}</td>
+                    <td>{{ item.description }}</td>
+                    {% if forloop.first %}
+                    <td class="text-center detail-order-cell" rowspan="{{ og.order_rowspan }}">{{ og.order_number }}</td>
+                    {% endif %}
+                    <td></td>
+                    <td></td>
+                    <td class="col-total-value"></td>
+                </tr>
+                {% else %}
+                <tr{% if item.is_subitem %} class="detail-subitem-row"{% endif %}>
+                    <td class="text-center">{{ item.item_number|default:"-" }}</td>
+                    <td>{{ item.description }}</td>
+                    {% if forloop.first %}
+                    <td class="text-center detail-order-cell" rowspan="{{ og.order_rowspan }}">{{ og.order_number }}</td>
+                    {% endif %}
+                    <td class="text-right">{{ item.unit_price|format_amount }}</td>
+                    <td class="text-center">{{ item.invoiced_qty|format_quantity }}</td>
+                    <td class="text-right col-total-value">{{ item.line_total|format_amount }}</td>
+                </tr>
                 {% endif %}
-                <td class="text-right">{{ item.unit_price|format_amount }}</td>
-                <td class="text-center">{{ item.invoiced_qty|format_quantity }}</td>
-                <td class="text-right">{{ item.line_total|format_amount }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center">Sin detalle de items.</td></tr>
+                {% endfor %}
+            </tbody>
             {% endfor %}
+        {% else %}
+        <tbody>
+            <tr><td colspan="6" class="text-center">Sin detalle de items.</td></tr>
         </tbody>
+        {% endif %}
         <tr class="total-row lot-subtotal-row">
             <th colspan="5" class="text-left">
                 {% if lot_sections|length > 1 %}
@@ -872,7 +1101,7 @@ Reporte de Pago
                 Total Facturado
                 {% endif %}
             </th>
-            <th class="text-right" style="width:130px;">{{ ls.current_amount|format_amount }}</th>
+            <th class="text-right col-total-value" style="width:112px;">{{ ls.current_amount|format_amount }}</th>
         </tr>
     </table>
     {% endfor %}
@@ -882,7 +1111,7 @@ Reporte de Pago
         <tbody>
             <tr class="total-row">
                 <th colspan="5" class="text-left">Total General</th>
-                <th class="text-right" style="width:130px;">{{ lot_sections_total|format_amount }}</th>
+                <th class="text-right col-total-value" style="width:112px;">{{ lot_sections_total|format_amount }}</th>
             </tr>
         </tbody>
     </table>
@@ -893,23 +1122,30 @@ Reporte de Pago
     <div class="report-section report-section-saldos-lote">
     <div class="section-title sector-accent sector-accent-saldo-lote">Saldos del Lote</div>
     <table class="sheet-table detail-table lot-balance-table">
+        <colgroup>
+            <col>
+            <col style="width:108px;">
+            <col style="width:108px;">
+            <col style="width:108px;">
+            <col style="width:108px;">
+        </colgroup>
         <thead>
             <tr>
                 <th class="lot-name">Lote</th>
-                <th class="text-right">Monto M&aacute;ximo del Lote</th>
-                <th class="text-right">Saldo del Monto M&aacute;ximo</th>
-                <th class="text-right">Monto Facturado</th>
-                <th class="text-right">Saldo del Monto Actual</th>
+                <th class="text-right col-amount">Monto M&aacute;ximo</th>
+                <th class="text-right col-amount">Saldo Anterior</th>
+                <th class="text-right col-amount">Monto Facturado</th>
+                <th class="text-right col-amount">Saldo Actual</th>
             </tr>
         </thead>
         <tbody>
             {% for ls in lot_sections %}
             <tr>
                 <td class="lot-name">{{ ls.lot.title }}</td>
-                <td class="text-right">{{ ls.max_amount|format_amount }}</td>
-                <td class="text-right">{{ ls.saldo_anterior|format_amount }}</td>
-                <td class="text-right">{{ ls.current_amount|format_amount }}</td>
-                <td class="text-right">{{ ls.saldo_actual|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ ls.max_amount|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ ls.saldo_anterior|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ ls.current_amount|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ ls.saldo_actual|format_amount }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -922,15 +1158,24 @@ Reporte de Pago
     {% for section in sections %}
     <div class="section-title section-title-secondary">Fuente de Financiamiento: {{ section.funding_source }}</div>
     <table class="sheet-table detail-table">
+        <colgroup>
+            <col style="width:98px;">
+            <col style="width:92px;">
+            <col style="width:76px;">
+            <col style="width:108px;">
+            <col style="width:108px;">
+            <col style="width:108px;">
+            <col style="width:108px;">
+        </colgroup>
         <thead>
             <tr>
                 <th>Codigo</th>
                 <th>CDP</th>
                 <th>Objeto de Gasto</th>
-                <th class="text-right">Total Codigo</th>
-                <th class="text-right">Saldo</th>
-                <th class="text-right">Factura Actual</th>
-                <th class="text-right">Saldo de Codigo de Contratacion</th>
+                <th class="text-right col-amount">Total C&oacute;digo</th>
+                <th class="text-right col-amount">Saldo Anterior</th>
+                <th class="text-right col-amount">Factura Actual</th>
+                <th class="text-right col-amount">Saldo C&oacute;digo</th>
             </tr>
         </thead>
         <tbody>
@@ -938,19 +1183,19 @@ Reporte de Pago
             <tr>
                 <td class="text-center">{{ row.budget.financial_code|default:'SIN-CODIGO' }}</td>
                 <td class="text-center">{{ row.budget.cdp_number|default:'-' }}</td>
-                <td>{{ row.budget.expense_object.code }} - {{ row.budget.expense_object.description }}</td>
-                <td class="text-right">{{ row.assigned_amount|format_amount }}</td>
-                <td class="text-right">{{ row.previous_amount|format_amount }}</td>
-                <td class="text-right">{{ row.current_amount|format_amount }}</td>
-                <td class="text-right">{{ row.remaining_amount|format_amount }}</td>
+                <td class="text-center">{{ row.budget.expense_object.code }}</td>
+                <td class="text-right col-amount-value">{{ row.assigned_amount|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ row.previous_amount|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ row.current_amount|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ row.remaining_amount|format_amount }}</td>
             </tr>
             {% endfor %}
             <tr class="total-row">
                 <th colspan="3" class="text-right">TOTAL {{ section.funding_source }}</th>
-                <th class="text-right">{{ section.totals.assigned|format_amount }}</th>
-                <th class="text-right">{{ section.totals.previous|format_amount }}</th>
-                <th class="text-right">{{ section.totals.current|format_amount }}</th>
-                <th class="text-right">{{ section.totals.remaining|format_amount }}</th>
+                <th class="text-right col-amount-value">{{ section.totals.assigned|format_amount }}</th>
+                <th class="text-right col-amount-value">{{ section.totals.previous|format_amount }}</th>
+                <th class="text-right col-amount-value">{{ section.totals.current|format_amount }}</th>
+                <th class="text-right col-amount-value">{{ section.totals.remaining|format_amount }}</th>
             </tr>
         </tbody>
     </table>
@@ -960,11 +1205,16 @@ Reporte de Pago
     <div class="report-section report-section-resumen">
     <div class="resumen-title sector-accent sector-accent-resumen">Resumen de Pago</div>
     <table class="sheet-table detail-table">
+        <colgroup>
+            <col style="width:200px;">
+            <col>
+            <col style="width:108px;">
+        </colgroup>
         <thead>
             <tr>
                 <th>Fuente de Financiamiento</th>
                 <th>Codigo</th>
-                <th class="text-right" style="width:130px;">Monto</th>
+                <th class="text-right col-amount">Monto</th>
             </tr>
         </thead>
         <tbody>
@@ -975,7 +1225,7 @@ Reporte de Pago
                 <td rowspan="{{ summary.details|length }}">{{ summary.funding_source }}</td>
                 {% endif %}
                 <td>{{ detail.financial_code }}</td>
-                <td class="text-right">{{ detail.current|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ detail.current|format_amount }}</td>
             </tr>
             {% endfor %}
             {% empty %}
@@ -985,7 +1235,7 @@ Reporte de Pago
             {% endfor %}
             <tr class="total-row">
                 <td colspan="2" class="text-right">TOTAL GENERAL</td>
-                <td class="text-right" style="width:130px;">{{ funding_summary_totals.current|format_amount }}</td>
+                <td class="text-right col-amount-value">{{ funding_summary_totals.current|format_amount }}</td>
             </tr>
         </tbody>
     </table>

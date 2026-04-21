@@ -13,6 +13,7 @@
     const contractField = document.getElementById('id_contract');
     const contractOrdersUrlTemplate = form.dataset.contractOrdersUrlTemplate || '';
     const feedbackBox = document.getElementById('payment-form-feedback');
+    const serverErrorsBox = document.getElementById('payment-server-errors');
     const allocationsWidget = document.getElementById('payment-allocations-widget');
     let currentContractOrderOptions = [];
 
@@ -32,6 +33,57 @@
         feedbackBox.style.display = '';
         feedbackBox.textContent = message;
         feedbackBox.className = `alert alert-${level || 'danger'} form-feedback`;
+    }
+
+    function showServerValidationErrors() {
+        if (!serverErrorsBox) return;
+        const messages = Array.from(serverErrorsBox.querySelectorAll('div'))
+            .map(function (node) {
+                return String(node.textContent || '').trim();
+            })
+            .filter(Boolean);
+
+        if (!messages.length) return;
+        showFormFeedback(messages.join(' | '), 'danger');
+
+        const orderNumbers = [];
+        messages.forEach(function (msg) {
+            const match = String(msg).match(/orden\s+([A-Za-z0-9\-_/\.]+)/i);
+            if (match && match[1]) {
+                orderNumbers.push(String(match[1]).trim());
+            }
+        });
+
+        if (orderNumbers.length && tableBody) {
+            tableBody.querySelectorAll('tr.line-row').forEach(function (row) {
+                const orderSelect = row.querySelector('select[name$="-purchase_order"]');
+                if (!orderSelect) return;
+
+                const selectedOption = orderSelect.options && orderSelect.selectedIndex >= 0
+                    ? orderSelect.options[orderSelect.selectedIndex]
+                    : null;
+                const orderLabel = selectedOption ? String(selectedOption.textContent || '').trim() : '';
+
+                const matches = orderNumbers.some(function (orderNo) {
+                    return orderLabel === orderNo || orderLabel.startsWith(orderNo + ' -');
+                });
+
+                if (!matches) return;
+
+                row.classList.add('danger');
+                if (formErrors.markFieldInvalid) {
+                    formErrors.markFieldInvalid(orderSelect, 'Revisar orden con error de cumplimiento.');
+                }
+            });
+        }
+
+        const firstErrorRow = form.querySelector('tbody tr.line-row.danger')
+            || form.querySelector('tbody tr.line-row .js-client-invalid')?.closest('tr.line-row');
+        if (firstErrorRow && firstErrorRow.scrollIntoView) {
+            window.setTimeout(function () {
+                firstErrorRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 120);
+        }
     }
 
     function validateHeaderRequiredFields() {
@@ -691,13 +743,6 @@
         setSelectPlaceholder(contractField, 'Buscar contrato...');
     }
 
-    if (contractField && contractField.value) {
-        contractField.style.pointerEvents = 'none';
-        contractField.style.backgroundColor = '#f5f5f5';
-        contractField.style.color = '#777';
-        contractField.tabIndex = -1;
-    }
-
     if (!contractField || !contractField.value) {
         loadOrdersForContract('');
         form.querySelectorAll('select[name$="-contract_budget"]').forEach(function (budgetSelect) {
@@ -751,4 +796,6 @@
     if (formErrors.disableNativeRequiredOnEnhancedSelects) {
         formErrors.disableNativeRequiredOnEnhancedSelects(form);
     }
+
+    showServerValidationErrors();
 })();

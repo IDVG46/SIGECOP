@@ -91,6 +91,10 @@
     background-color: #fde6e6 !important;
 }
 
+.proc-lines-table tbody tr.line-row.danger > td {
+    background-color: #fde6e6 !important;
+}
+
 .line-row.line-row-deleted {
     opacity: 0.6;
     background-color: #f0f0f0;

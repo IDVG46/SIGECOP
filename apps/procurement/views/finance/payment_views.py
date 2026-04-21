@@ -27,19 +27,15 @@ from apps.procurement.selectors import get_payments_queryset
 from apps.procurement.services import cancel_payment, post_payment
 from apps.procurement.services.finance_service import get_unapproved_memos_for_orders
 from apps.procurement.services.payments import build_payment_lot_report_sections
+from apps.procurement.views.mixins import HtmxTemplateMixin
 
 
-class PaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class PaymentListView(HtmxTemplateMixin, LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_payment"
     model = Payment
     template_name = "procurement/finance/payments/list.html"
     partial_template_name = "procurement/finance/payments/_table.html"
     context_object_name = "payments"
-
-    def get_template_names(self):
-        if self.request.headers.get("HX-Request") == "true":
-            return [self.partial_template_name]
-        return [self.template_name]
 
     def get_queryset(self):
         return get_payments_queryset()
@@ -101,7 +97,8 @@ class PaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
             else:
                 allocation_formset = PaymentAllocationFormSet(instance=self.object)
         if not allocation_formset.is_valid():
-            return self.render_to_response(self.get_context_data(form=form))
+            context["allocation_formset"] = allocation_formset
+            return self.render_to_response(context)
 
         orders_to_pay = []
         for alloc_form in allocation_formset.forms:
@@ -262,7 +259,8 @@ class PaymentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView)
         allocation_formset = context["allocation_formset"]
 
         if not allocation_formset.is_valid():
-            return self.render_to_response(self.get_context_data(form=form))
+            context["allocation_formset"] = allocation_formset
+            return self.render_to_response(context)
 
         with transaction.atomic():
             self.object = form.save()
@@ -427,12 +425,16 @@ class PaymentReportView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
                 status__in=[FulfillmentMemo.STATUS_ISSUED, FulfillmentMemo.STATUS_APPROVED],
             )
             .distinct()
+            .select_related("application_scope")
             .order_by("memo_date", "memo_number")
         )
 
         memos_grouped_dict = {}
         for memo in memos:
-            key = (memo.beneficiary_sector, memo.received_by, memo.sender_position)
+            scope_name = ""
+            if memo.application_scope_id and memo.application_scope:
+                scope_name = (memo.application_scope.name or "").strip()
+            key = (scope_name, memo.received_by, memo.sender_position)
             if key not in memos_grouped_dict:
                 memos_grouped_dict[key] = []
             memos_grouped_dict[key].append(memo.memo_number)

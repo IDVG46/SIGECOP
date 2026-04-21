@@ -45,11 +45,14 @@ Pago
         seleccione primero el contrato y luego distribuya montos por orden y presupuesto.
     </div>
     <div id="payment-form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
+    <div id="payment-server-errors" style="display: none;">
+        {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+        {% for err in allocation_formset.non_form_errors %}<div>{{ err }}</div>{% endfor %}
+    </div>
     <div class="widget-box">
         {% include "procurement/components/card_header.html" with title="Datos del pago" %}
         <div class="widget-body">
             <div class="widget-main">
-                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
                 <div class="row">
                     <div class="col-sm-6">
                         <label for="{{ form.contract.id_for_label }}">{{ form.contract.label }}<span class="required-marker">*</span></label>
@@ -99,7 +102,7 @@ Pago
                     </thead>
                     <tbody>
                         {% for alloc_form in allocation_formset %}
-                        <tr class="line-row">
+                        <tr class="line-row{% if alloc_form.errors or alloc_form.non_field_errors %} danger{% endif %}">
                             {% include "procurement/components/line_index_cell.html" with value=forloop.counter %}
                             <td>
                                 <div style="display:none">

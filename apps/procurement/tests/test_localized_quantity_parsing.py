@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 
-from apps.procurement.forms.finance_forms import ContractBudgetForm, FulfillmentMemoPartialLineForm, PaymentAllocationForm, PaymentForm
+from apps.procurement.forms.finance_forms import ContractBudgetForm, FulfillmentMemoLineForm, PaymentAllocationForm, PaymentForm
 from apps.procurement.forms.order_forms import PurchaseOrderLineForm
 
 
@@ -24,7 +24,7 @@ class LocalizedQuantityParsingTests(SimpleTestCase):
             form.clean_quantity()
 
     def test_fulfillment_quantity_accepts_thousands_dot(self):
-        form = FulfillmentMemoPartialLineForm(data={"fulfilled_quantity": "2.500"})
+        form = FulfillmentMemoLineForm(data={"fulfilled_quantity": "2.500"})
         form.cleaned_data = {"fulfilled_quantity": None}
 
         value = form.clean_fulfilled_quantity()
@@ -32,7 +32,7 @@ class LocalizedQuantityParsingTests(SimpleTestCase):
         self.assertEqual(value, Decimal("2500"))
 
     def test_fulfillment_quantity_rejects_decimal_comma(self):
-        form = FulfillmentMemoPartialLineForm(data={"fulfilled_quantity": "2,5"})
+        form = FulfillmentMemoLineForm(data={"fulfilled_quantity": "2,5"})
         form.cleaned_data = {"fulfilled_quantity": None}
 
         with self.assertRaises(ValidationError):
