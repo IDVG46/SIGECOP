@@ -158,134 +158,234 @@ Panel de administración: **http://localhost:8000/admin**
 ```
 config/settings/
 ├── base.py    # Configuración compartida
-├── dev.py     # Desarrollo (DEBUG=True, BD local)
-└── prod.py    # Producción (HTTPS, SECRET_KEY obligatoria)
-```
+# SIGECOP - Sistema de Gestión de Contrataciones Públicas
 
-`manage.py` apunta a `config.settings.dev` por defecto.  
-Para producción, exporta la variable antes de ejecutar:
+Plataforma web basada en Django para importar datos de la DNCP y operar el ciclo transaccional de contratación pública sobre esos contratos: órdenes, presupuestos, memorandos de cumplimiento y pagos.
 
-```bash
-export DJANGO_SETTINGS_MODULE=config.settings.prod
-```
-
-### Variables de entorno
-
-| Variable | Descripción | Requerida |
-|---|---|---|
-| `SECRET_KEY` | Clave secreta Django | Sí |
-| `DEBUG` | Activa modo debug | Solo dev |
-| `ALLOWED_HOSTS` | Hosts permitidos (coma-separados) | Sí |
-| `DATABASE_URL` | URL de conexión PostgreSQL | Sí |
-| `DNCP_REQUEST_TOKEN` | Token para la API DNCP v3 | Sí |
+![Python](https://img.shields.io/badge/Python-3.12+-blue?style=flat-square)
+![Django](https://img.shields.io/badge/Django-6.0-darkgreen?style=flat-square)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-336791?style=flat-square)
 
 ---
 
-## Rutas Principales
+## Estado auditado
 
-### DNCP Integration
+Auditoría actualizada al 2026-04-21 sobre el workspace real.
+
+- Arquitectura vigente: monolito modular Django + PostgreSQL.
+- Dominios productivos: `apps.dncp_integration` y `apps.procurement`.
+- Validación ejecutada: `manage.py check` sin errores y `manage.py test apps.procurement.tests --keepdb -v 0` con 50 tests OK.
+- La cobertura de templates principales de DNCP y Procurement existe y está enlazada a las vistas activas.
+- La deuda principal no es ausencia masiva de templates, sino desalineación documental y flujos incompletos en capacidades ya modeladas.
+
+Hallazgos principales:
+
+1. La documentación operativa apuntaba a `docs/architecture.md`, pero ese archivo no existía en el repositorio versionado.
+2. `ContractAmendment` está implementado en modelo, admin, servicios y validaciones, pero todavía no tiene flujo web propio en procurement.
+3. El estándar visual actual usa Tom Select, aunque persiste la convención histórica de clases `select2` como marcador de mejora progresiva.
+4. El roadmap local seguía marcando fases cerradas, pero aún quedan pendientes funcionales relevantes: adendas/ampliaciones, endurecimiento del reporte de pagos y cierre de deuda de nomenclatura/UI.
+
+---
+
+## Fuentes de verdad
+
+Fuentes oficiales para mantener sincronizado el estado del proyecto:
+
+1. `README.md`: onboarding, mapa funcional y estado general auditado.
+2. `docs/architecture.md`: arquitectura vigente, límites de dominio y gaps conocidos.
+3. `docs/forms-and-lists-spec.md`: estándar para construir formularios y listados nuevos.
+4. `docs/git-conventions.md`: convención de commits y versionado.
+5. `.copilot_local/context/contexto.md`: contexto operativo de trabajo diario.
+6. `.copilot_local/plans/implementation-plan.md`: roadmap de mejoras priorizado.
+
+---
+
+## Qué hace SIGECOP
+
+SIGECOP automatiza dos capas complementarias:
+
+1. Integración DNCP: importa licitaciones, lotes, adjudicaciones, contratos y entidades desde la API v3.
+2. Gestión transaccional: crea órdenes, distribuye presupuesto por contrato, registra cumplimientos por línea y postea pagos con control presupuestario.
+
+Reglas funcionales vigentes:
+
+1. El presupuesto no se consume al aprobar una orden.
+2. El saldo presupuestario se afecta al imputar pagos.
+3. Los pagos soportan asignaciones multi-orden y multi-presupuesto.
+4. Los pagos deben respetar cumplimiento aprobado y presupuesto disponible.
+5. Las adendas con impacto financiero condicionan el uso de ciertos códigos financieros, pero hoy ese flujo está disponible sobre todo vía backend/admin.
+
+---
+
+## Módulos
+
+### `apps.dncp_integration`
+
+Mantiene el espejo operativo de la DNCP y permite ajustes locales controlados sobre contratos.
+
+| Funcionalidad | Estado actual |
+|---|---|
+| Importación de OCID / tender | Implementada por vistas y comando |
+| Persistencia de tender, lotes, awards y contratos | Implementada |
+| Edición local de contrato | Implementada |
+| Entidades contratantes | Implementadas |
+| Auditoría de importación | Implementada |
+
+### `apps.procurement`
+
+Gestiona la operación financiera y documental del contrato importado.
+
+| Funcionalidad | Estado actual |
+|---|---|
+| Órdenes de compra | Implementadas con líneas, ámbito de aplicación y formularios dinámicos |
+| Presupuestos por contrato | Implementados con editor batch y vista de detalle |
+| Memorandos de cumplimiento | Implementados por línea de orden, con aprobación posterior |
+| Pagos | Implementados con asignaciones multi-orden y reporte imprimible |
+| Catálogo de ámbito de aplicación | Implementado y usable desde formularios |
+| Adendas / ampliaciones (`ContractAmendment`) | Parcial: modelo + reglas + admin, sin flujo UI dedicado |
+| Ledger presupuestario (`BudgetLedgerEntry`) | Implementado para trazabilidad |
+
+---
+
+## Rutas principales
+
+### DNCP
 
 | URL | Descripción |
 |---|---|
-| `/` | Inicio / dashboard |
-| `/tenders/` | Listado de licitaciones importadas |
-| `/tenders/<ocid>/` | Detalle de una licitación |
+| `/` | Inicio |
+| `/tenders/` | Listado de licitaciones/tenders |
+| `/tenders/<ocid>/` | Detalle de licitación |
 | `/contratos/` | Listado de contratos |
 | `/contratos/<id>/` | Detalle de contrato |
 | `/contratos/<id>/edit/` | Edición local de contrato |
 | `/entidades/` | Entidades contratantes |
-| `/api/dncp/` | API interna DNCP |
 
 ### Procurement
 
 | URL | Descripción |
 |---|---|
-| `/orders/` | Órdenes de compra |
-| `/orders/add/` | Nueva orden |
-| `/budgets/` | Presupuestos por contrato |
-| `/budgets/add/` | Nuevo presupuesto |
-| `/memos/` | Cumplimientos (memos de recepción) |
-| `/memos/add/` | Nuevo memo |
-| `/payments/` | Pagos |
-| `/payments/add/` | Nuevo pago |
+| `/orders/` | Listado de órdenes |
+| `/orders/add/` | Alta de orden |
+| `/budgets/` | Listado de presupuestos |
+| `/budgets/add/` | Entrada al editor batch por contrato |
+| `/budgets/contract/<contract_id>/` | Editor batch de presupuestos |
+| `/budgets/<id>/detail/` | Detalle de presupuesto |
+| `/memos/` | Listado de memorandos |
+| `/memos/add/` | Alta de memorando |
+| `/payments/` | Listado de pagos |
+| `/payments/add/` | Alta de pago |
 | `/payments/<id>/report/` | Reporte de pago |
 
-### Admin
+---
 
-| URL | Descripción |
-|---|---|
-| `/admin/` | Panel administrativo Django |
+## Templates y UI
+
+Cobertura verificada de templates activos:
+
+- DNCP: listados y detalles de tender, DNCP, contratos, entidades y edición/alta local de contrato.
+- Procurement órdenes: `list`, `form`, `confirm_delete` y parcial `_table`.
+- Procurement presupuestos: `list`, `batch_form`, `detail`, `select_contract` y parcial `_table`.
+- Procurement memorandos: `list`, `form` y parcial `_table`.
+- Procurement pagos: `list`, `form`, `report` y parcial `_table`.
+
+Templates o flujos todavía faltantes a nivel funcional:
+
+1. Pantallas de alta, edición, listado y detalle para `ContractAmendment`.
+2. Navegación de usuario final para administrar ampliaciones de monto/plazo fuera del admin.
+3. Posible vista consolidada de trazabilidad presupuestaria basada en ledger.
 
 ---
 
-## Estructura del Proyecto
+## Arquitectura actual
 
-```
+```text
 SIGECOP/
 ├── apps/
-│   ├── dncp_integration/          # Integración API DNCP
-│   │   ├── models.py              # CompiledRelease, Contract, Tender, Lot, Award, Party...
+│   ├── dncp_integration/
+│   │   ├── forms/
+│   │   ├── management/commands/
 │   │   ├── services/
-│   │   │   ├── api_client.py      # Cliente HTTP API DNCP v3
-│   │   │   └── import_mapper.py   # Mapeo de respuesta JSON a modelos Django
-│   │   ├── views/
-│   │   ├── templates/
-│   │   ├── management/commands/   # import_dncp (CLI)
-│   │   └── tests/
-│   │
-│   └── procurement/               # Gestión transaccional
-│       ├── models.py              # PurchaseOrder, ContractBudget, FulfillmentMemo, Payment...
-│       ├── services/
-│       │   ├── finance_service.py # Reglas de negocio: presupuesto, cumplimiento, pagos
-│       │   ├── fulfillment_metrics.py  # Métricas de cumplimiento centralizadas
-│       │   ├── balance/           # Servicios de saldo presupuestario
-│       │   ├── budget/            # Servicios de presupuesto
-│       │   └── payments/          # Servicios de pago
-│       ├── views/
-│       │   ├── order_views.py     # Vistas de órdenes de compra
-│       │   ├── api_views.py       # Endpoints JSON para formularios dinámicos
-│       │   └── finance/           # Vistas modulares de presupuesto, memos y pagos
-│       │       ├── budget_views.py
-│       │       ├── memo_views.py
-│       │       └── payment_views.py
+│   │   ├── templates/dncp_integration/
+│   │   └── views/
+│   └── procurement/
 │       ├── forms/
-│       ├── utils/
-│       │   ├── decimal_utils.py   # Parsing y validación decimal centralizado
-│       │   └── format_utils.py    # Formateo de montos Gs.
-│       ├── templatetags/
-│       ├── templates/
+│       ├── selectors/
+│       ├── services/
+│       │   ├── balance/
+│       │   ├── budget/
+│       │   └── payments/
+│       ├── static/procurement/
+│       ├── templates/procurement/
+│       ├── views/
+│       │   └── finance/
 │       └── tests/
-│
-├── config/
-│   ├── settings/
-│   │   ├── base.py
-│   │   ├── dev.py
-│   │   └── prod.py
-│   ├── urls.py
-│   ├── wsgi.py
-│   └── asgi.py
-│
-├── templates/          # Templates globales (base, home)
-├── static/             # JS compartido (numeric-format.js)
-├── .env                # Variables de entorno (NO versionar)
-├── manage.py
-└── requirements.txt
+├── config/settings/
+├── docs/
+├── static/
+└── templates/
+```
+
+Principios vigentes:
+
+1. Reglas de negocio en `services`.
+2. Lecturas complejas en `selectors`.
+3. Templates server-side con mejoras UX via JS progresivo, HTMX y Tom Select.
+4. Validación crítica repetida entre formularios, servicios y modelos cuando corresponde.
+
+---
+
+## Instalación rápida
+
+```bash
+git clone https://github.com/IDVG46/sigecop.git
+cd sigecop/SIGECOP
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Variables mínimas esperadas en `.env`:
+
+```env
+SECRET_KEY=clave-segura
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+DATABASE_URL=postgresql://usuario:password@localhost:5432/sigecop_db
+DNCP_REQUEST_TOKEN=token-api-dncp
 ```
 
 ---
 
-## Tests
+## Tests y validación
 
-Ejecutar suite de las apps instaladas:
+Comandos recomendados:
 
 ```bash
+python manage.py check
+python manage.py test apps.procurement.tests --keepdb -v 0
 python manage.py test apps.dncp_integration.tests apps.procurement.tests --keepdb --noinput
 ```
 
-La suite cubre:
-- Parsing y validación decimal localizado
-- Reglas de servicio de pagos y consistencia presupuestaria
-- Lógica de cumplimientos parciales y métricas de órdenes
+Cobertura funcional principal:
+
+1. Parsing decimal localizado.
+2. Validaciones de pagos y cumplimiento.
+3. Reglas presupuestarias y ledger.
+4. Métricas de cumplimiento por orden y por línea.
+5. Validación de adendas para códigos financieros con impacto monetario.
+
+---
+
+## Backlog prioritario
+
+1. Implementar flujo UI completo para `ContractAmendment`.
+2. Unificar nomenclatura `select2`/Tom Select para reducir deuda de mantenimiento.
+3. Fortalecer pruebas del reporte de pagos y de agrupaciones por ámbito.
+4. Evaluar extracción de reporting cuando la carga de consultas lo justifique.
 
 ---
 
@@ -293,20 +393,8 @@ La suite cubre:
 
 | Problema | Solución |
 |---|---|
-| `ModuleNotFoundError: django` | `pip install -r requirements.txt` |
-| `No such table: ...` | `python manage.py migrate` |
-| Conexión a BD rechazada | Verifica que PostgreSQL esté corriendo y las credenciales en `.env` |
-| `SECRET_KEY not configured` | Agrega `SECRET_KEY` al archivo `.env` |
-| Puerto 8000 ocupado | `python manage.py runserver 8001` |
-| DNCP API timeout | Verifica conexión a internet y la validez de `DNCP_REQUEST_TOKEN` |
-| Static files no cargan en prod | `python manage.py collectstatic` |
-| Error de test DB existente | Usa `--keepdb --noinput` o elimina la DB de prueba manualmente |
-
----
-
-## Contacto
-
-- GitHub: [IDVG46](https://github.com/IDVG46)
-- Empresa: **IDVG Solutions**
-
----
+| `ModuleNotFoundError: django` | Ejecutar `pip install -r requirements.txt` |
+| `No such table` | Ejecutar `python manage.py migrate` |
+| Error de conexión PostgreSQL | Revisar `DATABASE_URL` y servicio de BD |
+| Token DNCP inválido | Revisar `DNCP_REQUEST_TOKEN` |
+| Archivos estáticos en producción | Ejecutar `python manage.py collectstatic` |
