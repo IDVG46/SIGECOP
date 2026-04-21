@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from apps.procurement.models import (
+	ApplicationScope,
 	BudgetLedgerEntry,
 	ContractAmendment,
 	ContractBudget,
@@ -23,10 +24,17 @@ class PurchaseOrderLineInline(admin.TabularInline):
 
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(admin.ModelAdmin):
-	list_display = ("order_number", "contract", "supplier", "expense_object", "issue_date", "status", "total_amount")
-	list_filter = ("status", "issue_date", "expense_object")
+	list_display = ("order_number", "contract", "supplier", "expense_object", "application_scope", "issue_date", "status", "total_amount")
+	list_filter = ("status", "issue_date", "expense_object", "application_scope")
 	search_fields = ("order_number", "contract__id", "supplier__name", "expense_object__code", "expense_object__description")
 	inlines = [PurchaseOrderLineInline]
+
+
+@admin.register(ApplicationScope)
+class ApplicationScopeAdmin(admin.ModelAdmin):
+	list_display = ("name", "scope_type", "is_active")
+	list_filter = ("scope_type", "is_active")
+	search_fields = ("name",)
 
 
 @admin.register(ExpenseObject)
@@ -87,9 +95,9 @@ class ContractAmendmentAdmin(admin.ModelAdmin):
 
 @admin.register(FulfillmentMemo)
 class FulfillmentMemoAdmin(admin.ModelAdmin):
-	list_display = ("memo_number", "contract", "beneficiary_sector", "memo_date", "status")
-	list_filter = ("status", "memo_date", "beneficiary_sector")
-	search_fields = ("memo_number", "contract__id", "beneficiary_sector")
+	list_display = ("memo_number", "contract", "application_scope_display", "memo_date", "status")
+	list_filter = ("status", "memo_date", "application_scope")
+	search_fields = ("memo_number", "contract__id", "application_detail", "application_scope__name")
 	inlines = [FulfillmentMemoLineInline]
 
 

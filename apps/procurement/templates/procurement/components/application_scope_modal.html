@@ -1,0 +1,46 @@
+<div class="modal fade" id="application-scope-modal" tabindex="-1" role="dialog" aria-labelledby="application-scope-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content scope-modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="application-scope-modal-title">
+                    <i class="fa fa-map-marker"></i>
+                    Agregar ámbito de aplicación
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="application-scope-name-input">Nombre</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="application-scope-name-input"
+                        placeholder="Ej: División de Servicios Generales"
+                        maxlength="255"
+                    >
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="application-scope-type-input">Tipo</label>
+                    <select class="form-control" id="application-scope-type-input">
+                        <option value="sector">Sector</option>
+                        <option value="team">Equipo</option>
+                        <option value="equipment">Activo/Equipo específico</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <p class="help-block" style="margin-top: 8px; margin-bottom: 0;">
+                    Se guardará en el catálogo y quedará disponible para órdenes y memorandos.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="application-scope-modal-save-btn">
+                    <i class="fa fa-check"></i>
+                    Guardar ámbito
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

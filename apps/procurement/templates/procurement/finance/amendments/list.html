@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Adendas - SIGECOP{% endblock %}
+
+{% block page_title %}
+<i class="ace-icon fa fa-files-o"></i>
+Adendas
+{% endblock %}
+
+{% block page_subtitle %}Lista{% endblock %}
+
+{% block breadcrumb %}
+<li><i class="ace-icon fa fa-home home-icon"></i><a href="{% url 'home' %}">Inicio</a></li>
+<li class="active">Adendas</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-xs-12">
+        <div class="clearfix" style="margin-bottom: 12px;">
+            <a href="{% url 'procurement:amendment_create' %}" class="btn btn-success btn-sm pull-right">
+                <i class="fa fa-plus"></i> Nueva adenda
+            </a>
+        </div>
+
+        <div class="widget-box">
+            <div class="widget-header widget-header-blue widget-header-flat">
+                <h4 class="widget-title lighter">
+                    <i class="ace-icon fa fa-files-o"></i>
+                    Listado de Adendas Contractuales
+                </h4>
+            </div>
+            <div class="widget-body">
+                <div class="widget-main no-padding" id="amendment-table-wrapper">
+                    {% include "procurement/finance/amendments/_table.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

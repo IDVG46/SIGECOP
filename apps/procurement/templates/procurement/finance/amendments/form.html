@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Adenda contractual - SIGECOP{% endblock %}
+
+{% block page_title %}
+<i class="ace-icon fa fa-files-o"></i>
+Adenda contractual
+{% endblock %}
+
+{% block page_subtitle %}{% if object and object.pk %}Editar{% else %}Registrar{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<li>
+    <i class="ace-icon fa fa-home home-icon"></i>
+    <a href="{% url 'home' %}">Inicio</a>
+</li>
+<li><a href="{% url 'procurement:amendment_list' %}">Adendas</a></li>
+<li class="active">Formulario</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'procurement/css/procurement_form_base.css' %}" />
+<link rel="stylesheet" href="{% static 'procurement/css/amendment_form.css' %}" />
+{% endblock %}
+
+{% block content %}
+<form method="post" id="amendment-form" class="proc-form" novalidate data-is-create="{% if object and object.pk %}0{% else %}1{% endif %}">
+    {% csrf_token %}
+    <div class="alert form-intro">
+        <strong><i class="fa fa-info-circle"></i> Alcance:</strong>
+        registre ampliaciones de monto, de plazo o mixtas usando la misma estructura operativa del módulo financiero.
+    </div>
+    <div id="amendment-form-feedback" class="alert alert-danger form-feedback" style="display: none;"></div>
+
+    <div class="widget-box">
+        {% include "procurement/components/card_header.html" with title="Datos de la adenda" %}
+        <div class="widget-body">
+            <div class="widget-main">
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <div class="row">
+                    <div class="col-sm-4">
+                        <label for="{{ form.contract.id_for_label }}">{{ form.contract.label }}<span class="required-marker">*</span></label>
+                        {{ form.contract }}{{ form.contract.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.amendment_number.id_for_label }}">{{ form.amendment_number.label }}<span class="required-marker">*</span></label>
+                        {{ form.amendment_number }}{{ form.amendment_number.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.amendment_type.id_for_label }}">{{ form.amendment_type.label }}<span class="required-marker">*</span></label>
+                        {{ form.amendment_type }}{{ form.amendment_type.errors }}
+                    </div>
+                </div>
+                <div class="row proc-row-top">
+                    <div class="col-sm-4">
+                        <label for="{{ form.financial_code.id_for_label }}">{{ form.financial_code.label }}<span class="required-marker">*</span></label>
+                        {{ form.financial_code }}{{ form.financial_code.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.effective_date.id_for_label }}">{{ form.effective_date.label }}<span class="required-marker">*</span></label>
+                        {{ form.effective_date }}{{ form.effective_date.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+                        {{ form.status }}{{ form.status.errors }}
+                    </div>
+                </div>
+                <div class="row proc-row-top">
+                    <div class="col-sm-4">
+                        <label for="{{ form.amount_delta.id_for_label }}">{{ form.amount_delta.label }}</label>
+                        {{ form.amount_delta }}{{ form.amount_delta.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.period_extension_days.id_for_label }}">{{ form.period_extension_days.label }}</label>
+                        {{ form.period_extension_days }}{{ form.period_extension_days.errors }}
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="{{ form.new_end_date.id_for_label }}">{{ form.new_end_date.label }}</label>
+                        {{ form.new_end_date }}{{ form.new_end_date.errors }}
+                    </div>
+                </div>
+                <div class="row proc-row-top">
+                    <div class="col-sm-12">
+                        <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+                        {{ form.notes }}{{ form.notes.errors }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% url 'procurement:amendment_list' as amendment_cancel_url %}
+    {% include "procurement/components/form_actions.html" with save_button_id="save-amendment-button" cancel_url=amendment_cancel_url %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'procurement/js/form_errors.js' %}"></script>
+<script src="{% static 'procurement/js/amendment_form.js' %}"></script>
+{% endblock %}

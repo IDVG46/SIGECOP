@@ -140,6 +140,40 @@ select.tomselected.ts-hidden-accessible {
     align-items: center;
 }
 
+.proc-form .scope-add-btn {
+    min-width: 28px;
+    height: 34px;
+    padding: 0 8px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.proc-form .input-group .scope-add-btn i {
+    margin: 0;
+}
+
+.scope-modal-content {
+    border-radius: 8px;
+    border: 1px solid #dfe7f2;
+}
+
+.scope-modal-content .modal-header {
+    background: linear-gradient(90deg, #f6fbff 0%, #eef6ff 100%);
+    border-bottom: 1px solid #dfe7f2;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.scope-modal-content .modal-title {
+    color: #2f4d69;
+    font-weight: 600;
+}
+
+.scope-modal-content .modal-title i {
+    margin-right: 6px;
+    color: #4e89c7;
+}
+
 .proc-form .proc-lines-wrap {
     width: 100%;
     max-width: 100%;

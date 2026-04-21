@@ -1,0 +1,58 @@
+<table class="table table-striped table-bordered table-hover datatable" data-order-column="4" data-order-dir="desc">
+    <thead>
+        <tr>
+            <th class="center">Contrato</th>
+            <th>N° Adenda</th>
+            <th>Tipo</th>
+            <th class="text-right">Monto</th>
+            <th class="center">Fecha vigencia</th>
+            <th class="center">Prórroga</th>
+            <th class="center">Estado</th>
+            <th class="center"></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for amendment in amendments %}
+        <tr>
+            <td class="center"><span style="font-family: monospace;">{{ amendment.contract.id }}</span></td>
+            <td><strong>{{ amendment.amendment_number }}</strong></td>
+            <td>{{ amendment.get_amendment_type_display }}</td>
+            <td class="text-right">{% if amendment.amount_delta %}<strong>{{ amendment.formatted_amount_delta }}</strong>{% else %}—{% endif %}</td>
+            <td class="center">{{ amendment.effective_date|date:"d/m/Y" }}</td>
+            <td class="center">
+                {% if amendment.period_extension_days %}
+                    {{ amendment.period_extension_days }} días
+                {% elif amendment.new_end_date %}
+                    hasta {{ amendment.new_end_date|date:"d/m/Y" }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td class="center">
+                <span class="label label-sm {% if amendment.status == 'active' %}label-success{% elif amendment.status == 'approved' %}label-info{% elif amendment.status == 'closed' %}label-default{% elif amendment.status == 'cancelled' %}label-danger{% else %}label-warning{% endif %} arrowed">
+                    {{ amendment.get_status_display }}
+                </span>
+            </td>
+            <td class="text-center">
+                <div class="action-buttons">
+                    <a href="{% url 'procurement:amendment_detail' amendment.pk %}" class="blue" title="Ver detalle">
+                        <i class="ace-icon fa fa-eye bigger-130"></i>
+                    </a>
+                    <a href="{% url 'procurement:amendment_update' amendment.pk %}" class="green" title="Editar adenda">
+                        <i class="ace-icon fa fa-pencil bigger-130"></i>
+                    </a>
+                </div>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="center">
+                <div class="empty-state" style="padding: 40px 0;">
+                    <i class="ace-icon fa fa-inbox fa-3x grey"></i>
+                    <p class="grey" style="margin-top: 15px; font-size: 16px;">Sin adendas registradas.</p>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

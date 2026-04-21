@@ -13,6 +13,11 @@
         const totalFormsInput = document.getElementById('id_lines-TOTAL_FORMS') || document.getElementById('id_purchaseorderline_set-TOTAL_FORMS');
         const urlTemplate = form.dataset.lineOptionsUrlTemplate || '';
         const supplierUrlTemplate = form.dataset.supplierOptionsUrlTemplate || '';
+        const applicationScopeCreateUrl = form.dataset.applicationScopeCreateUrl || '';
+        const scopeModal = document.getElementById('application-scope-modal');
+        const scopeNameInput = document.getElementById('application-scope-name-input');
+        const scopeTypeInput = document.getElementById('application-scope-type-input');
+        const scopeSaveBtn = document.getElementById('application-scope-modal-save-btn');
         const isEditMode = form.dataset.editMode === '1';
         const initialSummaryNode = document.getElementById('initial-contract-summary');
         let initialContractSummary = null;
@@ -38,6 +43,7 @@
             item: 'Buscar item...',
             subitem: 'Buscar subitem...'
         };
+        let pendingScopeTargetField = null;
 
         function showFormFeedback(message, level) {
             if (formErrors.showFloatingFeedback) {
@@ -55,6 +61,160 @@
             feedbackBox.style.display = '';
             feedbackBox.textContent = message;
             feedbackBox.className = `alert alert-${level || 'danger'} form-feedback`;
+        }
+
+        function getCsrfToken() {
+            const csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (csrfInput && csrfInput.value) {
+                return csrfInput.value;
+            }
+
+            const cookie = document.cookie || '';
+            const match = cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : '';
+        }
+
+        function openScopeModal() {
+            if (!scopeModal) {
+                showFormFeedback('No se encontró el modal para crear ámbito.', 'warning');
+                return;
+            }
+
+            if (scopeNameInput) {
+                scopeNameInput.value = '';
+            }
+            if (scopeTypeInput && !scopeTypeInput.value) {
+                scopeTypeInput.value = 'sector';
+            }
+
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                window.jQuery(scopeModal).modal('show');
+                window.setTimeout(function() {
+                    if (scopeNameInput) {
+                        scopeNameInput.focus();
+                    }
+                }, 220);
+                return;
+            }
+
+            scopeModal.style.display = 'block';
+            scopeModal.classList.add('in');
+            if (scopeNameInput) {
+                scopeNameInput.focus();
+            }
+        }
+
+        function closeScopeModal() {
+            if (!scopeModal) return;
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                window.jQuery(scopeModal).modal('hide');
+                return;
+            }
+            scopeModal.style.display = 'none';
+            scopeModal.classList.remove('in');
+        }
+
+        function resolveScopeTargetField(button) {
+            if (!button) return null;
+
+            const group = button.closest('.input-group');
+            if (group) {
+                const inGroup = group.querySelector('select[name$="application_scope"]');
+                if (inGroup) return inGroup;
+            }
+
+            const row = button.closest('tr');
+            if (row) {
+                const inRow = row.querySelector('select[name$="application_scope"]');
+                if (inRow) return inRow;
+            }
+
+            return document.getElementById('id_application_scope');
+        }
+
+        async function createApplicationScopeQuick(targetField) {
+            if (!applicationScopeCreateUrl) {
+                showFormFeedback('No se configuró el endpoint para crear ámbitos.', 'warning');
+                return;
+            }
+
+            if (!targetField) {
+                showFormFeedback('No se encontró el campo de ámbito para asignar el valor.', 'warning');
+                return;
+            }
+
+            const name = scopeNameInput ? String(scopeNameInput.value || '').trim() : '';
+            if (!name) return;
+            const scopeType = scopeTypeInput ? String(scopeTypeInput.value || 'sector').trim() : 'sector';
+
+            if (scopeSaveBtn) {
+                scopeSaveBtn.disabled = true;
+            }
+
+            let response;
+            try {
+                response = await fetch(applicationScopeCreateUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ name: name, scope_type: scopeType }),
+                });
+            } catch (_error) {
+                showFormFeedback('No se pudo crear el ámbito por un error de conexión.', 'danger');
+                if (scopeSaveBtn) {
+                    scopeSaveBtn.disabled = false;
+                }
+                return;
+            }
+
+            if (!response.ok) {
+                showFormFeedback('No se pudo crear el ámbito.', 'danger');
+                if (scopeSaveBtn) {
+                    scopeSaveBtn.disabled = false;
+                }
+                return;
+            }
+
+            const payload = await response.json();
+            const scope = payload.scope;
+            if (!scope || !scope.id) {
+                showFormFeedback('Respuesta inválida al crear ámbito.', 'danger');
+                if (scopeSaveBtn) {
+                    scopeSaveBtn.disabled = false;
+                }
+                return;
+            }
+
+            const value = String(scope.id);
+            if (targetField.tomselect) {
+                if (!targetField.tomselect.options[value]) {
+                    targetField.tomselect.addOption({ value: value, text: scope.name });
+                }
+                targetField.tomselect.setValue(value, true);
+            } else {
+                let option = Array.from(targetField.options || []).find(function(opt) {
+                    return String(opt.value) === value;
+                });
+                if (!option) {
+                    option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = scope.name;
+                    targetField.appendChild(option);
+                }
+                targetField.value = value;
+            }
+
+            targetField.dispatchEvent(new Event('change', { bubbles: true }));
+            showFormFeedback('Ámbito agregado correctamente.', 'success');
+            closeScopeModal();
+            if (scopeSaveBtn) {
+                scopeSaveBtn.disabled = false;
+            }
+            pendingScopeTargetField = null;
         }
 
         function triggerSelect2Change(field) {
@@ -1175,6 +1335,35 @@
 
         if (addLineButton) {
             addLineButton.addEventListener('click', addLineRow);
+        }
+
+        form.addEventListener('click', function(event) {
+            const button = event.target.closest('.js-add-scope-btn');
+            if (!button) return;
+            event.preventDefault();
+            pendingScopeTargetField = resolveScopeTargetField(button);
+            openScopeModal();
+        });
+
+        if (scopeSaveBtn) {
+            scopeSaveBtn.addEventListener('click', function() {
+                if (!pendingScopeTargetField) {
+                    showFormFeedback('No se encontró el campo destino para el ámbito.', 'warning');
+                    return;
+                }
+                createApplicationScopeQuick(pendingScopeTargetField);
+            });
+        }
+
+        if (scopeNameInput) {
+            scopeNameInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    if (scopeSaveBtn) {
+                        scopeSaveBtn.click();
+                    }
+                }
+            });
         }
 
         decorateFieldsWithErrors(form);

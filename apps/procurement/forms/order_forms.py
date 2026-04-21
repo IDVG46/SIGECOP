@@ -4,7 +4,7 @@ from django.forms import inlineformset_factory
 
 from apps.dncp_integration.models import AwardItem, AwardSubItem, Lot, Party
 from apps.procurement.forms.mixins import LocalizedDecimalMixin
-from apps.procurement.models import ExpenseObject, PurchaseOrder, PurchaseOrderLine
+from apps.procurement.models import ApplicationScope, ExpenseObject, PurchaseOrder, PurchaseOrderLine
 
 
 def _award_item_label(instance):
@@ -28,6 +28,8 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields["issue_date"].input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
         self.fields["expense_object"].queryset = ExpenseObject.objects.filter(is_active=True).order_by("code")
         self.fields["expense_object"].required = True
+        self.fields["application_scope"].queryset = ApplicationScope.objects.filter(is_active=True).order_by("name")
+        self.fields["application_scope"].required = False
 
         if self.instance and self.instance.pk and self.instance.expense_object_id and not self.instance.expense_object.is_active:
             self.fields["expense_object"].queryset = ExpenseObject.objects.filter(pk=self.instance.expense_object_id)
@@ -48,6 +50,8 @@ class PurchaseOrderForm(forms.ModelForm):
             "supplier",
             "issue_date",
             "expense_object",
+            "application_scope",
+            "application_detail",
             "delivery_term",
             "delivery_place",
             "status",
@@ -55,14 +59,21 @@ class PurchaseOrderForm(forms.ModelForm):
         ]
         widgets = {
             "issue_date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date", "class": "form-control"}),
-            "order_number": forms.TextInput(attrs={"class": "form-control"}),
+            "order_number": forms.TextInput(attrs={"class": "form-control", "autofocus": True}),
             "contract": forms.Select(attrs={"class": "form-control select2"}),
             "supplier": forms.Select(attrs={"class": "form-control select2"}),
             "expense_object": forms.Select(attrs={"class": "form-control select2"}),
+            "application_scope": forms.Select(attrs={"class": "form-control select2"}),
+            "application_detail": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Ej: Camioneta Toyota Hilux placa ABC123",
+                }
+            ),
             "delivery_term": forms.TextInput(attrs={"class": "form-control"}),
             "delivery_place": forms.TextInput(attrs={"class": "form-control"}),
             "status": forms.Select(attrs={"class": "form-control select2"}),
-            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
 
 
@@ -74,6 +85,8 @@ class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
         self.fields["lot"].queryset = Lot.objects.none()
         self.fields["award_item"].queryset = AwardItem.objects.none()
         self.fields["award_subitem"].queryset = AwardSubItem.objects.none()
+        self.fields["application_scope"].queryset = ApplicationScope.objects.filter(is_active=True).order_by("name")
+        self.fields["application_scope"].required = False
 
         contract_obj = contract
         if contract_obj is None and self.instance and self.instance.pk:
@@ -89,7 +102,7 @@ class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
 
     class Meta:
         model = PurchaseOrderLine
-        fields = ["lot", "award_item", "award_subitem", "quantity", "unit_price"]
+        fields = ["lot", "award_item", "award_subitem", "quantity", "unit_price", "application_scope", "application_detail"]
         widgets = {
             "lot": forms.Select(attrs={
                 "class": "form-control select2",
@@ -122,6 +135,13 @@ class PurchaseOrderLineForm(LocalizedDecimalMixin, forms.ModelForm):
                     "placeholder": "0",
                 }
             ),
+            "application_scope": forms.Select(attrs={"class": "form-control select2"}),
+            "application_detail": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Detalle específico (opcional)",
+                }
+            ),
         }
 
     def clean_quantity(self):
@@ -144,6 +164,14 @@ class BasePurchaseOrderLineFormSet(forms.BaseInlineFormSet):
             return
 
         has_detail_line = False
+        header_scope = getattr(self.instance, "application_scope", None)
+        if header_scope is None and self.is_bound:
+            header_scope_id = self.data.get("application_scope")
+            if header_scope_id:
+                try:
+                    header_scope = ApplicationScope.objects.filter(pk=header_scope_id).first()
+                except (TypeError, ValueError):
+                    header_scope = None
         for form in self.forms:
             cleaned = getattr(form, "cleaned_data", None) or {}
             if not cleaned or cleaned.get("DELETE"):
@@ -155,7 +183,13 @@ class BasePurchaseOrderLineFormSet(forms.BaseInlineFormSet):
             )
             if has_values:
                 has_detail_line = True
-                break
+                line_scope = cleaned.get("application_scope")
+                if not line_scope and not header_scope:
+                    form.add_error(
+                        "application_scope",
+                        "Defina un ámbito en la línea o en la cabecera de la orden.",
+                    )
+                continue
 
         if not has_detail_line:
             raise ValidationError("Debe agregar al menos una línea de detalle para guardar la orden.")

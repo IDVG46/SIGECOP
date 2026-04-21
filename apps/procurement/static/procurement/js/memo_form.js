@@ -1,55 +1,39 @@
 (function () {
     const form = document.getElementById('memo-form');
     if (!form) return;
+
     form.setAttribute('novalidate', 'novalidate');
 
     const contractSelect = document.getElementById('id_contract');
     const memoNumberInput = document.getElementById('id_memo_number');
     const memoDateInput = document.getElementById('id_memo_date');
-    const beneficiarySectorInput = document.getElementById('id_beneficiary_sector');
+    const applicationScopeInput = document.getElementById('id_application_scope');
+    const applicationDetailInput = document.getElementById('id_application_detail');
     const receivedByInput = document.getElementById('id_received_by');
     const senderPositionInput = document.getElementById('id_sender_position');
     const ordersUrlTemplate = form.dataset.contractOrdersUrlTemplate || '';
     const orderLinesUrlTemplate = form.dataset.orderLinesUrlTemplate || '';
+    const applicationScopeCreateUrl = form.dataset.applicationScopeCreateUrl || '';
     const memoId = form.dataset.memoId || '';
 
-    const addOrderBtn = document.getElementById('add-memo-line-button');
-    const addPartialBtn = document.getElementById('add-partial-line-button');
+    const addLineButton = document.getElementById('add-memo-line-button');
     const feedbackBox = document.getElementById('memo-form-feedback');
+    const linesWidget = document.getElementById('memo-lines-widget');
+    const totalFormsInput = document.getElementById('id_lines-TOTAL_FORMS') || document.getElementById('id_fulfillmentmemoline_set-TOTAL_FORMS');
+    const lineTemplate = document.getElementById('memo-line-row-template');
+    const linesBody = document.querySelector('#orders-table tbody');
 
-    const orderTotalForms = document.getElementById('id_lines-TOTAL_FORMS') || document.getElementById('id_fulfillmentmemoline_set-TOTAL_FORMS');
-    const partialTotalForms = document.getElementById('id_partials-TOTAL_FORMS');
-
-    const orderTemplate = document.getElementById('memo-line-row-template');
-    const partialTemplate = document.getElementById('memo-partial-row-template');
-
-    const orderBody = document.querySelector('#orders-table tbody');
-    const partialBody = document.querySelector('#partials-table tbody');
-    const orderWidget = document.getElementById('memo-lines-widget');
-    const partialWidget = document.getElementById('memo-partials-widget');
+    const scopeModal = document.getElementById('application-scope-modal');
+    const scopeNameInput = document.getElementById('application-scope-name-input');
+    const scopeTypeInput = document.getElementById('application-scope-type-input');
+    const scopeSaveBtn = document.getElementById('application-scope-modal-save-btn');
 
     const numberUtils = window.SIGECOPNumbers || {};
     const formErrors = window.SIGECOPFormErrors || {};
 
     let currentOrderOptions = [];
     const currentOrderLineOptions = {};
-
-    const detailPlaceholders = {
-        order: 'Buscar orden...',
-        mode: 'Buscar modo...',
-        line: 'Buscar linea...'
-    };
-
-    function getModeValue(modeSelect) {
-        if (!modeSelect) return 'total';
-
-        let value = String(modeSelect.value || '').trim();
-        if (!value && modeSelect.tomselect && typeof modeSelect.tomselect.getValue === 'function') {
-            value = String(modeSelect.tomselect.getValue() || '').trim();
-        }
-
-        return value || 'total';
-    }
+    let pendingScopeTargetField = null;
 
     function showFormFeedback(message, level) {
         if (formErrors.showFloatingFeedback) {
@@ -64,9 +48,21 @@
             feedbackBox.className = 'alert alert-danger form-feedback';
             return;
         }
+
         feedbackBox.style.display = '';
         feedbackBox.textContent = message;
         feedbackBox.className = `alert alert-${level || 'danger'} form-feedback`;
+    }
+
+    function getCsrfToken() {
+        const csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput && csrfInput.value) {
+            return csrfInput.value;
+        }
+
+        const cookie = document.cookie || '';
+        const match = cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
     }
 
     function initSelects(container) {
@@ -81,37 +77,6 @@
         }
     }
 
-    function validateHeaderRequiredFields() {
-        const requiredHeaderFields = [
-            { field: contractSelect, message: 'Debe seleccionar un contrato.' },
-            { field: memoNumberInput, message: 'Debe indicar el numero de memorandum.' },
-            { field: memoDateInput, message: 'Debe indicar la fecha del memorandum.' },
-            { field: beneficiarySectorInput, message: 'Debe indicar el sector beneficiario.' },
-            { field: receivedByInput, message: 'Debe indicar quien recibe.' },
-            { field: senderPositionInput, message: 'Debe indicar el cargo del remitente.' }
-        ];
-
-        requiredHeaderFields.forEach(function (item) {
-            if (!item.field) return;
-            if (formErrors.clearFieldError) {
-                formErrors.clearFieldError(item.field);
-            }
-        });
-
-        for (const item of requiredHeaderFields) {
-            if (!item.field) continue;
-            const value = String(item.field.value || '').trim();
-            if (value !== '') continue;
-
-            if (formErrors.markFieldInvalid) {
-                formErrors.markFieldInvalid(item.field, item.message);
-            }
-            return item.field;
-        }
-
-        return null;
-    }
-
     function bindSelectChangeEvents(field, handler) {
         if (!field || typeof handler !== 'function') return;
         field.addEventListener('change', handler);
@@ -123,12 +88,10 @@
 
     function setSelectPlaceholder(select, placeholderText) {
         if (!select || !placeholderText) return;
-
         select.setAttribute('placeholder', placeholderText);
         select.dataset.placeholder = placeholderText;
 
         if (!select.tomselect) return;
-
         const ts = select.tomselect;
         ts.settings.placeholder = placeholderText;
         if (ts.control_input) {
@@ -136,56 +99,6 @@
         }
         if (!select.value) {
             ts.clear(true);
-        }
-    }
-
-    function applyOrderRowPlaceholders(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        const modeSelect = row.querySelector('select[name$="-line_mode"]');
-        setSelectPlaceholder(orderSelect, detailPlaceholders.order);
-        setSelectPlaceholder(modeSelect, detailPlaceholders.mode);
-    }
-
-    function applyPartialRowPlaceholders(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        const lineSelect = row.querySelector('select[name$="-purchase_order_line"]');
-        setSelectPlaceholder(orderSelect, detailPlaceholders.order);
-        setSelectPlaceholder(lineSelect, detailPlaceholders.line);
-    }
-
-    function buildUrl(template, key, value) {
-        if (!value || !template) return '';
-        return template
-            .replace(key, encodeURIComponent(value))
-            .replace(encodeURIComponent(key), encodeURIComponent(value));
-    }
-
-    async function fetchContractOrders(contractId) {
-        const url = buildUrl(ordersUrlTemplate, '__CONTRACT_ID__', contractId);
-        if (!url) return [];
-        try {
-            const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) return null;
-            const payload = await resp.json();
-            return payload.orders || [];
-        } catch (_e) {
-            return null;
-        }
-    }
-
-    async function fetchOrderLines(orderId) {
-        let url = buildUrl(orderLinesUrlTemplate, '__ORDER_ID__', orderId);
-        if (!url) return [];
-        if (memoId) {
-            url += (url.includes('?') ? '&' : '?') + 'memo_id=' + encodeURIComponent(memoId);
-        }
-        try {
-            const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) return [];
-            const payload = await resp.json();
-            return payload.lines || [];
-        } catch (_e) {
-            return [];
         }
     }
 
@@ -197,7 +110,6 @@
             return {
                 value: String(opt.id),
                 text: opt.text,
-                pendingQuantity: String(opt.pending_quantity || '0')
             };
         });
 
@@ -209,7 +121,6 @@
                 ts.addOption(opt);
             });
             ts.refreshOptions(false);
-
             if (normalizedSelected) {
                 ts.setValue(normalizedSelected, true);
             } else {
@@ -228,126 +139,113 @@
             const option = document.createElement('option');
             option.value = opt.value;
             option.textContent = opt.text;
-            option.dataset.pendingQuantity = opt.pendingQuantity;
             select.appendChild(option);
         });
 
         select.value = normalizedSelected;
     }
 
-    async function refreshPartialOrderLines(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        const lineSelect = row.querySelector('select[name$="-purchase_order_line"]');
-        if (!orderSelect || !lineSelect) return;
-
-        if (!orderSelect.value) {
-            setOptions(lineSelect, [], '');
-            return;
-        }
-
-        const oid = String(orderSelect.value);
-        if (!currentOrderLineOptions[oid]) {
-            const lines = await fetchOrderLines(oid);
-            currentOrderLineOptions[oid] = lines || [];
-        }
-        setOptions(lineSelect, currentOrderLineOptions[oid], lineSelect.value);
-    }
-
-    function setupOrderRow(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        const modeSelect = row.querySelector('select[name$="-line_mode"]');
-        applyOrderRowPlaceholders(row);
-
-        if (modeSelect && String(modeSelect.value || '').trim() === '') {
-            modeSelect.value = 'total';
-            if (modeSelect.tomselect && typeof modeSelect.tomselect.setValue === 'function') {
-                modeSelect.tomselect.setValue('total', true);
-            }
-        }
-
-        if (orderSelect && currentOrderOptions.length) {
-            setOptions(orderSelect, currentOrderOptions, orderSelect.value);
-        }
-
-        if (modeSelect && modeSelect.dataset.memoBound !== '1') {
-            bindSelectChangeEvents(modeSelect, function () {
-                syncPartialSectionVisibility();
-                showFormFeedback('', 'danger');
-            });
-            modeSelect.dataset.memoBound = '1';
-        }
-    }
-
-    function setupPartialRow(row) {
-        const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-        const lineSelect = row.querySelector('select[name$="-purchase_order_line"]');
-        const qtyInput = row.querySelector('input[name$="-fulfilled_quantity"]');
-
-        applyPartialRowPlaceholders(row);
-
-        if (orderSelect && currentOrderOptions.length) {
-            setOptions(orderSelect, currentOrderOptions, orderSelect.value);
-        }
-
-        if (orderSelect && orderSelect.dataset.memoBound !== '1') {
-            const onChange = function () {
-                refreshPartialOrderLines(row);
-                showFormFeedback('', 'danger');
-            };
-            bindSelectChangeEvents(orderSelect, onChange);
-            orderSelect.dataset.memoBound = '1';
-        }
-
-        if (qtyInput && numberUtils.bindInputFormatting) {
-            numberUtils.bindInputFormatting(qtyInput, {
-                kind: 'quantity',
-                locale: 'es-PY',
-                precision: 0,
-            });
-        }
-
-        if (currentOrderOptions.length) {
-            refreshPartialOrderLines(row);
-        } else if (lineSelect) {
-            setSelectPlaceholder(lineSelect, detailPlaceholders.line);
-        }
-    }
-
-    function addRow(template, body, totalFormsInput, setupFn) {
-        if (!template || !body || !totalFormsInput) return;
-
-        const index = Number(totalFormsInput.value || '0');
-        const html = template.innerHTML.replace(/__prefix__/g, String(index));
-        const tmp = document.createElement('tbody');
-        tmp.innerHTML = html.trim();
-        const row = tmp.firstElementChild;
-        if (!row) return;
-
-        body.appendChild(row);
-        totalFormsInput.value = String(index + 1);
-        initSelects(row);
-        setupFn(row);
-        updateDeleteRowState(row);
-        refreshRowIndexes(body);
-    }
-
-    function refreshRowIndexes(body) {
-        if (!body) return;
-        let index = 1;
-        body.querySelectorAll('tr[data-row-kind]').forEach(function (row) {
+    function refreshIndexes() {
+        Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]')).forEach(function (row, index) {
             const indexCell = row.querySelector('.js-line-index');
             if (indexCell) {
-                indexCell.textContent = String(index++);
+                indexCell.textContent = String(index + 1);
             }
         });
     }
 
     function rowElements(row) {
         return {
+            order: row.querySelector('select[name$="-purchase_order"]'),
+            orderLine: row.querySelector('select[name$="-purchase_order_line"]'),
+            fulfilledQuantity: row.querySelector('input[name$="-fulfilled_quantity"]'),
+            applicationScope: row.querySelector('select[name$="-application_scope"]'),
+            applicationDetail: row.querySelector('input[name$="-application_detail"]'),
+            observations: row.querySelector('input[name$="-observations"]'),
             del: row.querySelector('input[name$="-DELETE"]'),
             deleteBtn: row.querySelector('.js-delete-line-btn'),
-            deleteLabel: row.querySelector('.js-delete-line-label')
+            fillOrderBtn: row.querySelector('.js-fill-order-lines-btn'),
         };
+    }
+
+    function updateFillBtnVisibility(row) {
+        const els = rowElements(row);
+        if (!els.fillOrderBtn) return;
+        els.fillOrderBtn.style.display = (els.order && els.order.value) ? '' : 'none';
+    }
+
+    async function fillOrderLines(sourceRow) {
+        const els = rowElements(sourceRow);
+        if (!els.order || !els.order.value) return;
+
+        const orderId = String(els.order.value);
+        if (!currentOrderLineOptions[orderId]) {
+            currentOrderLineOptions[orderId] = await fetchOrderLines(orderId);
+        }
+
+        const allLines = currentOrderLineOptions[orderId] || [];
+        const pendingLines = allLines.filter(function (l) {
+            return parseFloat(l.pending_quantity || '0') > 0;
+        });
+
+        if (!pendingLines.length) {
+            showFormFeedback('La orden seleccionada no tiene líneas con cantidad pendiente.', 'warning');
+            return;
+        }
+
+        // Completar la fila actual con la primera línea pendiente
+        setOptions(els.orderLine, allLines, String(pendingLines[0].id));
+        if (els.fulfilledQuantity) {
+            els.fulfilledQuantity.value = pendingLines[0].pending_quantity;
+            els.fulfilledQuantity.dispatchEvent(new Event('blur'));
+        }
+        clearRowInvalidState(sourceRow);
+
+        // Agregar una fila nueva por cada línea pendiente adicional
+        for (let i = 1; i < pendingLines.length; i++) {
+            const lineDef = pendingLines[i];
+            addRow();
+            const allRows = Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]'));
+            const newRow = allRows[allRows.length - 1];
+            if (!newRow) continue;
+            const newEls = rowElements(newRow);
+            setOptions(newEls.order, currentOrderOptions, orderId);
+            setOptions(newEls.orderLine, allLines, String(lineDef.id));
+            if (newEls.fulfilledQuantity) {
+                newEls.fulfilledQuantity.value = lineDef.pending_quantity;
+                newEls.fulfilledQuantity.dispatchEvent(new Event('blur'));
+            }
+            updateFillBtnVisibility(newRow);
+            clearRowInvalidState(newRow);
+        }
+
+        refreshIndexes();
+        const n = pendingLines.length;
+        showFormFeedback(
+            n === 1
+                ? 'Se agregó 1 línea pendiente de la orden.'
+                : 'Se agregaron ' + n + ' líneas pendientes de la orden.',
+            'success'
+        );
+    }
+
+    function clearRowInvalidState(row) {
+        if (!row) return;
+        row.classList.remove('danger');
+        if (formErrors.clearInvalidInContainer) {
+            formErrors.clearInvalidInContainer(row);
+        }
+        const next = row.nextElementSibling;
+        if (next && next.classList.contains('js-line-error-row')) {
+            next.remove();
+        }
+    }
+
+    function markRowFieldInvalid(row, field, message) {
+        row.classList.add('danger');
+        if (formErrors.markFieldInvalid) {
+            formErrors.markFieldInvalid(field, message || '');
+        }
     }
 
     function updateDeleteRowState(row) {
@@ -367,339 +265,423 @@
         row.classList.toggle('line-row-deleted', isDeleted);
     }
 
-    function removeRow(btn) {
-        const row = btn.closest('tr');
-        if (!row) return;
-
-        if (window.SIGECOPLineDelete && typeof window.SIGECOPLineDelete.toggleRow === 'function') {
-            const result = window.SIGECOPLineDelete.toggleRow(row, {
-                hideNextErrorRow: true,
-                labels: {
-                    deleteText: 'Eliminar detalle',
-                    restoreText: 'Restaurar detalle',
-                },
-            });
-            if (result.removed) {
-                refreshRowIndexes(row.parentElement);
-            }
-        } else {
-            const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-            if (del) {
-                del.checked = !del.checked;
-                updateDeleteRowState(row);
-            } else {
-                const body = row.parentElement;
-                row.remove();
-                refreshRowIndexes(body);
-            }
-        }
-
-        syncPartialSectionVisibility();
-    }
-
-    function rowVisible(row) {
-        if (!row || row.style.display === 'none') return false;
-        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
-        return !(del && del.checked);
-    }
-
-    function clearRowInvalidState(row) {
-        if (!row) return;
-        row.classList.remove('danger');
-    }
-
-    function markRowInvalid(row) {
-        if (!row) return;
-        row.classList.add('danger');
-    }
-
-    function clearPartialCoverageErrorState() {
-        if (partialWidget) {
-            partialWidget.classList.remove('js-client-invalid-block');
+    async function fetchContractOrders(contractId) {
+        if (!contractId || !ordersUrlTemplate) return [];
+        const url = ordersUrlTemplate.replace('__CONTRACT_ID__', encodeURIComponent(contractId));
+        try {
+            const response = await fetch(url, { credentials: 'same-origin' });
+            if (!response.ok) return null;
+            const payload = await response.json();
+            return payload.orders || [];
+        } catch (_error) {
+            return null;
         }
     }
 
-    function syncPartialSectionVisibility() {
-        if (!partialWidget) return;
+    async function fetchOrderLines(orderId) {
+        if (!orderId || !orderLinesUrlTemplate) return [];
+        let url = orderLinesUrlTemplate.replace('__ORDER_ID__', encodeURIComponent(orderId));
+        if (memoId) {
+            url += (url.includes('?') ? '&' : '?') + 'memo_id=' + encodeURIComponent(memoId);
+        }
 
-        let hasPartialMode = false;
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(function (row) {
-            if (!rowVisible(row)) return;
-            const modeSelect = row.querySelector('select[name$="-line_mode"]');
-            if (!modeSelect) return;
+        try {
+            const response = await fetch(url, { credentials: 'same-origin' });
+            if (!response.ok) return [];
+            const payload = await response.json();
+            return payload.lines || [];
+        } catch (_error) {
+            return [];
+        }
+    }
 
-            if (getModeValue(modeSelect) === 'partial') {
-                hasPartialMode = true;
+    async function refreshRowOrderLines(row) {
+        const els = rowElements(row);
+        if (!els.order || !els.orderLine) return;
+
+        if (!els.order.value) {
+            setOptions(els.orderLine, [], '');
+            return;
+        }
+
+        const orderId = String(els.order.value);
+        if (!currentOrderLineOptions[orderId]) {
+            currentOrderLineOptions[orderId] = await fetchOrderLines(orderId);
+        }
+
+        setOptions(els.orderLine, currentOrderLineOptions[orderId], els.orderLine.value);
+        setSelectPlaceholder(els.orderLine, 'Buscar línea...');
+    }
+
+    function validateHeaderRequiredFields() {
+        const requiredFields = [
+            { field: contractSelect, message: 'Debe seleccionar un contrato.' },
+            { field: memoNumberInput, message: 'Debe indicar el número de memorándum.' },
+            { field: memoDateInput, message: 'Debe indicar la fecha del memorándum.' },
+            { field: receivedByInput, message: 'Debe indicar quién recibe.' },
+            { field: senderPositionInput, message: 'Debe indicar el cargo del remitente.' },
+        ];
+
+        requiredFields.forEach(function (item) {
+            if (item.field && formErrors.clearFieldError) {
+                formErrors.clearFieldError(item.field);
             }
         });
 
-        partialWidget.classList.toggle('memo-partials-collapsed', !hasPartialMode);
-        if (addPartialBtn) {
-            addPartialBtn.disabled = !hasPartialMode;
-            addPartialBtn.classList.toggle('disabled', !hasPartialMode);
-            if (!hasPartialMode) {
-                addPartialBtn.setAttribute('title', 'Disponible solo cuando exista al menos una linea en modo parcial.');
-            } else {
-                addPartialBtn.removeAttribute('title');
-            }
-        }
-        if (!hasPartialMode) {
-            clearPartialCoverageErrorState();
-        }
-
-        return hasPartialMode;
-    }
-
-    function clearPartialLineErrors() {
-        partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(function (row) {
-            clearRowInvalidState(row);
-
-            const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-            const lineSelect = row.querySelector('select[name$="-purchase_order_line"]');
-            const qtyInput = row.querySelector('input[name$="-fulfilled_quantity"]');
-
-            [orderSelect, lineSelect, qtyInput].forEach(function (field) {
-                if (!field || !formErrors.clearFieldError) return;
-                formErrors.clearFieldError(field);
-            });
-        });
-    }
-
-    function validatePartialCoverage() {
-        clearPartialCoverageErrorState();
-        clearPartialLineErrors();
-
-        const partialOrderIds = new Set();
-        const hasDetailByOrder = new Map();
-        let firstInvalidPartialField = null;
-        let firstBlankPartialOrderSelect = null;
-
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(function (row) {
-            if (!rowVisible(row)) return;
-
-            const mode = row.querySelector('select[name$="-line_mode"]');
-            const order = row.querySelector('select[name$="-purchase_order"]');
-            if (!mode || !order || !order.value) return;
-
-            if (mode.value === 'partial') {
-                const orderId = String(order.value);
-                partialOrderIds.add(orderId);
-                hasDetailByOrder.set(orderId, false);
-            }
-        });
-
-        partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(function (row) {
-            if (!rowVisible(row)) return;
-
-            const order = row.querySelector('select[name$="-purchase_order"]');
-            const line = row.querySelector('select[name$="-purchase_order_line"]');
-            const qty = row.querySelector('input[name$="-fulfilled_quantity"]');
-            if (!order || !line || !qty) return;
-
-            const orderValue = String(order.value || '').trim();
-            const lineValue = String(line.value || '').trim();
-            const qtyValue = String(qty.value || '').trim();
-
-            const hasAnyValue = orderValue !== '' || lineValue !== '' || qtyValue !== '';
-            const isComplete = orderValue !== '' && lineValue !== '' && qtyValue !== '';
-
-            if (!hasAnyValue) {
-                if (!firstBlankPartialOrderSelect) {
-                    firstBlankPartialOrderSelect = order;
-                }
-                return;
-            }
-
-            if (!isComplete) {
-                markRowInvalid(row);
-
-                if (orderValue === '' && formErrors.markFieldInvalid) {
-                    formErrors.markFieldInvalid(order, 'Debe seleccionar una orden de compra.');
-                    if (!firstInvalidPartialField) firstInvalidPartialField = order;
-                }
-                if (lineValue === '' && formErrors.markFieldInvalid) {
-                    formErrors.markFieldInvalid(line, 'Debe seleccionar una linea de orden.');
-                    if (!firstInvalidPartialField) firstInvalidPartialField = line;
-                }
-                if (qtyValue === '' && formErrors.markFieldInvalid) {
-                    formErrors.markFieldInvalid(qty, 'Debe indicar la cantidad cumplida.');
-                    if (!firstInvalidPartialField) firstInvalidPartialField = qty;
-                }
-                return;
-            }
-
-            const key = orderValue;
-            if (hasDetailByOrder.has(key)) {
-                hasDetailByOrder.set(key, true);
-            }
-        });
-
-        if (firstInvalidPartialField) {
-            if (partialWidget) {
-                partialWidget.classList.add('js-client-invalid-block');
-            }
-            return {
-                ok: false,
-                kind: 'empty-partial-field',
-                field: firstInvalidPartialField,
-            };
-        }
-
-        for (const oid of partialOrderIds) {
-            if (!hasDetailByOrder.get(oid)) {
-                if (firstBlankPartialOrderSelect && formErrors.markFieldInvalid) {
-                    const firstBlankRow = firstBlankPartialOrderSelect.closest('tr[data-row-kind="partial"]');
-                    markRowInvalid(firstBlankRow);
-
-                    formErrors.markFieldInvalid(firstBlankPartialOrderSelect, 'Debe seleccionar una orden de compra.');
-                    if (partialWidget) {
-                        partialWidget.classList.add('js-client-invalid-block');
-                    }
-                    return {
-                        ok: false,
-                        kind: 'empty-partial-field',
-                        field: firstBlankPartialOrderSelect,
-                    };
-                }
-
-                if (partialWidget) {
-                    partialWidget.classList.add('js-client-invalid-block');
-                }
-                return {
-                    ok: false,
-                    kind: 'missing-partial-detail',
-                    field: null,
-                };
-            }
-        }
-
-        return { ok: true };
-    }
-
-    function clearEmptyMemoErrorState() {
-        if (orderWidget) {
-            orderWidget.classList.remove('js-client-invalid-block');
-        }
-    }
-
-    function clearOrderLineErrors() {
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(function (row) {
-            clearRowInvalidState(row);
-
-            const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-            if (!orderSelect) return;
-            if (formErrors.clearFieldError) {
-                formErrors.clearFieldError(orderSelect);
-            }
-        });
-    }
-
-    function validateAtLeastOneOrderLine() {
-        clearEmptyMemoErrorState();
-        clearOrderLineErrors();
-
-        let hasAtLeastOneOrder = false;
-        let visibleRows = 0;
-        let firstEmptyOrderSelect = null;
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(function (row) {
-            if (!rowVisible(row)) return;
-            visibleRows += 1;
-
-            const orderSelect = row.querySelector('select[name$="-purchase_order"]');
-            if (!orderSelect) return;
-
-            if (String(orderSelect.value || '').trim() !== '') {
-                hasAtLeastOneOrder = true;
-                return;
-            }
-
-            if (!firstEmptyOrderSelect) {
-                firstEmptyOrderSelect = orderSelect;
-            }
-        });
-
-        if (hasAtLeastOneOrder) {
-            return { ok: true };
-        }
-
-        if (visibleRows > 0 && firstEmptyOrderSelect) {
-            const firstEmptyRow = firstEmptyOrderSelect.closest('tr[data-row-kind="order"]');
-            markRowInvalid(firstEmptyRow);
-
+        for (const item of requiredFields) {
+            if (!item.field) continue;
+            if (String(item.field.value || '').trim() !== '') continue;
             if (formErrors.markFieldInvalid) {
-                formErrors.markFieldInvalid(firstEmptyOrderSelect, 'Debe seleccionar una orden de compra.');
+                formErrors.markFieldInvalid(item.field, item.message);
             }
-            if (orderWidget) {
-                orderWidget.classList.add('js-client-invalid-block');
-            }
-            return {
-                ok: false,
-                kind: 'empty-order-field',
-                field: firstEmptyOrderSelect,
-            };
+            return item.field;
         }
 
-        if (orderWidget) {
-            orderWidget.classList.add('js-client-invalid-block');
+        const scopeValue = String((applicationScopeInput && applicationScopeInput.value) || '').trim();
+        const detailValue = String((applicationDetailInput && applicationDetailInput.value) || '').trim();
+        if (!scopeValue && !detailValue) {
+            if (formErrors.markFieldInvalid) {
+                formErrors.markFieldInvalid(applicationScopeInput, 'Debe seleccionar un ámbito o especificar un detalle.');
+            }
+            return applicationScopeInput;
         }
-        return {
-            ok: false,
-            kind: 'no-order-rows',
-            field: null,
-        };
+
+        return null;
+    }
+
+    function rowHasAnyData(row) {
+        const els = rowElements(row);
+        return [
+            els.order && els.order.value,
+            els.orderLine && els.orderLine.value,
+            els.fulfilledQuantity && els.fulfilledQuantity.value,
+            els.applicationScope && els.applicationScope.value,
+            els.applicationDetail && els.applicationDetail.value,
+            els.observations && els.observations.value,
+        ].some(Boolean);
+    }
+
+    function validateRow(row, options) {
+        const requireCompleted = !!(options && options.requireCompleted);
+        const els = rowElements(row);
+        clearRowInvalidState(row);
+
+        if (els.del && els.del.checked) {
+            return true;
+        }
+
+        if (!rowHasAnyData(row)) {
+            if (!requireCompleted) {
+                return true;
+            }
+            row.classList.add('danger');
+            markRowFieldInvalid(row, els.order, 'Debe seleccionar una orden.');
+            return false;
+        }
+
+        if (!els.order || !els.order.value) {
+            markRowFieldInvalid(row, els.order, 'Debe seleccionar una orden.');
+            return false;
+        }
+        if (!els.orderLine || !els.orderLine.value) {
+            markRowFieldInvalid(row, els.orderLine, 'Debe seleccionar una línea.');
+            return false;
+        }
+        if (!els.fulfilledQuantity || String(els.fulfilledQuantity.value || '').trim() === '') {
+            markRowFieldInvalid(row, els.fulfilledQuantity, 'Debe indicar la cantidad cumplida.');
+            return false;
+        }
+
+        return true;
+    }
+
+    function hasActiveRows() {
+        return Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]')).some(function (row) {
+            const els = rowElements(row);
+            return !(els.del && els.del.checked);
+        });
+    }
+
+    function setupRow(row) {
+        const els = rowElements(row);
+        if (!els.order) return;
+
+        if (row.dataset.bound === '1') {
+            if (currentOrderOptions.length) {
+                setOptions(els.order, currentOrderOptions, els.order.value);
+            }
+            refreshRowOrderLines(row);
+            updateFillBtnVisibility(row);
+            return;
+        }
+
+        row.dataset.bound = '1';
+
+        setSelectPlaceholder(els.order, 'Buscar orden...');
+        setSelectPlaceholder(els.orderLine, 'Buscar línea...');
+        setSelectPlaceholder(els.applicationScope, 'Buscar ámbito...');
+
+        if (currentOrderOptions.length) {
+            setOptions(els.order, currentOrderOptions, els.order.value);
+        }
+
+        if (els.fulfilledQuantity && numberUtils.bindInputFormatting) {
+            numberUtils.bindInputFormatting(els.fulfilledQuantity, {
+                kind: 'quantity',
+                locale: 'es-PY',
+                precision: 0,
+            });
+        }
+
+        bindSelectChangeEvents(els.order, function () {
+            refreshRowOrderLines(row);
+            validateRow(row, { requireCompleted: false });
+            showFormFeedback('', 'danger');
+            updateFillBtnVisibility(row);
+        });
+
+        bindSelectChangeEvents(els.orderLine, function () {
+            validateRow(row, { requireCompleted: false });
+            showFormFeedback('', 'danger');
+        });
+
+        [els.fulfilledQuantity, els.applicationDetail, els.observations].forEach(function (field) {
+            if (!field) return;
+            field.addEventListener('input', function () {
+                if (formErrors.clearFieldError) {
+                    formErrors.clearFieldError(field);
+                }
+                showFormFeedback('', 'danger');
+            });
+        });
+
+        if (els.fillOrderBtn) {
+            els.fillOrderBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                fillOrderLines(row);
+            });
+        }
+
+        updateFillBtnVisibility(row);
+
+        updateDeleteRowState(row);
+        refreshRowOrderLines(row);
+    }
+
+    function addRow() {
+        if (!lineTemplate || !linesBody || !totalFormsInput) return;
+        const index = Number(totalFormsInput.value || '0');
+        const html = lineTemplate.innerHTML.replace(/__prefix__/g, String(index));
+        const temp = document.createElement('tbody');
+        temp.innerHTML = html.trim();
+        const row = temp.firstElementChild;
+        if (!row) return;
+
+        linesBody.appendChild(row);
+        totalFormsInput.value = String(index + 1);
+        initSelects(row);
+        setupRow(row);
+        refreshIndexes();
     }
 
     async function refreshContractData() {
-        const contractId = contractSelect ? contractSelect.value : '';
-        Object.keys(currentOrderLineOptions).forEach(function (k) {
-            delete currentOrderLineOptions[k];
+        const contractId = contractSelect ? String(contractSelect.value || '') : '';
+        Object.keys(currentOrderLineOptions).forEach(function (key) {
+            delete currentOrderLineOptions[key];
         });
 
         if (!contractId) {
             currentOrderOptions = [];
-            orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(setupOrderRow);
-            partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
+            Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]')).forEach(function (row) {
+                const els = rowElements(row);
+                setOptions(els.order, [], '');
+                setOptions(els.orderLine, [], '');
+            });
             return;
         }
 
         const fetched = await fetchContractOrders(contractId);
         if (fetched === null) {
-            showFormFeedback('No se pudieron cargar las ordenes del contrato.', 'warning');
+            showFormFeedback('No se pudieron cargar las órdenes del contrato.', 'warning');
             return;
         }
 
         currentOrderOptions = fetched || [];
-        orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(setupOrderRow);
-        partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(setupPartialRow);
-    }
-
-    function decorateFieldsWithErrors(container) {
-        if (formErrors.decorateFieldsWithErrors) {
-            formErrors.decorateFieldsWithErrors(container || form);
+        if (!currentOrderOptions.length) {
+            showFormFeedback('El contrato seleccionado no tiene órdenes de compra disponibles.', 'warning');
+        } else {
+            showFormFeedback('', 'danger');
         }
+        Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]')).forEach(function (row) {
+            setupRow(row);
+        });
     }
 
-    orderBody.querySelectorAll('tr[data-row-kind="order"]').forEach(function (row) {
-        setupOrderRow(row);
-        updateDeleteRowState(row);
-    });
-    partialBody.querySelectorAll('tr[data-row-kind="partial"]').forEach(function (row) {
-        setupPartialRow(row);
-        updateDeleteRowState(row);
-    });
-    refreshRowIndexes(orderBody);
-    refreshRowIndexes(partialBody);
-    syncPartialSectionVisibility();
+    function resolveScopeTargetField(button) {
+        if (!button) return null;
+        const group = button.closest('.input-group');
+        if (group) {
+            const inGroup = group.querySelector('select[name$="application_scope"]');
+            if (inGroup) return inGroup;
+        }
+        const row = button.closest('tr');
+        if (row) {
+            const inRow = row.querySelector('select[name$="application_scope"]');
+            if (inRow) return inRow;
+        }
+        return applicationScopeInput;
+    }
 
-    form.addEventListener('click', function (e) {
-        const btn = e.target.closest('.js-delete-line-btn');
-        if (btn) removeRow(btn);
+    function openScopeModal() {
+        if (!scopeModal) {
+            showFormFeedback('No se encontró el modal para crear ámbito.', 'warning');
+            return;
+        }
+
+        if (scopeNameInput) scopeNameInput.value = '';
+        if (scopeTypeInput && !scopeTypeInput.value) scopeTypeInput.value = 'sector';
+
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+            window.jQuery(scopeModal).modal('show');
+            window.setTimeout(function () {
+                if (scopeNameInput) scopeNameInput.focus();
+            }, 220);
+            return;
+        }
+
+        scopeModal.style.display = 'block';
+        scopeModal.classList.add('in');
+        if (scopeNameInput) scopeNameInput.focus();
+    }
+
+    function closeScopeModal() {
+        if (!scopeModal) return;
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+            window.jQuery(scopeModal).modal('hide');
+            return;
+        }
+        scopeModal.style.display = 'none';
+        scopeModal.classList.remove('in');
+    }
+
+    async function createApplicationScopeQuick(targetField) {
+        if (!applicationScopeCreateUrl || !targetField) {
+            showFormFeedback('No se pudo inicializar la creación del ámbito.', 'warning');
+            return;
+        }
+
+        const name = scopeNameInput ? String(scopeNameInput.value || '').trim() : '';
+        const scopeType = scopeTypeInput ? String(scopeTypeInput.value || 'sector').trim() : 'sector';
+        if (!name) {
+            if (scopeNameInput) scopeNameInput.focus();
+            return;
+        }
+
+        if (scopeSaveBtn) scopeSaveBtn.disabled = true;
+
+        let response;
+        try {
+            response = await fetch(applicationScopeCreateUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ name: name, scope_type: scopeType }),
+            });
+        } catch (_error) {
+            showFormFeedback('No se pudo crear el ámbito por un error de conexión.', 'danger');
+            if (scopeSaveBtn) scopeSaveBtn.disabled = false;
+            return;
+        }
+
+        if (!response.ok) {
+            showFormFeedback('No se pudo crear el ámbito.', 'danger');
+            if (scopeSaveBtn) scopeSaveBtn.disabled = false;
+            return;
+        }
+
+        const payload = await response.json();
+        const scope = payload.scope;
+        if (!scope || !scope.id) {
+            showFormFeedback('Respuesta inválida al crear ámbito.', 'danger');
+            if (scopeSaveBtn) scopeSaveBtn.disabled = false;
+            return;
+        }
+
+        const value = String(scope.id);
+        if (targetField.tomselect) {
+            if (!targetField.tomselect.options[value]) {
+                targetField.tomselect.addOption({ value: value, text: scope.name });
+            }
+            targetField.tomselect.setValue(value, true);
+        } else {
+            let option = Array.from(targetField.options || []).find(function (opt) {
+                return String(opt.value) === value;
+            });
+            if (!option) {
+                option = document.createElement('option');
+                option.value = value;
+                option.textContent = scope.name;
+                targetField.appendChild(option);
+            }
+            targetField.value = value;
+        }
+
+        targetField.dispatchEvent(new Event('change', { bubbles: true }));
+        if (scopeSaveBtn) scopeSaveBtn.disabled = false;
+        pendingScopeTargetField = null;
+        closeScopeModal();
+        showFormFeedback('Ámbito agregado correctamente.', 'success');
+    }
+
+    form.addEventListener('click', function (event) {
+        const deleteButton = event.target.closest('.js-delete-line-btn');
+        if (deleteButton) {
+            const row = deleteButton.closest('tr[data-row-kind="order"]');
+            if (!row) return;
+            if (window.SIGECOPLineDelete && typeof window.SIGECOPLineDelete.toggleRow === 'function') {
+                window.SIGECOPLineDelete.toggleRow(row, {
+                    hideNextErrorRow: true,
+                    labels: {
+                        deleteText: 'Eliminar detalle',
+                        restoreText: 'Restaurar detalle',
+                    },
+                });
+            }
+            updateDeleteRowState(row);
+            return;
+        }
+
+        const scopeButton = event.target.closest('.js-add-scope-btn');
+        if (scopeButton) {
+            event.preventDefault();
+            pendingScopeTargetField = resolveScopeTargetField(scopeButton);
+            openScopeModal();
+        }
     });
 
-    form.addEventListener('submit', function (e) {
+    if (scopeSaveBtn) {
+        scopeSaveBtn.addEventListener('click', function () {
+            createApplicationScopeQuick(pendingScopeTargetField);
+        });
+    }
+
+    if (scopeNameInput) {
+        scopeNameInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (scopeSaveBtn) scopeSaveBtn.click();
+            }
+        });
+    }
+
+    form.addEventListener('submit', function (event) {
         const invalidHeaderField = validateHeaderRequiredFields();
         if (invalidHeaderField) {
-            e.preventDefault();
+            event.preventDefault();
             showFormFeedback('Complete los campos obligatorios de la cabecera.', 'danger');
             const wrapper = invalidHeaderField.closest('.row') || invalidHeaderField;
             if (wrapper && wrapper.scrollIntoView) {
@@ -708,47 +690,26 @@
             return;
         }
 
-        const orderValidation = validateAtLeastOneOrderLine();
-        if (!orderValidation.ok) {
-            e.preventDefault();
-            if (orderValidation.kind === 'empty-order-field') {
-                showFormFeedback('Complete los campos obligatorios de las lineas de orden.', 'danger');
-                const wrapper = orderValidation.field.closest('tr') || orderValidation.field;
-                if (wrapper && wrapper.scrollIntoView) {
-                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            } else {
-                showFormFeedback('Debe agregar al menos una linea de cumplimiento.', 'danger');
-                if (orderWidget && orderWidget.scrollIntoView) {
-                    orderWidget.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+        if (!hasActiveRows()) {
+            event.preventDefault();
+            showFormFeedback('Debe agregar al menos una línea de cumplimiento.', 'danger');
+            if (linesWidget && linesWidget.scrollIntoView) {
+                linesWidget.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             return;
         }
 
-        const partialCoverageValidation = validatePartialCoverage();
-        if (!partialCoverageValidation.ok) {
-            e.preventDefault();
-            if (partialCoverageValidation.kind === 'empty-partial-field') {
-                showFormFeedback('Complete los campos obligatorios de las lineas parciales.', 'danger');
-                const wrapper = partialCoverageValidation.field.closest('tr') || partialCoverageValidation.field;
-                if (wrapper && wrapper.scrollIntoView) {
-                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            } else {
-                showFormFeedback('Cada orden marcada en modo parcial debe tener al menos un detalle parcial por linea.', 'danger');
-                if (partialWidget && partialWidget.scrollIntoView) {
-                    partialWidget.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+        const rows = Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]'));
+        for (const row of rows) {
+            if (!validateRow(row, { requireCompleted: true })) {
+                event.preventDefault();
+                showFormFeedback('Complete los campos obligatorios de cada línea.', 'danger');
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
             }
-            return;
         }
 
-        clearEmptyMemoErrorState();
-        clearPartialCoverageErrorState();
-        showFormFeedback('', 'danger');
-
-        partialBody.querySelectorAll('input[name$="-fulfilled_quantity"]').forEach(function (input) {
+        Array.from(linesBody.querySelectorAll('input[name$="-fulfilled_quantity"]')).forEach(function (input) {
             if (numberUtils.normalizeInputForSubmit) {
                 numberUtils.normalizeInputForSubmit(input, {
                     kind: 'quantity',
@@ -757,6 +718,29 @@
             }
         });
     });
+
+    [memoNumberInput, memoDateInput, applicationScopeInput, applicationDetailInput, receivedByInput, senderPositionInput].forEach(function (field) {
+        if (!field) return;
+        field.addEventListener('input', function () {
+            if (formErrors.clearFieldError) {
+                formErrors.clearFieldError(field);
+            }
+            showFormFeedback('', 'danger');
+        });
+        field.addEventListener('change', function () {
+            if (formErrors.clearFieldError) {
+                formErrors.clearFieldError(field);
+            }
+            showFormFeedback('', 'danger');
+        });
+    });
+
+    if (addLineButton) {
+        addLineButton.addEventListener('click', addRow);
+    }
+
+    initSelects(form);
+    disableNativeRequiredOnEnhancedSelects(form);
 
     if (contractSelect) {
         bindSelectChangeEvents(contractSelect, function () {
@@ -767,73 +751,11 @@
         });
     }
 
-    [memoNumberInput, memoDateInput, beneficiarySectorInput, receivedByInput, senderPositionInput].forEach(function (field) {
-        if (!field) return;
-        field.addEventListener('input', function () {
-            if (formErrors.clearFieldError) {
-                formErrors.clearFieldError(field);
-            }
-        });
-        field.addEventListener('change', function () {
-            if (formErrors.clearFieldError) {
-                formErrors.clearFieldError(field);
-            }
-        });
+    Array.from(linesBody.querySelectorAll('tr[data-row-kind="order"]')).forEach(function (row) {
+        setupRow(row);
     });
 
-    orderBody.addEventListener('change', function (e) {
-        if (e.target && e.target.matches('select[name$="-purchase_order"]')) {
-            if (formErrors.clearFieldError) {
-                formErrors.clearFieldError(e.target);
-            }
-            clearEmptyMemoErrorState();
-            showFormFeedback('', 'danger');
-        }
-    });
-
-    partialBody.addEventListener('change', function (e) {
-        if (!e.target) return;
-        if (
-            e.target.matches('select[name$="-purchase_order"]') ||
-            e.target.matches('select[name$="-purchase_order_line"]')
-        ) {
-            if (formErrors.clearFieldError) {
-                formErrors.clearFieldError(e.target);
-            }
-            clearPartialCoverageErrorState();
-            showFormFeedback('', 'danger');
-        }
-    });
-
-    partialBody.addEventListener('input', function (e) {
-        if (!e.target || !e.target.matches('input[name$="-fulfilled_quantity"]')) return;
-        if (formErrors.clearFieldError) {
-            formErrors.clearFieldError(e.target);
-        }
-        clearPartialCoverageErrorState();
-        showFormFeedback('', 'danger');
-    });
-
-    if (addOrderBtn) {
-        addOrderBtn.addEventListener('click', function () {
-            addRow(orderTemplate, orderBody, orderTotalForms, setupOrderRow);
-            syncPartialSectionVisibility();
-        });
-    }
-
-    if (addPartialBtn) {
-        addPartialBtn.addEventListener('click', function () {
-            const canAddPartialRows = syncPartialSectionVisibility();
-            if (!canAddPartialRows) {
-                return;
-            }
-            addRow(partialTemplate, partialBody, partialTotalForms, setupPartialRow);
-        });
-    }
-
-    decorateFieldsWithErrors(form);
-    disableNativeRequiredOnEnhancedSelects(form);
+    refreshIndexes();
     showFormFeedback('', 'danger');
     refreshContractData();
-    syncPartialSectionVisibility();
 })();

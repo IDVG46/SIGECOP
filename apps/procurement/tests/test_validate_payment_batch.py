@@ -132,7 +132,7 @@ class ValidatePaymentAllocationBatchTests(TestCase):
 
         self.memo = create_fulfillment_memo(
             contract=self.contract,
-            beneficiary_sector="Mantenimiento",
+            application_detail="Mantenimiento",
             memo_number="MEMO-BATCH-001",
             memo_date=timezone.now().date(),
             created_by=self.user,
@@ -207,7 +207,7 @@ class ValidatePaymentAllocationBatchTests(TestCase):
 
         limited_memo = create_fulfillment_memo(
             contract=self.contract,
-            beneficiary_sector="Mantenimiento",
+            application_detail="Mantenimiento",
             memo_number="MEMO-BATCH-002",
             memo_date=timezone.now().date(),
             created_by=self.user,

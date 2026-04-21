@@ -1,0 +1,31 @@
+#amendment-form .widget-main .form-control.js-client-invalid {
+    border-color: #d15b47 !important;
+}
+
+#amendment-form .widget-main .form-control.js-client-invalid:focus,
+#amendment-form .widget-main input.js-client-invalid:focus,
+#amendment-form .widget-main select.js-client-invalid:focus,
+#amendment-form .widget-main textarea.js-client-invalid:focus {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 3px rgba(209, 91, 71, 0.18) !important;
+}
+
+#amendment-form .widget-main #id_amendment_number.js-client-invalid,
+#amendment-form .widget-main #id_amendment_number.js-client-invalid:focus {
+    border-color: #d15b47 !important;
+    box-shadow: none !important;
+}
+
+#amendment-form .widget-main select.js-client-invalid + .ts-wrapper .ts-control,
+#amendment-form .widget-main .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 1px rgba(209, 91, 71, 0.15);
+}
+
+#amendment-form .widget-main select.js-client-invalid + .ts-wrapper.focus .ts-control,
+#amendment-form .widget-main select.js-client-invalid + .ts-wrapper.input-active .ts-control,
+#amendment-form .widget-main .ts-wrapper.focus .ts-control.js-client-invalid-control,
+#amendment-form .widget-main .ts-wrapper.input-active .ts-control.js-client-invalid-control {
+    border-color: #d15b47 !important;
+    box-shadow: 0 0 0 3px rgba(209, 91, 71, 0.18) !important;
+}

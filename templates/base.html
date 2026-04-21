@@ -225,6 +225,13 @@
             </a>
             <b class="arrow"></b>
           </li>
+          <li class="{% if request.resolver_match.url_name == 'amendment_list' or request.resolver_match.url_name == 'amendment_create' or request.resolver_match.url_name == 'amendment_update' or request.resolver_match.url_name == 'amendment_detail' %}active{% endif %}">
+            <a href="{% url 'procurement:amendment_list' %}">
+              <i class="menu-icon fa fa-files-o"></i>
+              <span class="menu-text">Adendas</span>
+            </a>
+            <b class="arrow"></b>
+          </li>
         </ul><!-- /.nav-list -->
 
         <div class="sidebar-toggle sidebar-collapse" id="sidebar-collapse">

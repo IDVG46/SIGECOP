@@ -168,7 +168,7 @@ class FinanceModelsPhaseATests(TestCase):
     def test_fulfillment_memo_line_must_belong_to_same_order(self):
         memo = FulfillmentMemo.objects.create(
             contract=self.contract,
-            beneficiary_sector="Mantenimiento",
+            application_detail="Mantenimiento",
             memo_number="MEMO-001",
             memo_date=timezone.now().date(),
             status=FulfillmentMemo.STATUS_ISSUED,

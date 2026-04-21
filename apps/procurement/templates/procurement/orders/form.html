@@ -25,7 +25,7 @@ Orden de compra
 {% endblock %}
 
 {% block content %}
-<form method="post" id="order-form" class="proc-form" novalidate data-line-options-url-template="{{ line_options_base_url }}" data-supplier-options-url-template="{{ supplier_options_base_url }}" data-edit-mode="{% if is_edit_mode %}1{% else %}0{% endif %}">
+<form method="post" id="order-form" class="proc-form" novalidate data-line-options-url-template="{{ line_options_base_url }}" data-supplier-options-url-template="{{ supplier_options_base_url }}" data-edit-mode="{% if is_edit_mode %}1{% else %}0{% endif %}" data-application-scope-create-url="{{ application_scope_create_url }}">
     {% csrf_token %}
     <div class="alert form-intro">
         <strong><i class="fa fa-info-circle"></i> Consejo:</strong>
@@ -54,7 +54,7 @@ Orden de compra
                         {{ form.supplier }}{{ form.supplier.errors }}
                     </div>
                 </div>
-                <div class="row" style="margin-top: 10px;">
+                <div class="row proc-row-top">
                     <div class="col-sm-3">
                         <label for="{{ form.issue_date.id_for_label }}">{{ form.issue_date.label }}<span class="required-marker">*</span></label>
                         {{ form.issue_date }}{{ form.issue_date.errors }}
@@ -66,18 +66,30 @@ Orden de compra
                     <div class="col-sm-3">{{ form.status.label_tag }}{{ form.status }}{{ form.status.errors }}</div>
                     <div class="col-sm-3">{{ form.delivery_term.label_tag }}{{ form.delivery_term }}{{ form.delivery_term.errors }}</div>
                 </div>
-                <div class="row" style="margin-top: 10px;">
+                <div class="row proc-row-top">
                     <div class="col-sm-6">{{ form.delivery_place.label_tag }}{{ form.delivery_place }}{{ form.delivery_place.errors }}</div>
                     <div class="col-sm-6">
                         {{ form.notes.label_tag }}
-                        <input
-                            type="text"
-                            name="{{ form.notes.html_name }}"
-                            id="{{ form.notes.id_for_label }}"
-                            value="{{ form.notes.value|default_if_none:'' }}"
-                            class="form-control"
-                        >
-                        {{ form.notes.errors }}
+                        {{ form.notes }}{{ form.notes.errors }}
+                    </div>
+                </div>
+                <div class="row proc-row-top">
+                    <div class="col-sm-4">
+                        <label for="{{ form.application_scope.id_for_label }}">{{ form.application_scope.label }}</label>
+                        <div class="input-group">
+                            {{ form.application_scope }}
+                            <span class="input-group-btn">
+                                <button type="button" class="btn btn-xs btn-success scope-add-btn js-add-scope-btn" title="Agregar ámbito">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </span>
+                        </div>
+                        {{ form.application_scope.errors }}
+                    </div>
+                    <div class="col-sm-8">
+                        {{ form.application_detail.label_tag }}
+                        {{ form.application_detail }}
+                        {{ form.application_detail.errors }}
                     </div>
                 </div>
 
@@ -130,6 +142,8 @@ Orden de compra
                             <th>Subitem</th>
                             <th>Cantidad</th>
                             <th>Precio Unit.</th>
+                                     <th>Ámbito</th>
+                                     <th>Detalle específico</th>
                             <th>Total</th>
                                {% include "procurement/components/line_actions_header.html" %}
                         </tr>
@@ -148,6 +162,17 @@ Orden de compra
                                 {{ line_form.quantity }}{{ line_form.quantity.errors }}
                             </td>
                             <td>{{ line_form.unit_price }}{{ line_form.unit_price.errors }}</td>
+                            <td>
+                                <div class="input-group">
+                                    {{ line_form.application_scope }}{{ line_form.application_scope.errors }}
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-xs btn-success scope-add-btn js-add-scope-btn" title="Agregar ámbito">
+                                            <i class="fa fa-plus"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </td>
+                            <td>{{ line_form.application_detail }}{{ line_form.application_detail.errors }}</td>
                             <td class="line-total-cell js-line-total">-</td>
                                <td class="text-center proc-col-actions">
                                 {{ line_form.DELETE }}
@@ -156,7 +181,7 @@ Orden de compra
                         </tr>
                         {% if line_form.non_field_errors %}
                         <tr>
-                            <td colspan="8" class="text-danger">{{ line_form.non_field_errors }}</td>
+                            <td colspan="10" class="text-danger">{{ line_form.non_field_errors }}</td>
                         </tr>
                         {% endif %}
                         {% endfor %}
@@ -189,6 +214,17 @@ Orden de compra
                 {{ line_formset.empty_form.quantity }}
             </td>
             <td>{{ line_formset.empty_form.unit_price }}</td>
+            <td>
+                <div class="input-group">
+                    {{ line_formset.empty_form.application_scope }}
+                    <span class="input-group-btn">
+                        <button type="button" class="btn btn-xs btn-success scope-add-btn js-add-scope-btn" title="Agregar ámbito">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </span>
+                </div>
+            </td>
+            <td>{{ line_formset.empty_form.application_detail }}</td>
             <td class="line-total-cell js-line-total">-</td>
                <td class="text-center proc-col-actions">
                 {{ line_formset.empty_form.DELETE }}
@@ -199,6 +235,7 @@ Orden de compra
 
     {% url 'procurement:order_list' as order_cancel_url %}
     {% include "procurement/components/form_actions.html" with save_button_id="save-order-button" cancel_url=order_cancel_url %}
+        {% include "procurement/components/application_scope_modal.html" %}
 </form>
 {{ initial_contract_summary|json_script:"initial-contract-summary" }}
 {% endblock %}

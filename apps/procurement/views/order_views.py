@@ -14,18 +14,14 @@ from apps.procurement.forms import PurchaseOrderForm, PurchaseOrderLineEditFormS
 from apps.procurement.models import PurchaseOrder
 from apps.procurement.selectors import get_purchase_orders_queryset
 from apps.procurement.services import recalculate_contract_balances, recalculate_order_totals_and_balances
+from apps.procurement.views.mixins import HtmxTemplateMixin
 
 
-class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class PurchaseOrderListView(HtmxTemplateMixin, LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = "procurement.view_purchaseorder"
     template_name = "procurement/orders/list.html"
     partial_template_name = "procurement/orders/_table.html"
     context_object_name = "orders"
-
-    def get_template_names(self):
-        if self.request.headers.get("HX-Request") == "true":
-            return [self.partial_template_name]
-        return [self.template_name]
 
     def get_queryset(self):
         return get_purchase_orders_queryset().order_by("-issue_date")
@@ -110,10 +106,11 @@ class PurchaseOrderBaseView(LoginRequiredMixin, PermissionRequiredMixin):
 
         context["line_options_base_url"] = reverse_lazy("procurement:contract_line_options", kwargs={"contract_id": "__CONTRACT_ID__"})
         context["supplier_options_base_url"] = reverse_lazy("procurement:contract_suppliers", kwargs={"contract_id": "__CONTRACT_ID__"})
+        context["application_scope_create_url"] = reverse_lazy("procurement:application_scope_create")
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        context = self.get_context_data(form=form)
         line_formset = context["line_formset"]
         line_formset.instance = form.instance
 
